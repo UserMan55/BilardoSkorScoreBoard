@@ -1,23 +1,30 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import PlayerPanel from './PlayerPanel';
+import ScorePanel from './ScorePanel';
+import StatusBar from './StatusBar';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{
+      width: '100vw', height: '100vh',
+      background: '#212529', display: 'flex', flexDirection: 'column'
+    }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch', padding: '24px 32px 0 32px' }}>
+        <PlayerPanel
+          name="OSMAN DEMIREL"
+          score={20}
+          hr1={3} hr2={2} avg={1.000}
+          bg="#3b3b3b"
+        />
+        <ScorePanel inning={20} run={1} />
+        <PlayerPanel
+          name="ERKAN ARIK"
+          score={21}
+          hr1={4} hr2={3} avg={1.105}
+          bg="#22283e"
+        />
+      </div>
+      <StatusBar value={36} greenCount={10} yellowCount={4} redCount={5} />
     </div>
   );
 }
