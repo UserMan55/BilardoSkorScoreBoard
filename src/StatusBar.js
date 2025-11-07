@@ -1,19 +1,27 @@
 import React from 'react';
 
-function StatusBar({ value, greenCount, yellowCount, redCount }) {
+function StatusBar({ value }) {
   return (
     <div style={{
-      width: '100%', height: 56, display: 'flex',
-      alignItems: 'center', position: 'relative', marginBottom: 10
+      width: '100%',
+      height: 56,
+      display: 'flex',
+      alignItems: 'center',
+      position: 'relative',
+      marginBottom: 10,
+      background: '#fff',
+      borderRadius: 6,
+      overflow: 'hidden',
+      fontFamily: "Arial, sans-serif"
     }}>
-      {/* Renkli barlar */}
-      <div style={{ flex: greenCount, background: '#48d84d', height: '64%' }} />
-      <div style={{ flex: yellowCount, background: '#fec800', height: '64%' }} />
-      <div style={{ flex: redCount, background: '#d92323', height: '64%' }} />
-      {/* Ortadaki skor */}
       <div style={{
-        position: 'absolute', left: '50%',
-        fontSize: 38, fontWeight: 'bold', transform: 'translateX(-50%)', color: '#222'
+        position: 'absolute',
+        left: '50%',
+        fontSize: 38,
+        fontWeight: 'bold',
+        transform: 'translateX(-50%)',
+        color: '#222',
+        fontFamily: "Arial, sans-serif"
       }}>
         {value}
       </div>
