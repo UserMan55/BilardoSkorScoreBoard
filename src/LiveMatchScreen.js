@@ -1,87 +1,36 @@
-import React, { useEffect, useState } from "react";
-import { getPlayerNames } from "./firebase";
-import "./StartScreen.css";
-import LiveMatchScreen from "./LiveMatchScreen";
+import React, { useState } from "react";
+import "./LiveMatchScreen.css";
 
-function StartScreen({ onStart }) {
-  const [names, setNames] = useState([]);
-  const [player1, setPlayer1] = useState("");
-  const [player2, setPlayer2] = useState("");
+function LiveMatchScreen({ player1, player2, onStart }) {
   const [targetScore, setTargetScore] = useState(30);
   const [targetRack, setTargetRack] = useState(30);
   const [hasPenalty, setHasPenalty] = useState(false);
   const [hasAso, setHasAso] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showLiveMatch, setShowLiveMatch] = useState(false);
-
-  useEffect(() => {
-    async function fetchNames() {
-      try {
-        const result = await getPlayerNames();
-        console.log("Oyuncu isimleri:", result);
-        setNames(result);
-        if (!result || result.length === 0) {
-          setError("Veritabanında oyuncu ismi bulunamadı.");
-        }
-      } catch (err) {
-        setError("Veri çekilemedi: " + err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchNames();
-  }, []);
 
   const handleStart = () => {
-    if (player1 && player2 && player1 !== player2) {
-      onStart(player1, player2, targetScore, targetRack, hasPenalty, hasAso);
-    } else {
-      alert("Farklı iki oyuncu seçmelisiniz.");
-    }
+    onStart(player1, player2, targetScore, targetRack, hasPenalty, hasAso);
   };
 
-  if (loading) return <div className="loading-container">Yükleniyor...</div>;
-  if (error) return <div className="error-container">{error}</div>;
-
-  if (showLiveMatch && player1 && player2) {
-    return <LiveMatchScreen player1={player1} player2={player2} onStart={onStart} />;
-  }
-
   return (
-    <div className="start-screen-wrapper">
-      <div className="start-screen-panel">
-        <h1 className="panel-title">Oyuncu Seçimi</h1>
+    <div className="live-match-wrapper">
+      <div className="live-match-panel">
+        <h1 className="panel-title">Canlı Maç Başlat</h1>
         
         <div className="player-selection">
           <div className="player-input-group">
             <label className="player-label">1. Oyuncu</label>
-            <select 
-              value={player1} 
-              onChange={e => setPlayer1(e.target.value)}
-              className="player-select"
-            >
-              <option value="">Seçiniz</option>
-              {names.map((name, idx) => (
-                <option key={idx} value={name}>{name}</option>
-              ))}
-            </select>
+            <div className="player-display">
+              {player1}
+            </div>
           </div>
 
           <div className="vs-divider">VS</div>
 
           <div className="player-input-group">
             <label className="player-label">2. Oyuncu</label>
-            <select 
-              value={player2} 
-              onChange={e => setPlayer2(e.target.value)}
-              className="player-select"
-            >
-              <option value="">Seçiniz</option>
-              {names.filter(name => name !== player1).map((name, idx) => (
-                <option key={idx} value={name}>{name}</option>
-              ))}
-            </select>
+            <div className="player-display">
+              {player2}
+            </div>
           </div>
         </div>
 
@@ -147,24 +96,14 @@ function StartScreen({ onStart }) {
         </div>
 
         <button 
-          className={`start-button ${(player1 && player2) ? "active" : "disabled"}`}
+          className="start-button active"
           onClick={handleStart}
-          disabled={!player1 || !player2}
         >
           Maçı Başlat
         </button>
-
-        {player1 && player2 && (
-          <button 
-            className="test-button"
-            onClick={() => setShowLiveMatch(true)}
-          >
-            TEST: Canlı Maç Ekranı
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
-export default StartScreen;
+export default LiveMatchScreen;

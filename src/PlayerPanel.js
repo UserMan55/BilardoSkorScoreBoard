@@ -3,26 +3,31 @@ import React from 'react';
 function PlayerPanel({
   name, score, hr1, hr2, avg, bg,
   timeout1Used = false, timeout2Used = false,
-  playerIndex = 0
+  playerIndex = 0,
+  isActive = false,
+  borderColor = 'transparent',
+  timeoutLeft = 2
 }) {
   const formattedAvg = Number(avg).toFixed(3);
 
   return (
     <div style={{
       flex: 1,
-      minWidth: 420,      // Panel genişliği büyütüldü
-      maxWidth: 640,      // Maksimum genişlik artırıldı
+      minWidth: 420,
+      maxWidth: 640,
       background: playerIndex === 0 ? "#22283e" : bg,
       color: 'white',
       margin: '0 0',
-      padding: '36px',    // İç boşluk arttı
-      borderRadius: 28,   // Daha modern büyük köşe
+      padding: '36px',
+      borderRadius: 28,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      boxShadow: '0 8px 36px #0006', // Shadow’u da %50 oranında büyüttüm
+      boxShadow: isActive ? `0 0 30px ${borderColor}, 0 8px 36px #0006` : '0 8px 36px #0006',
+      border: isActive ? `4px solid ${borderColor}` : '4px solid transparent',
       fontFamily: "Arial, sans-serif",
-      position: 'relative'
+      position: 'relative',
+      transition: 'all 0.3s ease'
     }}>
       {/* Oyuncu Adı Kutusu */}
       <div style={{
@@ -42,7 +47,7 @@ function PlayerPanel({
       {/* Skor Kutusu ve Timeout */}
       <div style={{
         fontFamily: "Arial, sans-serif",
-        fontSize: 320,        // Skor alanı daha büyük
+        fontSize: 320,
         fontWeight: 'bold',
         marginBottom: 24,
         background: '#222',
@@ -54,35 +59,39 @@ function PlayerPanel({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative'
+        position: 'relative',
+        color: playerIndex === 1 ? '#FFD700' : '#fff'
       }}>
         {score}
-        {!timeout1Used && (
-          <div style={{
-            position: 'absolute',
-            left: 14,
-            bottom: 22,
-            width: 48,
-            height: 20,
-            background: '#48d84d',
-            borderRadius: 8,
-            boxShadow: '0 0 6px #0003',
-            border: '3px solid #185d26'
-          }} />
-        )}
-        {!timeout2Used && (
-          <div style={{
-            position: 'absolute',
-            left: 72,
-            bottom: 22,
-            width: 48,
-            height: 20,
-            background: '#48d84d',
-            borderRadius: 8,
-            boxShadow: '0 0 6px #0003',
-            border: '3px solid #185d26'
-          }} />
-        )}
+        {/* Timeout göstergeleri - sol alt */}
+        <div style={{
+          position: 'absolute',
+          left: 14,
+          bottom: 22,
+          display: 'flex',
+          gap: 8
+        }}>
+          {timeoutLeft >= 1 && (
+            <div style={{
+              width: 48,
+              height: 20,
+              background: '#48d84d',
+              borderRadius: 8,
+              boxShadow: '0 0 6px #0003',
+              border: '3px solid #185d26'
+            }} />
+          )}
+          {timeoutLeft >= 2 && (
+            <div style={{
+              width: 48,
+              height: 20,
+              background: '#48d84d',
+              borderRadius: 8,
+              boxShadow: '0 0 6px #0003',
+              border: '3px solid #185d26'
+            }} />
+          )}
+        </div>
       </div>
       {/* HR alanları */}
       <div style={{
@@ -141,7 +150,7 @@ function PlayerPanel({
       <div style={{
         fontFamily: "Arial, sans-serif",
         width: '96%',
-        background: '#fff',
+        background: playerIndex === 1 ? '#FFD700' : '#fff',
         borderRadius: 12,
         padding: '20px 0 12px 0',
         fontWeight: 'bold',

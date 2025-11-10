@@ -1,4 +1,4 @@
-.start-screen-wrapper {
+.live-match-wrapper {
   width: 100vw;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -8,7 +8,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.start-screen-panel {
+.live-match-panel {
   background: white;
   border-radius: 20px;
   padding: 50px;
@@ -47,27 +47,15 @@
   letter-spacing: 0.5px;
 }
 
-.player-select {
+.player-display {
   padding: 12px 15px;
   border: 2px solid #ddd;
   border-radius: 8px;
   font-size: 16px;
   color: #333;
   background-color: #f9f9f9;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.player-select:hover {
-  border-color: #667eea;
-  background-color: #f5f5ff;
-}
-
-.player-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  font-weight: 600;
+  text-align: center;
 }
 
 .vs-divider {
@@ -80,57 +68,6 @@
   align-items: center;
   justify-content: center;
   height: 60px;
-}
-
-.start-button {
-  width: 100%;
-  padding: 14px 30px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.start-button.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.start-button.active:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-}
-
-.start-button.disabled {
-  background: #e0e0e0;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.test-button {
-  width: 100%;
-  padding: 10px 20px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 2px dashed #FF9500;
-  border-radius: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: rgba(255, 149, 0, 0.1);
-  color: #FF9500;
-  margin-top: 15px;
-}
-
-.test-button:hover {
-  background: rgba(255, 149, 0, 0.2);
-  box-shadow: 0 2px 8px rgba(255, 149, 0, 0.3);
 }
 
 .match-settings {
@@ -273,30 +210,26 @@
   color: #333;
 }
 
-.loading-container {
-  width: 100vw;
-  height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
+.start-button {
+  width: 100%;
+  padding: 14px 30px;
+  font-size: 16px;
   font-weight: 600;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  border: none;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.error-container {
-  width: 100vw;
-  height: 100vh;
+.start-button.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ff6b6b;
-  font-size: 20px;
-  font-weight: 600;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  padding: 20px;
-  text-align: center;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.start-button.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
 }
