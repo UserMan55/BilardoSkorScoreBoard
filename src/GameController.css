@@ -1,0 +1,245 @@
+.game-controller-modal {
+  z-index: 1000;
+}
+
+.game-controller-wrapper {
+  background: rgba(26, 29, 35, 0.8);
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  padding: 0;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.drag-handle {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 8px 0;
+  border-radius: 10px 10px 0 0;
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle-bar {
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+}
+
+.game-controller {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 15px;
+  flex-direction: column;
+}
+
+.controller-section {
+  flex: 1;
+  display: none;
+}
+
+.current-player-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 15px 25px;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.current-player-info span {
+  font-size: 16px;
+  color: white;
+  font-weight: 600;
+}
+
+.player-name {
+  color: #FFD700;
+  font-size: 18px;
+}
+
+.controller-buttons {
+  display: flex;
+  gap: 10px;
+  flex: 0;
+  justify-content: center;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  width: auto;
+  box-sizing: 'border-box';
+}
+
+.top-buttons {
+  gap: 8px;
+}
+
+.bottom-buttons {
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.controller-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.btn-symbol {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.btn-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.minus-btn {
+  background: linear-gradient(135deg, #FF8787 0%, #FF6B6B 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.minus-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+}
+
+.minus-btn:active {
+  transform: translateY(0);
+}
+
+.timer-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.timer-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.timer-btn:active {
+  transform: translateY(0);
+}
+
+.timer-btn.active {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(102, 126, 234, 0.7);
+  }
+}
+
+.plus-btn {
+  background: linear-gradient(135deg, #6FE7DD 0%, #64D5CA 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(111, 231, 221, 0.3);
+}
+
+.plus-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(111, 231, 221, 0.5);
+}
+
+.plus-btn:active {
+  transform: translateY(0);
+}
+
+.ok-btn {
+  background: linear-gradient(135deg, #00FF00 0%, #00CC00 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
+  min-width: 110px;
+  font-weight: 700;
+}
+
+.ok-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 0, 0.5);
+}
+
+.ok-btn:active {
+  transform: translateY(0);
+}
+
+/* Exit Button Styles */
+.exit-button-container {
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.exit-btn {
+  background: linear-gradient(135deg, #DC143C 0%, #B22222 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(220, 20, 60, 0.4);
+  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  min-width: auto;
+  max-width: 50%;
+}
+
+.exit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 20, 60, 0.6);
+  background: linear-gradient(135deg, #FF1744 0%, #DC143C 100%);
+}
+
+.exit-btn:active {
+  transform: translateY(0);
+}
+
+.exit-btn .btn-symbol {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.exit-btn .btn-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Pulse animasyonu */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}

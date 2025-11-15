@@ -1,0 +1,42 @@
+.timer-progress-wrapper {
+  width: 100%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+  padding: 10px 0;
+}
+
+.progress-bar-container {
+  width: 100%;
+  max-width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 45px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0;
+  overflow: hidden;
+  border: none;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.1s linear;
+  box-shadow: none;
+}
+
+.timer-display-text {
+  font-size: 20px;
+  color: #000000;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
