@@ -1,0 +1,1329 @@
+import React, { useEffect, useState } from "react";
+import { getPlayerNames, sendRemoteStartCommand, listenToTableStatus, updateTableStatus } from "../services/firebase";
+import ScoreboardReceiver from "./ScoreboardReceiver";
+import MobileController from "./MobileController";
+import "./StartScreen.css";
+
+function StartScreen({ onStart, onSurvivalStart }) {
+  const [activeTab, setActiveTab] = useState("2vs2"); // "2vs2" or "survival"
+  const [names, setNames] = useState([]);
+  const [deviceMode, setDeviceMode] = useState(null); // 'controller', 'scoreboard', 'local'
+  const [isScoreboardMode, setIsScoreboardMode] = useState(false);
+  const [showMobileController, setShowMobileController] = useState(false);
+  
+  // Table Status State
+  const [tableStatus, setTableStatus] = useState(null); // { status: 'BUSY' | 'IDLE', currentMatch: ... }
+  const [isMatchInfoOpen, setIsMatchInfoOpen] = useState(false); // Accordion state
+
+  // 2vs2 states
+  const [player1, setPlayer1] = useState("");
+  const [player2, setPlayer2] = useState("");
+  const [isManualPlayer1, setIsManualPlayer1] = useState(false);
+  const [isManualPlayer2, setIsManualPlayer2] = useState(false);
+  const [manualPlayer1Name, setManualPlayer1Name] = useState("");
+  const [manualPlayer2Name, setManualPlayer2Name] = useState("");
+  const [targetScore, setTargetScore] = useState(30);
+  const [targetRack, setTargetRack] = useState(30);
+  const [hasPenalty, setHasPenalty] = useState(false);
+  const [hasAso, setHasAso] = useState(true);
+  
+  // Survival states
+  const [survivalPlayer1, setSurvivalPlayer1] = useState("");
+  const [survivalPlayer2, setSurvivalPlayer2] = useState("");
+  const [survivalPlayer3, setSurvivalPlayer3] = useState("");
+  const [survivalPlayer4, setSurvivalPlayer4] = useState("");
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [incomingMatchData, setIncomingMatchData] = useState(null);
+  const [showMatchStartOverlay, setShowMatchStartOverlay] = useState(false);
+  const [matchStartCountdown, setMatchStartCountdown] = useState(5);
+
+  // Firebase'den oyuncu isimlerini yükle
+  useEffect(() => {
+    const fetchNames = async () => {
+      try {
+        const playerNames = await getPlayerNames();
+        setNames(playerNames);
+        setLoading(false);
+      } catch (err) {
+        console.error('Oyuncu isimleri yüklenemedi:', err);
+        setError('Oyuncu isimleri yüklenemedi. Lütfen sayfayı yenileyin.');
+        setLoading(false);
+      }
+    };
+    fetchNames();
+  }, []);
+
+  // Cihaz tipini algıla - Mobil/Masaüstü otomatik algılama
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const screenWidth = window.innerWidth;
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Mobil algılama: User Agent VEYA (ekran <1024px VE touch var) VEYA (touch var VE tablet değil)
+    const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) 
+                   || (screenWidth <= 1024 && hasTouch);
+    
+    console.log('🔍 User Agent:', userAgent);
+    console.log('🔍 Screen Width:', screenWidth);
+    console.log('🔍 Has Touch:', hasTouch);
+    console.log('🔍 isMobile:', isMobile);
+    
+    if (isMobile) {
+      // Mobil cihaz -> Kumanda modu için StartScreen göster
+      console.log('📱 StartScreen: Mobil cihaz algılandı, mod seçim ekranı');
+      setDeviceMode('controller'); // DİKKAT: null yerine 'controller' yapıyoruz ki form açılsın
+      setIsScoreboardMode(false); // Scoreboard modunu kapat
+    } else {
+      // Masaüstü -> Ana ekranı (Logo) göster ve dinlemeye başla
+      console.log('🖥️ StartScreen: Masaüstü algılandı, Ana Ekran gösteriliyor');
+      setDeviceMode(null); // Logo ekranı
+      setIsScoreboardMode(false); // ScoreboardReceiver'ı kapat, StartScreen dinleyecek
+      
+      // Masaüstü uygulaması (Tabela) açıldığında ve boşta beklerken masayı IDLE yap
+      // Bu sayede önceki oturumdan kalan 'BUSY' durumu temizlenir.
+      updateTableStatus('table_1', 'IDLE');
+    }
+  }, []);
+
+  // Masa durumunu dinle (Mobil/Controller modu için)
+  useEffect(() => {
+    if (deviceMode === 'controller') {
+      const unsubscribe = listenToTableStatus('table_1', (data) => {
+        console.log('📊 Masa durumu güncellendi:', data);
+        setTableStatus(data);
+      });
+      return () => unsubscribe();
+    }
+  }, [deviceMode]);
+
+  // Mod seçim ekranında beklerken gelen maç komutlarını dinle
+  useEffect(() => {
+    if (deviceMode !== null) return; // Sadece mod seçim ekranındayken dinle
+    if (isScoreboardMode) return; // Scoreboard modundaysak dinleme (Receiver halleder)
+    
+    const { listenForMatchCommands } = require('../services/firebase');
+    
+    let isInitialLoad = true;
+    let lastProcessedTimestamp = 0;
+
+    const unsubscribe = listenForMatchCommands((data) => {
+      if (data && data.status === 'START') {
+        const currentTimestamp = data.timestamp?.seconds || 0;
+        
+        // Sayfa ilk açıldığında var olan komutu yoksay (Stale Data Prevention)
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          lastProcessedTimestamp = currentTimestamp;
+          console.log("⚠️ Başlangıçta var olan maç komutu yoksayıldı (Stale Data).");
+          return;
+        }
+
+        // Sadece yeni gelen (zaman damgası değişmiş) komutları işle
+        if (currentTimestamp > lastProcessedTimestamp) {
+            console.log('📡 YENİ Maç komutu alındı, overlay gösteriliyor...', data);
+            lastProcessedTimestamp = currentTimestamp;
+            setIncomingMatchData(data);
+            setShowMatchStartOverlay(true);
+            setMatchStartCountdown(5);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [deviceMode, isScoreboardMode]);
+
+  // Countdown Timer Logic - Ayrıştırıldı
+  useEffect(() => {
+    let timer;
+    if (showMatchStartOverlay) {
+      timer = setInterval(() => {
+        setMatchStartCountdown(prev => {
+          if (prev <= 1) {
+            // Countdown bitti, maçı başlat
+            setShowMatchStartOverlay(false);
+            setDeviceMode('local');
+            setTimeout(() => {
+              if (incomingMatchData) {
+                executeGameStart(incomingMatchData);
+              }
+            }, 100);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [showMatchStartOverlay, incomingMatchData]);
+
+  const handleStart = () => {
+    const finalPlayer1 = isManualPlayer1 ? manualPlayer1Name.trim() : player1;
+    const finalPlayer2 = isManualPlayer2 ? manualPlayer2Name.trim() : player2;
+
+    if (isManualPlayer1 && finalPlayer1.length < 2) {
+      setErrorMessage("⚠️ Oyuncu 1 ismi en az 2 karakter olmalı!");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
+    if (isManualPlayer2 && finalPlayer2.length < 2) {
+      setErrorMessage("⚠️ Oyuncu 2 ismi en az 2 karakter olmalı!");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+    
+    onStart(finalPlayer1, finalPlayer2, targetScore, targetRack, hasPenalty, hasAso);
+  };
+
+  const handleRemoteSend = async () => {
+    if (activeTab === "2vs2") {
+      const finalPlayer1 = isManualPlayer1 ? manualPlayer1Name.trim() : player1;
+      const finalPlayer2 = isManualPlayer2 ? manualPlayer2Name.trim() : player2;
+      
+      if (finalPlayer1 && finalPlayer2 && finalPlayer1 !== finalPlayer2) {
+        try {
+          await sendRemoteStartCommand({
+            mode: "2vs2",
+            players: [finalPlayer1, finalPlayer2],
+            settings: { targetScore, targetRack, hasPenalty, hasAso }
+          });
+          setErrorMessage("📡 Komut Başarıyla Gönderildi!");
+          setTimeout(() => {
+            setErrorMessage(null);
+            setShowMobileController(true); // Mobil kontrol paneline geç
+          }, 2000);
+        } catch (error) {
+          setErrorMessage("❌ Komut Gönderilemedi: " + error.message);
+        }
+      } else {
+        setErrorMessage("⚠️ Farklı iki oyuncu seçmelisiniz!");
+        setTimeout(() => setErrorMessage(null), 3000);
+      }
+    } else if (activeTab === "survival") {
+      const selectedPlayers = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4].filter(p => p !== "");
+      if (selectedPlayers.length >= 3) {
+        try {
+          await sendRemoteStartCommand({
+            mode: "survival",
+            players: selectedPlayers,
+            settings: {}
+          });
+          setErrorMessage("📡 Komut Başarıyla Gönderildi!");
+          setTimeout(() => setErrorMessage(null), 3000);
+        } catch (error) {
+          setErrorMessage("❌ Komut Gönderilemedi: " + error.message);
+        }
+      } else {
+        setErrorMessage("⚠️ En az 3 oyuncu seçmelisiniz!");
+        setTimeout(() => setErrorMessage(null), 3000);
+      }
+    }
+  };
+
+  const executeGameStart = (data) => {
+    if (data.mode === 'survival') {
+      if (onSurvivalStart) onSurvivalStart(data.players);
+    } else {
+      if (onStart) onStart(
+        data.players[0], 
+        data.players[1], 
+        data.settings.targetScore, 
+        data.settings.targetRack, 
+        data.settings.hasPenalty, 
+        data.settings.hasAso
+      );
+    }
+  };
+
+  const handleReceiverStart = (data) => {
+    // ScoreboardReceiver'dan tetiklendiğinde de overlay sürecini başlat
+    console.log('📡 ScoreboardReceiver tetikledi, overlay başlatılıyor...', data);
+    
+    // Veri kontrolü
+    if (!data) {
+      console.error('❌ HATA: handleReceiverStart boş veri aldı!');
+      return;
+    }
+
+    setIncomingMatchData(data);
+    setShowMatchStartOverlay(true);
+    setMatchStartCountdown(5);
+  };
+
+  const handleSurvivalStart = () => {
+    const selectedPlayers = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4].filter(p => p !== "");
+    
+    if (selectedPlayers.length < 3) {
+      setErrorMessage("⚠️ En az 3 oyuncu seçmelisiniz!");
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+    
+    if (onSurvivalStart) {
+      onSurvivalStart(selectedPlayers);
+    }
+  };
+
+  // Survival için seçilebilir oyuncuları filtrele
+  const getAvailableSurvivalPlayers = (currentPlayerId) => {
+    const selectedPlayers = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+      .filter(p => p !== "" && p !== currentPlayerId);
+    return names.filter(user => !selectedPlayers.includes(user.fullName));
+  };
+
+  console.log('🔍 StartScreen render:', { 
+    loading, 
+    deviceMode, 
+    isScoreboardMode, 
+    showMatchStartOverlay, 
+    hasIncomingData: !!incomingMatchData 
+  });
+
+  if (loading) return <div className="loading-container">Yükleniyor...</div>;
+  if (error) return <div className="error-container">{error}</div>;
+
+  // DEBUG: User Agent göster (geliştirme aşamasında)
+  const debugUserAgent = navigator.userAgent;
+  const debugScreenWidth = window.innerWidth;
+  const debugHasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const debugIsMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(debugUserAgent) 
+                     || (debugScreenWidth <= 1024 && debugHasTouch);
+
+  // Match Start Overlay
+  if (showMatchStartOverlay && incomingMatchData) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'linear-gradient(135deg, rgba(16, 20, 43, 0.98), rgba(30, 35, 65, 0.98))',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        animation: 'fadeIn 0.3s ease-in'
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '24px',
+          padding: '50px 60px',
+          border: '2px solid rgba(76, 175, 80, 0.3)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          textAlign: 'center',
+          maxWidth: '600px',
+          animation: 'slideUp 0.5s ease-out'
+        }}>
+          <div style={{
+            fontSize: '72px',
+            marginBottom: '30px',
+            animation: 'pulse 2s infinite'
+          }}>🎱</div>
+          
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: '700',
+            color: '#4CAF50',
+            marginBottom: '20px',
+            textShadow: '0 0 20px rgba(76, 175, 80, 0.5)',
+            letterSpacing: '2px'
+          }}>CANLI MAÇ BAŞLIYOR</h1>
+          
+          <div style={{
+            fontSize: '24px',
+            color: 'rgba(255, 255, 255, 0.9)',
+            marginBottom: '30px',
+            lineHeight: '1.6'
+          }}>
+            <div style={{ marginBottom: '15px' }}>
+              <strong style={{ color: '#4CAF50' }}>{incomingMatchData.players[0]}</strong>
+              <span style={{ margin: '0 15px', color: 'rgba(255, 255, 255, 0.5)' }}>VS</span>
+              <strong style={{ color: '#4CAF50' }}>{incomingMatchData.players[1]}</strong>
+            </div>
+            <div style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.6)' }}>
+              Hedef: {incomingMatchData.settings.targetScore} puan / {incomingMatchData.settings.targetRack} raket
+            </div>
+          </div>
+          
+          <div style={{
+            fontSize: '80px',
+            fontWeight: '700',
+            color: '#ffffff',
+            textShadow: '0 0 30px rgba(76, 175, 80, 0.8)',
+            animation: 'countdownPulse 1s infinite'
+          }}>
+            {matchStartCountdown}
+          </div>
+        </div>
+        
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes countdownPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Masaüstü cihaz -> Scoreboard Receiver'a yönlendir
+  if (isScoreboardMode) {
+    return (
+      <div>
+        <ScoreboardReceiver 
+          onStartGame={handleReceiverStart} 
+          onBack={() => {
+            setDeviceMode(null);
+            setIsScoreboardMode(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Mod seçim ekranı (sadece desktop/tablet için)
+  if (deviceMode === null) {
+    console.log('✅ Rendering mode selection screen');
+
+    return (
+      <div className="start-screen-wrapper" style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+        position: 'relative',
+        padding: '40px 20px',
+        overflow: 'hidden'
+      }}>
+        {/* Animated background pattern */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: `
+            radial-gradient(circle at 20% 50%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(33, 150, 243, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(156, 39, 176, 0.05) 0%, transparent 50%)
+          `,
+          animation: 'bgFloat 20s ease-in-out infinite',
+          zIndex: 0
+        }}></div>
+        
+        <div style={{
+          maxWidth: '800px',
+          width: '100%',
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Centered Logo and Subtitle */}
+          <div style={{
+            marginBottom: '50px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0'
+          }}>
+            <a 
+              href="https://3cscore.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                cursor: 'pointer',
+                transition: 'transform 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <img 
+                src="/logo.png" 
+                alt="3CSCORE Logo" 
+                style={{
+                  width: '300px',
+                  height: '300px',
+                  objectFit: 'contain',
+                  animation: 'logoPulse 3s ease-in-out infinite'
+                }}
+              />
+            </a>
+            <div style={{
+              marginTop: '18px',
+              fontSize: '28px',
+              fontWeight: '700',
+              color: '#fff',
+              letterSpacing: '2px',
+              textShadow: '0 2px 10px rgba(0,0,0,0.25)',
+              fontFamily: '"Orbitron", "Impact", sans-serif',
+              textTransform: 'uppercase'
+            }}>
+              3 Bant Bilardo Skor Tabela Uygulaması
+            </div>
+          </div>
+          
+          <style>{`
+            @keyframes shimmer {
+              0% { background-position: 0% center; }
+              100% { background-position: 200% center; }
+            }
+            @keyframes logoPulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+            @keyframes bgFloat {
+              0%, 100% { 
+                transform: translate(0, 0) scale(1);
+              }
+              33% { 
+                transform: translate(30px, -30px) scale(1.1);
+              }
+              66% { 
+                transform: translate(-20px, 20px) scale(0.9);
+              }
+            }
+            @keyframes blinkDot {
+              0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 20px #4CAF50;
+              }
+              50% { 
+                opacity: 0.3;
+                transform: scale(0.8);
+                box-shadow: 0 0 5px #4CAF50;
+              }
+            }
+          `}</style>
+          
+          {/* Listening Status Card */}
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.6)',
+            border: '2px solid rgba(76, 175, 80, 0.5)',
+            borderRadius: '24px',
+            padding: '35px 45px',
+            marginBottom: '50px',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 100px rgba(76, 175, 80, 0.1)',
+            backdropFilter: 'blur(20px)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Glow effect */}
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              left: '-50%',
+              right: '-50%',
+              bottom: '-50%',
+              background: 'radial-gradient(circle, rgba(76, 175, 80, 0.1) 0%, transparent 70%)',
+              animation: 'pulse 3s ease-in-out infinite'
+            }}></div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '15px',
+              marginBottom: '15px',
+              position: 'relative',
+              zIndex: 1
+            }}>
+              <span style={{
+                width: '14px',
+                height: '14px',
+                background: '#4CAF50',
+                borderRadius: '50%',
+                animation: 'blinkDot 1.5s ease-in-out infinite',
+                boxShadow: '0 0 20px #4CAF50',
+                display: 'inline-block'
+              }}></span>
+              <span style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: '#4CAF50',
+                letterSpacing: '1px',
+                textShadow: '0 2px 10px rgba(76, 175, 80, 0.3)'
+              }}>3CSCORE LISTENING</span>
+            </div>
+            <div style={{
+              fontSize: '16px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontWeight: '500',
+              position: 'relative',
+              zIndex: 1
+            }}>
+              Mobil cihazdan maç başlatma talebi bekleniyor...
+            </div>
+          </div>
+
+          {/* Yerel Maç Başlat Button */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px',
+            alignItems: 'center'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              color: 'rgba(255, 255, 255, 0.5)',
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              marginBottom: '10px'
+            }}>veya</div>
+            
+            <button 
+              onClick={() => setDeviceMode('local')}
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                border: '2px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '20px',
+                padding: '26px 55px',
+                fontSize: '22px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: 'pointer',
+                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.1)',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                minWidth: '340px',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 15px 40px rgba(59, 130, 246, 0.5), 0 0 80px rgba(59, 130, 246, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.1)';
+              }}
+            >
+              <span style={{ fontSize: '28px' }}>🖥️</span>
+              <span>Yerel Maç Başlat</span>
+            </button>
+            
+            <div style={{
+              fontSize: '13px',
+              color: 'rgba(255, 255, 255, 0.5)',
+              marginTop: '10px'
+            }}>
+              Bu cihazda maçı manuel olarak başlat
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobil Controller görünümü
+  if (showMobileController) {
+    return <MobileController onBack={() => setShowMobileController(false)} />;
+  }
+
+  // Controller Mode (Mobil) veya Local Mode (Desktop)
+  const showRemoteButton = deviceMode === 'controller';
+  const showLocalButton = deviceMode === 'local';
+  const isTableBusy = tableStatus?.status === 'BUSY';
+
+  return (
+    <div className="start-screen-wrapper" style={{ position: 'relative' }}>
+      
+      {deviceMode === 'local' && (
+        <button 
+            className="mode-toggle-btn"
+            onClick={() => setDeviceMode(null)}
+            style={{ 
+              position: 'absolute', 
+              top: 20, 
+              right: 20, 
+              zIndex: 1000,
+              padding: '10px 20px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+        >
+            ⬅️ Geri
+        </button>
+      )}
+
+      {/* Error Notification */}
+      {errorMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
+          color: 'white',
+          padding: '30px 50px',
+          borderRadius: '15px',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          zIndex: 9999,
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+          border: '3px solid rgba(255, 255, 255, 0.3)',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="start-screen-panel" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
+        
+        {/* PANEL 1: CANLI MAÇLAR (Sadece Controller Modunda) */}
+        {deviceMode === 'controller' && (
+          <div style={{
+            background: 'rgba(30, 41, 59, 0.7)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            padding: '20px',
+            marginBottom: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <h2 style={{
+              color: '#fff',
+              fontSize: '18px',
+              fontWeight: '700',
+              marginBottom: '15px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '20px' }}>📡</span> CANLI MAÇLAR
+            </h2>
+
+            {/* Active Match Info Accordion */}
+            <div style={{ marginBottom: '0' }}>
+            <button
+              onClick={() => setIsMatchInfoOpen(!isMatchInfoOpen)}
+              style={{
+                width: '100%',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>📊</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '15px' }}>Canlı Maçlar</div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    {isTableBusy && tableStatus?.currentMatch ? (
+                      <>
+                        <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>Masa 1:</span> {tableStatus.currentMatch.players[0]} vs {tableStatus.currentMatch.players[1]}
+                      </>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>Şu an oynanan maç yok</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <span style={{ 
+                transform: isMatchInfoOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
+                transition: 'transform 0.3s',
+                color: '#94a3b8'
+              }}>▼</span>
+            </button>
+
+            {isMatchInfoOpen && (
+              <div style={{
+                marginTop: '10px',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '20px',
+                animation: 'slideDown 0.3s ease-out',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+              }}>
+                {isTableBusy && tableStatus?.currentMatch ? (
+                  <>
+                    {/* Table Name Badge */}
+                    <div style={{ 
+                      textAlign: 'center', 
+                      marginBottom: '15px',
+                      display: 'flex',
+                      justifyContent: 'center'
+                    }}>
+                      <span style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        Masa 1
+                      </span>
+                    </div>
+
+                    {/* Score Board */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      {/* Player 1 */}
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#64748b', marginBottom: '5px' }}>
+                          {tableStatus.currentMatch.players[0]}
+                        </div>
+                        <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>
+                          {tableStatus.currentMatch.stats?.score1 || 0}
+                        </div>
+                      </div>
+
+                      {/* VS / Inning */}
+                      <div style={{ textAlign: 'center', padding: '0 15px' }}>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>ISTAKA</div>
+                        <div style={{ fontSize: '20px', fontWeight: '700', color: '#3b82f6' }}>
+                          {tableStatus.currentMatch.stats?.inning || 0}
+                        </div>
+                      </div>
+
+                      {/* Player 2 */}
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#64748b', marginBottom: '5px' }}>
+                          {tableStatus.currentMatch.players[1]}
+                        </div>
+                        <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>
+                          {tableStatus.currentMatch.stats?.score2 || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Targets */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      gap: '20px',
+                      paddingTop: '15px',
+                      borderTop: '1px solid #f1f5f9'
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>HEDEF SKOR</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#475569' }}>
+                          {tableStatus.currentMatch.settings?.targetScore || '-'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>HEDEF ISTAKA</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#475569' }}>
+                          {tableStatus.currentMatch.settings?.targetRack || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '10px' }}>📭</div>
+                    <div>Şu an oynanan canlı maç bulunmuyor.</div>
+                  </div>
+                )}
+              </div>
+            )}
+            </div>
+          </div>
+        )}
+
+        {/* PANEL 2: CANLI MAÇ BAŞLAT */}
+        <div style={{
+          background: 'rgba(30, 41, 59, 0.7)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          padding: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <h2 style={{
+            color: '#fff',
+            fontSize: '18px',
+            fontWeight: '700',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{ fontSize: '20px' }}>🎮</span> CANLI MAÇ BAŞLAT
+          </h2>
+
+        {/* Table Status Indicator (Only for Mobile/Controller) */}
+        {deviceMode === 'controller' && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '15px',
+            marginBottom: '25px',
+            width: '100%',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ 
+              width: '60px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent'
+            }}>
+              <img 
+                src="/table.svg" 
+                alt="Masa" 
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                }} 
+              />
+            </div>
+            
+            <div style={{ flex: 1 }}>
+              <div style={{ 
+                fontSize: '12px', 
+                color: '#64748b', 
+                marginBottom: '4px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                fontWeight: '600'
+              }}>
+                Masa Seçimi
+              </div>
+              <select 
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#0f172a',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  padding: '0',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+                value="table_1"
+                disabled
+              >
+                <option value="table_1">Masa 1</option>
+              </select>
+            </div>
+
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: isTableBusy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+              border: `1px solid ${isTableBusy ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
+            }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: isTableBusy ? '#ef4444' : '#22c55e',
+                boxShadow: isTableBusy ? '0 0 8px #ef4444' : '0 0 8px #22c55e'
+              }}></div>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: '700',
+                color: isTableBusy ? '#ef4444' : '#22c55e',
+                whiteSpace: 'nowrap'
+              }}>
+                {isTableBusy ? 'DOLU MASA' : 'BOŞ MASA'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button 
+            className={`tab-btn ${activeTab === "2vs2" ? "active" : ""}`}
+            onClick={() => setActiveTab("2vs2")}
+          >
+            2'li Karşılaşma
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === "survival" ? "active" : ""}`}
+            onClick={() => setActiveTab("survival")}
+          >
+            Survival
+          </button>
+        </div>
+
+        <h1 className="panel-title">Oyuncu Seçimi</h1>
+        
+        {/* 2'li Karşılaşma Tab Content */}
+        {activeTab === "2vs2" && (
+          <>
+            <div className="player-selection">
+          <div className="player-input-group">
+            <label className="player-label">1. Oyuncu</label>
+            
+            {/* Minimal Toggle */}
+            <div className="player-mode-toggle">
+              <button 
+                className={`mode-toggle-btn ${!isManualPlayer1 ? 'active' : ''}`}
+                onClick={() => {
+                  setIsManualPlayer1(false);
+                  setManualPlayer1Name("");
+                }}
+              >
+                3CSCORE
+              </button>
+              <button 
+                className={`mode-toggle-btn ${isManualPlayer1 ? 'active' : ''}`}
+                onClick={() => {
+                  setIsManualPlayer1(true);
+                  setPlayer1("");
+                }}
+              >
+                DİĞER
+              </button>
+            </div>
+
+            {!isManualPlayer1 ? (
+              <>
+                <div className="input-header">3CSCORE OYUNCUSU</div>
+                <select 
+                  value={player1} 
+                  onChange={e => setPlayer1(e.target.value)}
+                  className="player-select modern"
+                >
+                  <option value="">Oyuncu seçin...</option>
+                  {names.map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <div className="input-header">DİĞER OYUNCU</div>
+                <input
+                  type="text"
+                  value={manualPlayer1Name}
+                  onChange={e => setManualPlayer1Name(e.target.value)}
+                  placeholder="İsim yazın..."
+                  className="player-input modern"
+                />
+              </>
+            )}
+          </div>
+
+          <div className="vs-divider">VS</div>
+
+          <div className="player-input-group">
+            <label className="player-label">2. Oyuncu</label>
+            
+            {/* Minimal Toggle */}
+            <div className="player-mode-toggle">
+              <button 
+                className={`mode-toggle-btn ${!isManualPlayer2 ? 'active' : ''}`}
+                onClick={() => {
+                  setIsManualPlayer2(false);
+                  setManualPlayer2Name("");
+                }}
+              >
+                3CSCORE
+              </button>
+              <button 
+                className={`mode-toggle-btn ${isManualPlayer2 ? 'active' : ''}`}
+                onClick={() => {
+                  setIsManualPlayer2(true);
+                  setPlayer2("");
+                }}
+              >
+                DİĞER
+              </button>
+            </div>
+
+            {!isManualPlayer2 ? (
+              <>
+                <div className="input-header">3CSCORE OYUNCUSU</div>
+                <select 
+                  value={player2} 
+                  onChange={e => setPlayer2(e.target.value)}
+                  className="player-select modern"
+                >
+                  <option value="">Oyuncu seçin...</option>
+                  {names.filter(user => user.fullName !== player1).map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <div className="input-header">DİĞER OYUNCU</div>
+                <input
+                  type="text"
+                  value={manualPlayer2Name}
+                  onChange={e => setManualPlayer2Name(e.target.value)}
+                  placeholder="İsim yazın..."
+                  className="player-input modern"
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="match-settings">
+          <div className="setting-group">
+            <label className="setting-label">Hedef Sayı</label>
+            <div className="setting-control-bar">
+              <button 
+                className="setting-control-btn left"
+                onClick={() => setTargetScore(Math.max(15, targetScore - 5))}
+              >
+                −5
+              </button>
+              <span className="setting-value-text">Hedef: {targetScore}</span>
+              <button 
+                className="setting-control-btn right"
+                onClick={() => setTargetScore(Math.min(50, targetScore + 5))}
+              >
+                +5
+              </button>
+            </div>
+          </div>
+
+          <div className="setting-group">
+            <label className="setting-label">Hedef İstaka</label>
+            <div className="setting-control-bar">
+              <button 
+                className="setting-control-btn left"
+                onClick={() => setTargetRack(Math.max(15, targetRack - 5))}
+              >
+                −5
+              </button>
+              <span className="setting-value-text">Hedef: {targetRack}</span>
+              <button 
+                className="setting-control-btn right"
+                onClick={() => setTargetRack(Math.min(50, targetRack + 5))}
+              >
+                +5
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="match-options">
+          <label className="checkbox-container">
+            <input 
+              type="checkbox" 
+              checked={hasPenalty} 
+              onChange={(e) => setHasPenalty(e.target.checked)}
+              className="checkbox-input"
+            />
+            <span className="checkbox-label">Penaltı Var</span>
+          </label>
+          <label className="checkbox-container">
+            <input 
+              type="checkbox" 
+              checked={hasAso} 
+              onChange={(e) => setHasAso(e.target.checked)}
+              className="checkbox-input"
+            />
+            <span className="checkbox-label">ASO Var</span>
+          </label>
+        </div>
+
+        <div className="action-buttons-container">
+          {showLocalButton && (
+            <button 
+              className={`start-button ${((player1 || manualPlayer1Name.trim()) && (player2 || manualPlayer2Name.trim())) ? "active" : "disabled"}`}
+              onClick={handleStart}
+              disabled={!(player1 || manualPlayer1Name.trim()) || !(player2 || manualPlayer2Name.trim())}
+            >
+              Maçı Başlat
+            </button>
+          )}
+          {showRemoteButton && (
+            <button 
+              className={`start-button ${!isTableBusy && ((player1 || manualPlayer1Name.trim()) && (player2 || manualPlayer2Name.trim())) ? "active" : "disabled"}`}
+              onClick={handleRemoteSend}
+              disabled={isTableBusy || !(player1 || manualPlayer1Name.trim()) || !(player2 || manualPlayer2Name.trim())}
+              style={{ 
+                background: isTableBusy ? '#334155' : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                cursor: isTableBusy ? 'not-allowed' : 'pointer',
+                opacity: isTableBusy ? 0.8 : 1
+              }}
+            >
+              {isTableBusy ? '⛔ DOLU MASA' : '📡 Uzaktan Başlat'}
+            </button>
+          )}
+        </div>
+        </>
+      )}
+
+      {/* Survival Tab Content */}
+      {activeTab === "survival" && (
+          <div className="survival-content">
+            <div className="survival-players-grid">
+              {/* Player 1 */}
+              <div className="survival-player-box">
+                <label className="survival-player-label">1. Oyuncu</label>
+                <select 
+                  value={survivalPlayer1} 
+                  onChange={e => setSurvivalPlayer1(e.target.value)}
+                  className="survival-player-select"
+                >
+                  <option value="">Seçiniz</option>
+                  {getAvailableSurvivalPlayers(survivalPlayer1).map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Player 2 */}
+              <div className="survival-player-box">
+                <label className="survival-player-label">2. Oyuncu</label>
+                <select 
+                  value={survivalPlayer2} 
+                  onChange={e => setSurvivalPlayer2(e.target.value)}
+                  className="survival-player-select"
+                >
+                  <option value="">Seçiniz</option>
+                  {getAvailableSurvivalPlayers(survivalPlayer2).map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Player 3 */}
+              <div className="survival-player-box">
+                <label className="survival-player-label">3. Oyuncu</label>
+                <select 
+                  value={survivalPlayer3} 
+                  onChange={e => setSurvivalPlayer3(e.target.value)}
+                  className="survival-player-select"
+                >
+                  <option value="">Seçiniz</option>
+                  {getAvailableSurvivalPlayers(survivalPlayer3).map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Player 4 */}
+              <div className="survival-player-box">
+                <label className="survival-player-label">4. Oyuncu</label>
+                <select 
+                  value={survivalPlayer4} 
+                  onChange={e => setSurvivalPlayer4(e.target.value)}
+                  className="survival-player-select"
+                >
+                  <option value="">Seçiniz (Opsiyonel)</option>
+                  {getAvailableSurvivalPlayers(survivalPlayer4).map((user) => (
+                    <option key={user.id} value={user.fullName}>
+                      {user.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="survival-info-box">
+              <h3 className="survival-info-title">Oyun Kuralları</h3>
+              <ul className="survival-info-list">
+                <li className="survival-info-item">👥 3 veya 4 oyuncu ile oynanır.</li>
+                <li className="survival-info-item">⏱️ 2 Set, her set 45 dakikadır.</li>
+                <li className="survival-info-item">🎯 Başlangıç puanı 30'dur.</li>
+                <li className="survival-info-item">⏸️ Her oyuncunun 2 mola hakkı vardır.</li>
+              </ul>
+            </div>
+
+            <div className="action-buttons-container">
+              {showLocalButton && (
+                <button 
+                  className={`start-button ${
+                    [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+                      .filter(p => p !== "").length >= 3 
+                      ? "active" 
+                      : "disabled"
+                  }`}
+                  onClick={handleSurvivalStart}
+                  disabled={
+                    [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+                      .filter(p => p !== "").length < 3
+                  }
+                >
+                  Survival Maçını Başlat
+                </button>
+              )}
+              {showRemoteButton && (
+                <button 
+                  className={`start-button ${
+                    !isTableBusy && [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+                      .filter(p => p !== "").length >= 3 
+                      ? "active" 
+                      : "disabled"
+                  }`}
+                  onClick={handleRemoteSend}
+                  disabled={
+                    isTableBusy || [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+                      .filter(p => p !== "").length < 3
+                  }
+                  style={{ 
+                    background: isTableBusy ? '#334155' : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    cursor: isTableBusy ? 'not-allowed' : 'pointer',
+                    opacity: isTableBusy ? 0.8 : 1
+                  }}
+                >
+                  {isTableBusy ? '⛔ DOLU MASA' : '📡 Uzaktan Başlat'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default StartScreen;

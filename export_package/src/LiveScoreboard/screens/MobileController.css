@@ -1,0 +1,435 @@
+.mobile-controller-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
+  color: white;
+  padding: 20px;
+  padding-bottom: 80px; /* Alt buton için boşluk */
+  overflow-y: auto;
+  position: relative;
+}
+
+.waiting-screen,
+.match-end-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  text-align: center;
+}
+
+.waiting-icon,
+.end-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.waiting-screen h2,
+.match-end-screen h2 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.waiting-screen p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Live Match Header */
+.live-match-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 0, 0, 0.2);
+  border: 2px solid #ff0000;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.live-dot {
+  width: 12px;
+  height: 12px;
+  background: #ff0000;
+  border-radius: 50%;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Match Stats Panel */
+.match-stats-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.stats-row {
+  margin-bottom: 20px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.player-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  padding: 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.player-card.active {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.player-name {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.player-score {
+  font-size: 36px;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 10px;
+}
+
+.player-stats {
+  display: flex;
+  justify-content: space-around;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.vs-separator {
+  font-size: 24px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-around;
+  padding: 15px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.info-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.turn-indicator {
+  text-align: center;
+  padding: 15px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 10px;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.turn-indicator strong {
+  color: #FFD700;
+}
+
+/* Floating Controller Button - Sol Alt */
+.floating-controller-btn {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.floating-controller-btn.active {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  transform: rotate(90deg);
+}
+
+.floating-controller-btn:active {
+  transform: scale(0.9);
+}
+
+/* Mobile Game Controller */
+.mobile-game-controller {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.controller-panel h3 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 22px;
+}
+
+/* Match End Screen */
+.final-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin: 30px 0;
+}
+
+.final-player {
+  text-align: center;
+}
+
+.final-player .player-name {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.final-player .player-score {
+  font-size: 48px;
+  color: #FFD700;
+}
+
+.vs-text {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.back-home-btn {
+  padding: 15px 40px;
+  font-size: 18px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  border-radius: 15px;
+  cursor: pointer;
+  margin-top: 20px;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.back-home-btn:active {
+  transform: scale(0.95);
+}
+
+/* Controller Grid Styles */
+.controller-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.controller-status {
+  font-size: 14px;
+  color: #FFD700;
+  font-weight: bold;
+}
+
+.controller-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.ctrl-btn {
+  padding: 20px;
+  border: none;
+  border-radius: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.1s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.95);
+}
+
+.ctrl-btn.plus {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #1a1d2e;
+  font-size: 24px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl-btn.minus {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+  color: #1a1d2e;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ctrl-btn.undo {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.ctrl-btn.ok {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  grid-column: 1 / span 2;
+  grid-row: 3;
+  padding: 25px;
+  font-size: 22px;
+}
+
+/* Navigation Pad */
+.nav-pad-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.d-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.d-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.d-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.95);
+}
+
+.d-btn.up { grid-column: 2; grid-row: 1; background: rgba(33, 150, 243, 0.3); }
+.d-btn.left { grid-column: 1; grid-row: 2; background: rgba(33, 150, 243, 0.3); }
+.d-btn.right { grid-column: 3; grid-row: 2; background: rgba(33, 150, 243, 0.3); }
+.d-btn.down { grid-column: 2; grid-row: 3; background: rgba(33, 150, 243, 0.3); }
+.d-btn.enter { 
+  grid-column: 2; 
+  grid-row: 2; 
+  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 50%;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.act-btn {
+  flex: 1;
+  padding: 15px;
+  border-radius: 15px;
+  border: none;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.act-btn.back {
+  background: rgba(255, 87, 34, 0.8);
+}
+
+.act-btn.menu {
+  background: rgba(156, 39, 176, 0.8);
+}
+
+.mode-switcher {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}

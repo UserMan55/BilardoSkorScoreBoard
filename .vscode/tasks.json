@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Auto Sync Reminder",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "while($true) { Start-Sleep 600; Write-Host '⚠️ HATIRLATMA: Export senkronizasyonu yapmayı unutma! (npm run sync-export)' -ForegroundColor Yellow; [console]::beep(800,300) }"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
+      "label": "Show Critical TODOs",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "Write-Host '🚨🚨🚨 KRİTİK GÖREVLER (SONRAKİ OTURUM) 🚨🚨🚨' -ForegroundColor Red -BackgroundColor White; Get-Content TODO.md -Head 35 | Select-String -Pattern '🚨','\\[ \\]','\\*\\*' | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }; Write-Host '---------------------------------------------------' -ForegroundColor Red"
+      ],
+      "isBackground": false,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

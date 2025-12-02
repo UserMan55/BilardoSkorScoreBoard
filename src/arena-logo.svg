@@ -1,0 +1,6 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="120" height="120" rx="24" fill="#fec800"/>
+  <circle cx="60" cy="60" r="43" stroke="#222" stroke-width="8" fill="#fff"/>
+  <text x="60" y="68" text-anchor="middle" fill="#d92323" font-size="30" font-family="Arial" font-weight="bold">ARENA</text>
+  <text x="60" y="90" text-anchor="middle" fill="#111" font-size="16" font-family="Arial">Scoreboard</text>
+</svg>
