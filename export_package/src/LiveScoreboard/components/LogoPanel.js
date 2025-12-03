@@ -14,7 +14,7 @@ function LogoPanel() {
         src="/logo.png"
         alt="Logo"
         style={{
-          width: 180,      // %50 büyütüldü!
+          width: 240,      // Yatayda uzatıldı
           height: "auto",
           background: "transparent",
           display: "block",

@@ -4,12 +4,12 @@ import LogoPanel from './LogoPanel';
 function ScorePanel({ inning, run, runColor = '#fff', onShowController, isControllerHidden = false }) {
   return (
     <div style={{
-      width: 340,
-      minWidth: 280,
+      width: 240,
+      minWidth: 200,
       background: '#181c22',
       color: '#e6fdfe',
       borderRadius: 18,
-      padding: '32px 0',
+      padding: '12px 0',
       boxShadow: '0 4px 24px #0006',
       fontFamily: "Arial, sans-serif",
       display: 'flex',
@@ -24,21 +24,21 @@ function ScorePanel({ inning, run, runColor = '#fff', onShowController, isContro
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        marginBottom: 8
+        marginBottom: 4
       }}>
         <div style={{
           fontSize: 22,
           color: runColor,
           fontWeight: 700,
           letterSpacing: 1,
-          marginBottom: 8,
+          marginBottom: 4,
           transition: 'color 0.3s ease'
         }}>RUN</div>
         <div style={{
-          fontSize: 176,
+          fontSize: 110,
           background: '#222',
           borderRadius: 36,
-          padding: '36px 80px',
+          padding: '10px 30px',
           color: runColor,
           textAlign: 'center',
           fontWeight: 'bold',
@@ -58,25 +58,25 @@ function ScorePanel({ inning, run, runColor = '#fff', onShowController, isContro
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        marginTop: 8
+        marginTop: 4
       }}>
         <div style={{
           fontSize: 22,
           color: 'white',
-          marginBottom: 8,
+          marginBottom: 4,
           fontWeight: 700,
           letterSpacing: 1
         }}>INNING</div>
         <div style={{
-          fontSize: 96,
-          background: '#222',
+          fontSize: 60,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: 20,
-          padding: '24px 48px',
-          color: '#fff',
+          padding: '8px 25px',
+          color: '#FFD700',
           textAlign: 'center',
           fontWeight: 'bold',
           letterSpacing: 2,
-          marginBottom: 8,
+          marginBottom: 4,
           boxShadow: '0 0 16px #0005'
         }}>
           {inning}

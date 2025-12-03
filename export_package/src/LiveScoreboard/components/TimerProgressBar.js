@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./TimerProgressBar.css";
 
-function TimerProgressBar({ isTimerRunning, currentTurn, timerPhase, onTimerFinished, resetTrigger, isTimerPaused, activeColor, duration = 30 }) {
+function TimerProgressBar({ isTimerRunning, currentTurn, timerPhase, onTimerFinished, resetTrigger, isTimerPaused, activeColor, duration = 30, height }) {
   const [time, setTime] = useState(duration);
   const [pausedColor, setPausedColor] = useState(null); // Pause anındaki rengi tut
   const maxTime = duration;
@@ -77,9 +77,9 @@ function TimerProgressBar({ isTimerRunning, currentTurn, timerPhase, onTimerFini
   }
 
   return (
-    <div className="timer-progress-wrapper">
-      <div className="progress-bar-container">
-        <div className="progress-bar">
+    <div className="timer-progress-wrapper" style={height ? { height: `${height}px` } : {}}>
+      <div className="progress-bar-container" style={height ? { height: `${height}px` } : {}}>
+        <div className="progress-bar" style={height ? { height: `${height}px` } : {}}>
           <div 
             className="progress-fill" 
             style={{ 

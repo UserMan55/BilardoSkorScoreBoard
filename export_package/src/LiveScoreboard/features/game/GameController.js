@@ -37,34 +37,12 @@ function GameController({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Hedef skora ulaşıldı mı kontrolü
-  const totalScore = currentScore + runCount;
-  const isTargetReached = totalScore >= targetScore;
-  const isPlusDisabled = gameEnded || (currentScore + runCount + 1) > targetScore;
-  
-  const handleMouseDown = (e) => {
-    // Tutma bölgesinin içinde olup olmadığını kontrol et
-    if (!e.currentTarget.classList.contains('drag-handle')) {
-      return;
-    }
-    setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    });
-  };
-
   const handleDragStart = (e) => {
     setIsDragging(true);
     setDragOffset({
       x: e.clientX - position.x,
       y: e.clientY - position.y
     });
-  };
-
-  const handleDragHandleDoubleClick = (e) => {
-    e.preventDefault();
-    onToggleVisibility();
   };
 
   useEffect(() => {
@@ -110,7 +88,8 @@ function GameController({
               isTimerRunning, gameEnded, isPlusDisabled: gameEnded || (currentScore + runCount + 1) > targetScore,
               canUndo, isTargetReached: (currentScore + runCount) >= targetScore,
               numpadOpen, setNumpadOpen, onLeftMenu, onRightMenu,
-              mode: 'fullscreen'
+              mode: 'fullscreen',
+              currentPlayerName, currentScore, runCount, targetScore
             }}
           />
         </div>
@@ -128,7 +107,8 @@ function GameController({
             isTimerRunning, gameEnded, isPlusDisabled: gameEnded || (currentScore + runCount + 1) > targetScore,
             canUndo, isTargetReached: (currentScore + runCount) >= targetScore,
             numpadOpen, setNumpadOpen, onLeftMenu, onRightMenu,
-            mode: 'embedded'
+            mode: 'embedded',
+            currentPlayerName, currentScore, runCount, targetScore
           }}
         />
       </div>
@@ -153,7 +133,8 @@ function GameController({
           isTimerRunning, gameEnded, isPlusDisabled: gameEnded || (currentScore + runCount + 1) > targetScore,
           canUndo, isTargetReached: (currentScore + runCount) >= targetScore,
           numpadOpen, setNumpadOpen, onLeftMenu, onRightMenu,
-          mode: 'floating'
+          mode: 'floating',
+          currentPlayerName, currentScore, runCount, targetScore
         }}
       />
     </div>
@@ -164,13 +145,24 @@ function GameController({
 function RemoteBody({ 
   onPlusRun, onMinusRun, onToggleTimer, onOk, onExit, onUndo,
   isTimerRunning, gameEnded, isPlusDisabled, canUndo, isTargetReached,
-  numpadOpen, setNumpadOpen, onLeftMenu, onRightMenu, mode
+  numpadOpen, setNumpadOpen, onLeftMenu, onRightMenu, mode,
+  currentPlayerName, currentScore, runCount, targetScore
 }) {
   return (
     <div className={`remote-body remote-body-${mode}`}>
         {/* Logo/Brand Area */}
         <div className="remote-header">
           <div className="remote-brand">3C SCORE</div>
+          {/* Score Display for Mobile/Fullscreen */}
+          {(mode === 'fullscreen' || mode === 'embedded') && (
+            <div className="remote-score-display" style={{ marginTop: '10px', textAlign: 'center' }}>
+              <div style={{ color: '#94a3b8', fontSize: '14px' }}>{currentPlayerName}</div>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff' }}>
+                {currentScore} <span style={{ color: '#F59E0B' }}>+{runCount}</span>
+              </div>
+              <div style={{ color: '#64748b', fontSize: '12px' }}>Hedef: {targetScore}</div>
+            </div>
+          )}
         </div>
 
         {/* Power and Mute Buttons */}

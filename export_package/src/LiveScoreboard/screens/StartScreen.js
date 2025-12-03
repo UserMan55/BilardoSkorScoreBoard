@@ -136,6 +136,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [incomingMatchData, setIncomingMatchData] = useState(null);
   
   const [activeEditableField, setActiveEditableField] = useState(null); // 'p1-manual','p2-manual','p1-combo','p2-combo'
+  const activeEditableFieldRef = useRef(null);
+  // activeEditableField değiştiğinde ref'i güncelle
+  useEffect(() => {
+    activeEditableFieldRef.current = activeEditableField;
+    console.log('📝 activeEditableField değişti:', activeEditableField);
+  }, [activeEditableField]);
   const p1InputRef = useRef(null);
   const p2InputRef = useRef(null);
   const p1ComboInputRef = useRef(null);
@@ -143,6 +149,31 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const keyboardRefs = useRef({});
   const [combo1Query, setCombo1Query] = useState("");
   const [combo2Query, setCombo2Query] = useState("");
+  // Öneri listesinde fokus indeksi (-1 = öneri seçili değil, klavyede yazılıyor)
+  const [suggestionFocusIndex, setSuggestionFocusIndex] = useState(-1);
+  const suggestionFocusIndexRef = useRef(-1);
+  // suggestionFocusIndex değiştiğinde ref'i güncelle
+  useEffect(() => {
+    suggestionFocusIndexRef.current = suggestionFocusIndex;
+  }, [suggestionFocusIndex]);
+
+  // Tüm kritik state'leri tutan ref (Event listener içinde güncel verilere erişmek için)
+  const stateRef = useRef({});
+  useEffect(() => {
+    stateRef.current = {
+      combo1Query,
+      combo2Query,
+      player1,
+      player2,
+      filteredPlayers,
+      activeEditableField,
+      suggestionFocusIndex
+    };
+  }, [combo1Query, combo2Query, player1, player2, filteredPlayers, activeEditableField, suggestionFocusIndex]);
+
+  // Öneri listesi odaklandığında anlık kopyayı sakla (enter sırasında bozulmaması için)
+  const suggestionSnapshotRef = useRef({ p1: [], p2: [] });
+
   const isVirtualKeyboardEnabled = deviceProfile?.enableVirtualKeyboard ?? false;
   const keyboardStatusText = {
     'p1-manual': '1. oyuncu – manuel isim girişi',
@@ -158,6 +189,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setTimeout(() => keyboardRef.focusFirstKey(), 0);
     }
   }, [activeEditableField, isVirtualKeyboardEnabled]);
+
+  // activeEditableField değiştiğinde öneri fokusunu sıfırla
+  useEffect(() => {
+    setSuggestionFocusIndex(-1);
+  }, [activeEditableField]);
 
   const [showMatchStartOverlay, setShowMatchStartOverlay] = useState(false);
   const [matchStartCountdown, setMatchStartCountdown] = useState(5);
@@ -229,17 +265,31 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       .slice(0, 3);
   }, [filteredPlayers, normalizeSearchText]);
 
-  const combo1Suggestions = React.useMemo(() => (
-    activeEditableField === 'p1-combo'
-      ? getPlayerSuggestions(combo1Query, player2)
-      : []
-  ), [activeEditableField, combo1Query, player2, getPlayerSuggestions]);
+  // Suggestions için ref'ler (closure sorununu önlemek için)
+  const combo1SuggestionsRef = useRef([]);
+  const combo2SuggestionsRef = useRef([]);
 
-  const combo2Suggestions = React.useMemo(() => (
-    activeEditableField === 'p2-combo'
+  const combo1Suggestions = React.useMemo(() => {
+    console.log(`🔄 combo1Suggestions hesaplanıyor: Field=${activeEditableField} Query="${combo1Query}" Player2=${player2}`);
+    const result = activeEditableField === 'p1-combo'
+      ? getPlayerSuggestions(combo1Query, player2)
+      : [];
+    // Ref'i senkron olarak güncelle
+    combo1SuggestionsRef.current = result;
+    console.log('🔄 combo1Suggestions güncellendi:', result.length, 'öneri');
+    return result;
+  }, [activeEditableField, combo1Query, player2, getPlayerSuggestions]);
+
+  const combo2Suggestions = React.useMemo(() => {
+    console.log(`🔄 combo2Suggestions hesaplanıyor: Field=${activeEditableField} Query="${combo2Query}" Player1=${player1}`);
+    const result = activeEditableField === 'p2-combo'
       ? getPlayerSuggestions(combo2Query, player1)
-      : []
-  ), [activeEditableField, combo2Query, player1, getPlayerSuggestions]);
+      : [];
+    // Ref'i senkron olarak güncelle
+    combo2SuggestionsRef.current = result;
+    console.log('🔄 combo2Suggestions güncellendi:', result.length, 'öneri');
+    return result;
+  }, [activeEditableField, combo2Query, player1, getPlayerSuggestions]);
 
   const showFieldWarning = React.useCallback((index) => {
     if (index === 2) {
@@ -298,29 +348,36 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     }
   }, []);
 
-  const handleComboConfirm = React.useCallback((playerKey) => {
+  const handleComboConfirm = React.useCallback((playerKey, forceIndex = null) => {
     const isFirst = playerKey === 'p1';
-    const query = (isFirst ? combo1Query : combo2Query).trim();
-    const excludeId = isFirst ? player2 : player1;
+    // Ref'lerden güncel suggestions al (closure sorununu önlemek için)
+    const suggestions = (isFirst ? combo1SuggestionsRef.current : combo2SuggestionsRef.current);
     const index = isFirst ? 2 : 5;
-
-    if (query.length < 2) {
-      showFieldWarning(index);
+    
+    // forceIndex verilmişse o indeksteki öneriyi seç, yoksa suggestionFocusIndex'e bak
+    const selectedIndex = forceIndex !== null ? forceIndex : suggestionFocusIndex;
+    
+    console.log('📋 handleComboConfirm:', { playerKey, forceIndex, selectedIndex, suggestionsLength: suggestions.length, suggestions });
+    
+    // Eğer öneri seçili değilse (-1) ve forceIndex de verilmemişse, uyarı göster
+    if (selectedIndex < 0 || selectedIndex >= suggestions.length) {
+      // Öneri yoksa veya seçili değilse uyarı
+      console.log('⚠️ Geçersiz index veya boş öneriler');
+      if (suggestions.length === 0) {
+        showFieldWarning(index);
+      }
       return;
     }
-
-    const exactMatch = filteredPlayers.find((user) =>
-      user.id !== excludeId && user.fullName.toLowerCase() === query.toLowerCase()
-    );
-    const suggestions = (isFirst ? combo1Suggestions : combo2Suggestions);
-    const selected = exactMatch || suggestions[0];
-
+    
+    const selected = suggestions[selectedIndex];
+    console.log('✅ Seçilen oyuncu:', selected);
     if (selected) {
       if (isFirst) {
         setPlayer1(selected.id);
         setPlayer1Warning("");
         setCombo1Query(selected.fullName);
         setActiveEditableField(null);
+        setSuggestionFocusIndex(-1);
         setLocalFocusIndex(3);
         setTimeout(() => p1ComboInputRef.current?.blur(), 0);
       } else {
@@ -328,13 +385,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         setPlayer2Warning("");
         setCombo2Query(selected.fullName);
         setActiveEditableField(null);
+        setSuggestionFocusIndex(-1);
         setLocalFocusIndex(6);
         setTimeout(() => p2ComboInputRef.current?.blur(), 0);
       }
-    } else {
-      showFieldWarning(index);
     }
-  }, [combo1Query, combo2Query, filteredPlayers, player1, player2, combo1Suggestions, combo2Suggestions, showFieldWarning]);
+  }, [suggestionFocusIndex, showFieldWarning]);
 
   const handleVirtualKeyPress = React.useCallback((value) => {
     if (activeEditableField === 'p1-manual') {
@@ -377,28 +433,51 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   }, [activeEditableField]);
 
   const handleVirtualEnter = React.useCallback(() => {
+    // Sanal klavye tuşu üzerindeyken ENTER'a basıldığında
     if (activeEditableField === 'p1-manual') {
-      if (!manualPlayer1Name.trim()) {
-        showFieldWarning(2);
-        return;
-      }
+      // Sadece klavyeyi kapat ve sonraki alana geç
       setActiveEditableField(null);
       setLocalFocusIndex(3);
       setTimeout(() => p1InputRef.current?.blur(), 0);
     } else if (activeEditableField === 'p2-manual') {
-      if (!manualPlayer2Name.trim()) {
-        showFieldWarning(5);
-        return;
-      }
       setActiveEditableField(null);
       setLocalFocusIndex(6);
       setTimeout(() => p2InputRef.current?.blur(), 0);
     } else if (activeEditableField === 'p1-combo') {
-      handleComboConfirm('p1');
+      // Combo alanında ENTER: Eğer öneri seçiliyse onayla
+      if (suggestionFocusIndex >= 0) {
+        // Güncel suggestions'ı doğrudan hesapla
+        const suggestions = getPlayerSuggestions(combo1Query, player2);
+        if (suggestions && suggestions.length > suggestionFocusIndex) {
+          const selected = suggestions[suggestionFocusIndex];
+          if (selected) {
+            setPlayer1(selected.id);
+            setPlayer1Warning("");
+            setCombo1Query(selected.fullName);
+            setActiveEditableField(null);
+            setSuggestionFocusIndex(-1);
+            setLocalFocusIndex(3);
+          }
+        }
+      }
     } else if (activeEditableField === 'p2-combo') {
-      handleComboConfirm('p2');
+      if (suggestionFocusIndex >= 0) {
+        // Güncel suggestions'ı doğrudan hesapla
+        const suggestions = getPlayerSuggestions(combo2Query, player1);
+        if (suggestions && suggestions.length > suggestionFocusIndex) {
+          const selected = suggestions[suggestionFocusIndex];
+          if (selected) {
+            setPlayer2(selected.id);
+            setPlayer2Warning("");
+            setCombo2Query(selected.fullName);
+            setActiveEditableField(null);
+            setSuggestionFocusIndex(-1);
+            setLocalFocusIndex(6);
+          }
+        }
+      }
     }
-  }, [activeEditableField, manualPlayer1Name, manualPlayer2Name, showFieldWarning, handleComboConfirm]);
+  }, [activeEditableField, suggestionFocusIndex, combo1Query, combo2Query, player1, player2, getPlayerSuggestions]);
 
   const renderInlineKeyboard = (fieldKey) => {
     if (!isVirtualKeyboardEnabled || activeEditableField !== fieldKey) return null;
@@ -617,8 +696,25 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         showFieldWarning(localFocusIndex);
       }
     } else if (e.key === 'ArrowLeft') {
+      // Öneri seçiliyken sol tuşla geri çık (yazmaya dön)
+      if (suggestionFocusIndex >= 0) {
+        setSuggestionFocusIndex(-1);
+        return;
+      }
       changeFocus(localFocusIndex > 0 ? localFocusIndex - 1 : maxIndex);
     } else if (e.key === 'ArrowUp') {
+      // Öneri listesinde yukarı git
+      if (suggestionFocusIndex >= 0) {
+        const suggestions = activeEditableField === 'p1-combo' ? combo1Suggestions : combo2Suggestions;
+        if (suggestionFocusIndex > 0) {
+          setSuggestionFocusIndex(suggestionFocusIndex - 1);
+        } else {
+          // En üstteyken yukarı basınca en alta git
+          setSuggestionFocusIndex(suggestions.length - 1);
+        }
+        return;
+      }
+      
       let handled = false;
       // Value Changes
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'prev', p1List)); handled = true; }
@@ -632,6 +728,30 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       }
 
     } else if (e.key === 'ArrowDown') {
+      // Öneri listesinde aşağı git
+      if (suggestionFocusIndex >= 0) {
+        const suggestions = activeEditableField === 'p1-combo' ? combo1Suggestions : combo2Suggestions;
+        if (suggestionFocusIndex < suggestions.length - 1) {
+          setSuggestionFocusIndex(suggestionFocusIndex + 1);
+        } else {
+          // En alttayken aşağı basınca en üste git
+          setSuggestionFocusIndex(0);
+        }
+        return;
+      }
+      
+      // Combo alanındaysak ve öneriler varsa, ilk öneriye odaklan
+      if (activeEditableField === 'p1-combo' && combo1Suggestions.length > 0) {
+        suggestionSnapshotRef.current.p1 = combo1Suggestions;
+        setSuggestionFocusIndex(0);
+        return;
+      }
+      if (activeEditableField === 'p2-combo' && combo2Suggestions.length > 0) {
+        suggestionSnapshotRef.current.p2 = combo2Suggestions;
+        setSuggestionFocusIndex(0);
+        return;
+      }
+      
       let handled = false;
       // Value Changes
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'next', p1List)); handled = true; }
@@ -644,8 +764,31 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         // ArrowDown artık paneller arasında odak değişimi yapmaz.
       }
 
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault(); // Prevent default behavior (like opening select dropdown)
+    } else if (e.key === ' ') {
+      // SPACE tuşu: Checkbox toggle ve diğer işlemler için
+      e.preventDefault();
+      
+      // Diğer durumlar için ENTER gibi davran
+      if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
+      else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
+      else if (localFocusIndex === 3) { setIsManualPlayer2(false); setActiveEditableField(null); changeFocus(5); }
+      else if (localFocusIndex === 4) { setIsManualPlayer2(true); setActiveEditableField(null); changeFocus(5); }
+      else if (localFocusIndex === 8) setHasPenalty(!hasPenalty);
+      else if (localFocusIndex === 9) setHasAso(!hasAso);
+      
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // Öneri seçiliyse, seçimi onayla ve bir sonraki tab'a geç
+      if (activeEditableField === 'p1-combo' && suggestionFocusIndex >= 0) {
+        handleComboConfirm('p1', suggestionFocusIndex);
+        return;
+      }
+      if (activeEditableField === 'p2-combo' && suggestionFocusIndex >= 0) {
+        handleComboConfirm('p2', suggestionFocusIndex);
+        return;
+      }
+      
       if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 2) { 
@@ -665,10 +808,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             }
           } else {
             if (activeEditableField === 'p1-combo') {
-              handleComboConfirm('p1');
+              // Öneri seçili değilse, ENTER ile bir şey yapma (yazmaya devam)
+              // Kullanıcı SPACE ile önerilere geçmeli
             } else {
               setCombo1Query(getPlayerNameById(player1) || "");
               setActiveEditableField('p1-combo');
+              setSuggestionFocusIndex(-1);
               setTimeout(() => p1ComboInputRef.current?.blur(), 0);
             }
           }
@@ -692,10 +837,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             }
           } else {
             if (activeEditableField === 'p2-combo') {
-              handleComboConfirm('p2');
+              // Öneri seçili değilse, ENTER ile bir şey yapma
             } else {
               setCombo2Query(getPlayerNameById(player2) || "");
               setActiveEditableField('p2-combo');
+              setSuggestionFocusIndex(-1);
               setTimeout(() => p2ComboInputRef.current?.blur(), 0);
             }
           }
@@ -722,7 +868,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   useEffect(() => {
     navHandlersRef.current = {
       handleNavAction,
-      handleLocalNavAction
+      handleLocalNavAction,
+      handleComboConfirm,
+      handleVirtualEnter
     };
   });
 
@@ -775,16 +923,79 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') navHandlersRef.current.handleNavAction('LEFT');
         else if (e.key === 'Enter' || e.key === ' ') navHandlersRef.current.handleNavAction('ENTER');
       } else if (deviceMode === 'local') {
-        // If editing input, allow typing but trap Enter/Escape
-        if (activeEditableField) {
+        // Güncel değerleri ref'lerden al (closure sorununu önlemek için)
+        const currentActiveField = activeEditableFieldRef.current;
+        const currentSuggestionIndex = suggestionFocusIndexRef.current;
+        
+        // If editing input, allow typing but trap Enter/Escape/Backspace/ArrowDown
+        if (currentActiveField) {
           if (e.key === 'Enter') {
             e.preventDefault();
+            
+            console.log('🔑 Enter basıldı. ActiveField:', currentActiveField, 'Index:', currentSuggestionIndex);
+
+            // Combo alanındayken Enter ile seçim yap (stateRef kullanarak en güncel verilerle)
+            if ((currentActiveField === 'p1-combo' || currentActiveField === 'p2-combo') && currentSuggestionIndex >= 0) {
+              const state = stateRef.current;
+              const isFirst = currentActiveField === 'p1-combo';
+              const snapshot = suggestionSnapshotRef.current[isFirst ? 'p1' : 'p2'] || [];
+
+              console.log('🔍 Enter snapshot kullanılıyor:', snapshot.length, 'öneri');
+
+              if (snapshot && snapshot.length > currentSuggestionIndex) {
+                const selected = snapshot[currentSuggestionIndex];
+                if (selected) {
+                  console.log('✅ Enter ile seçim yapıldı (Snapshot):', selected.fullName);
+                  if (isFirst) {
+                    setPlayer1(selected.id);
+                    setPlayer1Warning("");
+                    setCombo1Query(selected.fullName);
+                    setActiveEditableField(null);
+                    setSuggestionFocusIndex(-1);
+                    setLocalFocusIndex(3);
+                  } else {
+                    setPlayer2(selected.id);
+                    setPlayer2Warning("");
+                    setCombo2Query(selected.fullName);
+                    setActiveEditableField(null);
+                    setSuggestionFocusIndex(-1);
+                    setLocalFocusIndex(6);
+                  }
+                  return;
+                }
+              } else {
+                console.log('⚠️ Snapshot boş veya index geçersiz');
+              }
+            } else {
+                console.log('⚠️ Combo alanı değil veya index < 0');
+            }
+            
             navHandlersRef.current.handleLocalNavAction(e);
             return;
           }
           if (e.key === 'Escape') {
             e.preventDefault();
             cancelActiveEditing();
+            return;
+          }
+          if (e.key === 'Backspace') {
+            e.preventDefault();
+            // Sanal klavyenin backspace işlevini tetikle
+            if (currentActiveField === 'p1-manual') {
+              setManualPlayer1Name((prev) => prev.slice(0, -1));
+            } else if (currentActiveField === 'p2-manual') {
+              setManualPlayer2Name((prev) => prev.slice(0, -1));
+            } else if (currentActiveField === 'p1-combo') {
+              setCombo1Query((prev) => prev.slice(0, -1));
+            } else if (currentActiveField === 'p2-combo') {
+              setCombo2Query((prev) => prev.slice(0, -1));
+            }
+            return;
+          }
+          // ArrowDown/ArrowUp/ArrowLeft: Öneri navigasyonu için handleLocalNavAction'a gönder
+          if (['ArrowDown', 'ArrowUp', 'ArrowLeft'].includes(e.key)) {
+            e.preventDefault();
+            navHandlersRef.current.handleLocalNavAction(e);
             return;
           }
           // Allow typing while editing
@@ -2109,17 +2320,35 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         />
                         {activeEditableField === 'p1-combo' && combo1Suggestions.length > 0 && (
                           <div className="combo-suggestions">
-                            {combo1Suggestions.map((player) => (
+                            {combo1Suggestions.map((player, index) => (
                               <button
                                 type="button"
                                 key={player.id}
-                                className="combo-suggestion-item"
+                                className={`combo-suggestion-item ${suggestionFocusIndex === index ? 'focused' : ''}`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => handleComboSuggestionClick('p1', player)}
+                                style={{
+                                  background: suggestionFocusIndex === index ? 'rgba(255, 215, 0, 0.3)' : undefined,
+                                  border: suggestionFocusIndex === index ? '2px solid #FFD700' : undefined,
+                                  boxShadow: suggestionFocusIndex === index ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
+                                }}
                               >
                                 {player.fullName}
                               </button>
                             ))}
+                            {/* İpucu mesajı */}
+                            <div className="combo-suggestions-hint" style={{
+                              fontSize: '10px',
+                              color: 'rgba(255, 255, 255, 0.6)',
+                              textAlign: 'center',
+                              padding: '6px 8px',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                              background: 'rgba(0, 0, 0, 0.2)'
+                            }}>
+                              {suggestionFocusIndex >= 0 
+                                ? '⬆⬇ Seç • ENTER Onayla • ◀ Geri' 
+                                : '⬇ Önerilere git'}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2247,17 +2476,35 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         />
                         {activeEditableField === 'p2-combo' && combo2Suggestions.length > 0 && (
                           <div className="combo-suggestions">
-                            {combo2Suggestions.map((player) => (
+                            {combo2Suggestions.map((player, index) => (
                               <button
                                 type="button"
                                 key={player.id}
-                                className="combo-suggestion-item"
+                                className={`combo-suggestion-item ${suggestionFocusIndex === index ? 'focused' : ''}`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => handleComboSuggestionClick('p2', player)}
+                                style={{
+                                  background: suggestionFocusIndex === index ? 'rgba(255, 215, 0, 0.3)' : undefined,
+                                  border: suggestionFocusIndex === index ? '2px solid #FFD700' : undefined,
+                                  boxShadow: suggestionFocusIndex === index ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
+                                }}
                               >
                                 {player.fullName}
                               </button>
                             ))}
+                            {/* İpucu mesajı */}
+                            <div className="combo-suggestions-hint" style={{
+                              fontSize: '10px',
+                              color: 'rgba(255, 255, 255, 0.6)',
+                              textAlign: 'center',
+                              padding: '6px 8px',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                              background: 'rgba(0, 0, 0, 0.2)'
+                            }}>
+                              {suggestionFocusIndex >= 0 
+                                ? '⬆⬇ Seç • ENTER Onayla • ◀ Geri' 
+                                : '⬇ Önerilere git'}
+                            </div>
                           </div>
                         )}
                       </div>

@@ -1032,6 +1032,13 @@ const config = {
 - ✅ Serbest Mod'da maç sonuçları veritabanına kaydedilmiyor.
 - ✅ StartScreen "Yükleniyor..." hatası giderildi (Timeout mekanizması eklendi).
 
+### ✓ Fiziksel Enter Öneri Seçimi
+**Tamamlanma Tarihi:** 3 Aralık 2025
+**Açıklama:**
+- ✅ Fiziksel kumanda/klavye Enter tuşu, combo öneri modundayken seçili öneriyi snapshot üzerinden onaylıyor.
+- ✅ ArrowDown ile öneri listesine girildiğinde mevcut öneriler snapshot'a alınarak sıfırlanma sorunları engellendi.
+- ✅ Sanal klavye ENTER davranışı ile fiziksel kumanda davranışı hizalandı (aynı tab geçişleri ve uyarılar).
+
 ---
 
 ## 📊 PROJE İLERLEME ÖZETİ
