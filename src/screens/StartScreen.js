@@ -238,6 +238,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     }
   }, [localFocusIndex, player1Warning, player2Warning]);
 
+  useEffect(() => {
+    if (!activeEditableField) return;
+    const isPlayer1Field = activeEditableField.startsWith('p1');
+    const isPlayer2Field = activeEditableField.startsWith('p2');
+
+    if ((isPlayer1Field && localFocusIndex !== 2) || (isPlayer2Field && localFocusIndex !== 5)) {
+      setActiveEditableField(null);
+      setSuggestionFocusIndex(-1);
+    }
+  }, [localFocusIndex, activeEditableField]);
+
   const normalizeSearchText = React.useCallback((text = "") => {
     return text
       .toString()
@@ -479,9 +490,15 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     }
   }, [activeEditableField, suggestionFocusIndex, combo1Query, combo2Query, player1, player2, getPlayerSuggestions]);
 
+  const handleVirtualExit = React.useCallback(() => {
+    cancelActiveEditing();
+    setSuggestionFocusIndex(-1);
+  }, [cancelActiveEditing]);
+
   const renderInlineKeyboard = (fieldKey) => {
     if (!isVirtualKeyboardEnabled || activeEditableField !== fieldKey) return null;
     const status = keyboardStatusText[fieldKey] || 'Sanal klavye';
+    const isSuggestionListActive = suggestionFocusIndex >= 0;
     return (
       <div className="virtual-keyboard-inline">
         <div className="virtual-keyboard-inline__status">{status}</div>
@@ -497,6 +514,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           onBackspace={handleVirtualBackspace}
           onClear={handleVirtualClear}
           onEnter={handleVirtualEnter}
+          onExit={handleVirtualExit}
+          suppressVerticalNavigation={isSuggestionListActive}
         />
       </div>
     );
@@ -743,11 +762,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       // Combo alanındaysak ve öneriler varsa, ilk öneriye odaklan
       if (activeEditableField === 'p1-combo' && combo1Suggestions.length > 0) {
         suggestionSnapshotRef.current.p1 = combo1Suggestions;
+        keyboardRefs.current['p1-combo']?.blurActiveKey?.();
         setSuggestionFocusIndex(0);
         return;
       }
       if (activeEditableField === 'p2-combo' && combo2Suggestions.length > 0) {
         suggestionSnapshotRef.current.p2 = combo2Suggestions;
+        keyboardRefs.current['p2-combo']?.blurActiveKey?.();
         setSuggestionFocusIndex(0);
         return;
       }
@@ -973,9 +994,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             navHandlersRef.current.handleLocalNavAction(e);
             return;
           }
-          if (e.key === 'Escape') {
+          if (['Escape', 'BrowserBack', 'GoBack'].includes(e.key)) {
             e.preventDefault();
-            cancelActiveEditing();
+            handleVirtualExit();
             return;
           }
           if (e.key === 'Backspace') {
@@ -1044,7 +1065,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     hasPenalty,
     hasAso,
     activeEditableField,
-    cancelActiveEditing
+    cancelActiveEditing,
+    handleVirtualExit
   ]);
 
   // Mod seçim ekranında beklerken gelen maç komutlarını dinle

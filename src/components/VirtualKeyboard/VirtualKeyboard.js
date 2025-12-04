@@ -6,7 +6,7 @@ const KEY_ROWS = [
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
   ['Z', 'C', 'V', 'B', 'N', 'M'],
   ['CLEAR', 'SPACE', 'BACKSPACE'],
-  ['ENTER']
+  ['EXIT', 'ENTER']
 ];
 
 const isNavigationKey = (key) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key);
@@ -17,8 +17,11 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
   onBackspace,
   onEnter,
   onClear,
+  onExit,
+  suppressVerticalNavigation = false,
   disabledKeys = []
 }, ref) {
+  const containerRef = React.useRef(null);
   const keyRefs = React.useRef({});
 
   const handleKeyClick = (key) => {
@@ -34,6 +37,10 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
     }
     if (key === 'CLEAR') {
       onClear?.();
+      return;
+    }
+    if (key === 'EXIT') {
+      onExit?.();
       return;
     }
 
@@ -52,12 +59,24 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
   const handleKeyDown = (event, rowIndex, colIndex, keyValue) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
+      event.stopPropagation();
       handleKeyClick(keyValue);
       return;
     }
 
     if (!isNavigationKey(event.key)) return;
+
+    const isHorizontalNav = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    const isVerticalNav = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+
     event.preventDefault();
+    if (isHorizontalNav) {
+      event.stopPropagation();
+    }
+
+    if (isVerticalNav && suppressVerticalNavigation) {
+      return;
+    }
 
     let targetRow = rowIndex;
     let targetCol = colIndex;
@@ -94,21 +113,27 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
   };
 
   React.useImperativeHandle(ref, () => ({
-    focusFirstKey: () => focusKey(0, 0)
+    focusFirstKey: () => focusKey(0, 0),
+    blurActiveKey: () => {
+      const activeBtn = containerRef.current?.querySelector('.virtual-keyboard__key:focus');
+      activeBtn?.blur();
+    }
   }));
 
   return (
-    <div className="virtual-keyboard">
+    <div className="virtual-keyboard" ref={containerRef}>
       {KEY_ROWS.map((row, rowIndex) => (
         <div key={`row-${rowIndex}`} className="virtual-keyboard__row">
           {row.map((key, colIndex) => {
             const keyId = getKeyId(rowIndex, colIndex);
             const isSpace = key === 'SPACE';
             const isEnter = key === 'ENTER';
+            const isExit = key === 'EXIT';
             const buttonClassNames = [
               'virtual-keyboard__key',
               isEnter ? 'virtual-keyboard__key--accent' : '',
               isSpace ? 'virtual-keyboard__key--space' : '',
+              isExit ? 'virtual-keyboard__key--danger' : '',
               key === 'CLEAR' || key === 'BACKSPACE' ? 'virtual-keyboard__key--wide' : ''
             ].join(' ').trim();
 

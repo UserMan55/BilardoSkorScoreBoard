@@ -59,6 +59,12 @@
   flex: 1;
 }
 
+.virtual-keyboard__key--danger {
+  background: linear-gradient(120deg, #dc2626, #b91c1c);
+  color: #fff5f5;
+  flex: 1;
+}
+
 .virtual-keyboard__key--wide {
   flex: 1.4;
 }
