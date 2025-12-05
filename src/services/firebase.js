@@ -243,6 +243,9 @@ export async function getPlayerNames() {
   }
 }
 
+// Alias for getPlayerNames (for backward compatibility)
+export const getUserProfiles = getPlayerNames;
+
 // --- NETWORK & CONNECTION FUNCTIONS ---
 
 // Public IP adresini getirir

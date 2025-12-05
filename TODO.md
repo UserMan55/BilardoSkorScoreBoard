@@ -6,6 +6,7 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak ele alınacaktır.
 
 - [ ] **Sanal Klavye Devamı:** Inline klavye davranışlarını finalize et (tuş dizilimi, fokus, ekstra kısayollar).
+- [ ] **QR Hatırlatması:** Her oturum başında `npm run generate-qr -- --host <IP> --port <PORT>` komutunu çalıştırarak güncel yerel IP/port için `public/qr-current.png` dosyasını yenile.
 
 **1. Survival Modu Düzeltmeleri:**
 - [ ] **İsim Hatası:** Survival modunda oyuncu isimleri hala hatalı görünüyor (muhtemelen ID basıyor), düzeltilmeli.
@@ -13,8 +14,10 @@ Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak
 - [ ] **Mekanizma Testleri:** Survival modu oyun mekanizması (skor hesaplama, sıra geçişi, timeout vb.) detaylı test edilecek.
 
 **2. Mobil Canlı Maç (Live Match) UI Düzenlemeleri:**
-- [ ] **Açılış Görseli:** "Canlı Maç Başlat" denildiğinde ekrana gelen kumanda görseli/overlay kesinlikle kaldırılmalı.
-- [ ] **Alt Kumanda Tasarımı:** Canlı maç ekranının altındaki kumanda tasarımı hatalı ve görsel olarak kötü. Yeniden tasarlanmalı ve düzgün çalışır hale getirilmeli.
+- [x] **Açılış Görseli:** "Canlı Maç Başlat" denildiğinde ekrana gelen kumanda görseli/overlay kesinlikle kaldırılmalı.
+- [x] **Alt Kumanda Tasarımı:** Canlı maç ekranının altındaki kumanda tasarımı hatalı ve görsel olarak kötü. Yeniden tasarlanmalı ve düzgün çalışır hale getirilmeli.
+- [x] **Oyuncu Profil Resimleri:** Oyuncuların profil resimleri Firebase Storage/Firestore'dan getirilecek ve hem scoreboard oyun ekranlarında hem de canlı maç takip ve kontrol ekranında oyuncu panellerinde görüntülenecek.
+- [ ] **Multi-User Maç Erişimi:** Uzaktan başlat butonu ile maç başlatan kullanıcının yanı sıra, maça oyuncu olarak eklenen (3CSCORE kayıtlı) kullanıcılar da kendi cihazlarından canlı maç takip ve kontrol ekranına erişebilmeli ve maçı yönetebilmeli (Firebase auth entegrasyonu, kullanıcı ID'sine göre maç erişim kontrolü).
 
 **3. Kiosk (Tabela) 3CSCORE Modu:**
 - [ ] **Fiziksel Kumanda Navigasyonu:** 3CSCORE modu açıldığında fiziksel kumanda ile elementler arasında gezinme (navigasyon) çalışmıyor. Yeniden ele alınmalı ve tam kontrol sağlanmalı.

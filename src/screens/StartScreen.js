@@ -16,9 +16,7 @@ import "./StartScreen.css";
 const SALON_INFO = {
   name: "SALON 3CSCORE",
   city: "SAMSUN",
-  tables: [
-    { id: 'table_1', name: 'Masa 1' }
-  ],
+  tables: [{ id: "table_1", name: "Masa 1" }],
   logo: "/logo.png"
 };
 
@@ -34,13 +32,35 @@ const START_SCREEN_BACKGROUND_STYLE = {
   isolation: 'isolate'
 };
 
+const FALLBACK_PLAYER_LIST = [
+  { id: 'player_ibrahim_topyildiz', fullName: 'İbrahim TOPYILDIZ', city: 'Samsun', salon: 'Salon 3CScore' },
+  { id: 'player_ilhami_ilhan', fullName: 'İlhami İLHAN', city: 'Samsun', salon: 'Salon 3CScore' },
+  { id: 'player_erol_oran', fullName: 'Erol ORAN', city: 'Samsun', salon: 'Salon 3CScore' },
+  { id: 'player_huseyin_yolcu', fullName: 'Hüseyin YOLCU', city: 'Samsun', salon: 'Salon 3CScore' },
+  { id: 'player_ahmet_senol_terzi', fullName: 'Ahmet Şenol TERZİ', city: 'Samsun', salon: 'Salon 3CScore' },
+  { id: 'player_hasan_haciomeroglu', fullName: 'Hasan HACIÖMEROĞLU', city: 'Samsun', salon: 'Salon 3CScore' }
+];
+
+const DEFAULT_USER_PROFILE = {
+  id: FALLBACK_PLAYER_LIST[0].id,
+  fullName: FALLBACK_PLAYER_LIST[0].fullName,
+  city: FALLBACK_PLAYER_LIST[0].city,
+  salon: FALLBACK_PLAYER_LIST[0].salon
+};
+
+const filterPlayersByCity = (players = [], city) => {
+  if (!city) return players;
+  const normalizedCity = city.toLocaleLowerCase('tr-TR');
+  const filtered = players.filter((player) => (player.city || '').toLocaleLowerCase('tr-TR') === normalizedCity);
+  return filtered.length > 0 ? filtered : players;
+};
+
 function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
-  const [activeTab, setActiveTab] = useState("2vs2"); // "2vs2" or "survival"
+  const [activeTab, setActiveTab] = useState("2vs2");
   const [names, setNames] = useState([]);
-  const [deviceMode, setDeviceMode] = useState(null); // 'controller', 'scoreboard', 'local'
+  const [deviceMode, setDeviceMode] = useState(null);
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
   const [showMobileController, setShowMobileController] = useState(false);
-  
   // Navigation State
   const [focusedIndex, setFocusedIndex] = useState(1);
   const focusedIndexRef = React.useRef(1);
@@ -122,7 +142,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [targetRack, setTargetRack] = useState(30);
   const [hasPenalty, setHasPenalty] = useState(false);
   const [hasAso, setHasAso] = useState(true);
-  const [currentUser, setCurrentUser] = useState({ fullName: "Misafir Kullanıcı", city: '', salon: '' });
+  const [currentUser, setCurrentUser] = useState(DEFAULT_USER_PROFILE);
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   
   // Survival states
@@ -135,7 +155,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [incomingMatchData, setIncomingMatchData] = useState(null);
   
-  const [activeEditableField, setActiveEditableField] = useState(null); // 'p1-manual','p2-manual','p1-combo','p2-combo'
+  const [activeEditableField, setActiveEditableField] = useState(null); // 'p1-manual' | 'p2-manual'
   const activeEditableFieldRef = useRef(null);
   // activeEditableField değiştiğinde ref'i güncelle
   useEffect(() => {
@@ -144,42 +164,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   }, [activeEditableField]);
   const p1InputRef = useRef(null);
   const p2InputRef = useRef(null);
-  const p1ComboInputRef = useRef(null);
-  const p2ComboInputRef = useRef(null);
   const keyboardRefs = useRef({});
-  const [combo1Query, setCombo1Query] = useState("");
-  const [combo2Query, setCombo2Query] = useState("");
-  // Öneri listesinde fokus indeksi (-1 = öneri seçili değil, klavyede yazılıyor)
-  const [suggestionFocusIndex, setSuggestionFocusIndex] = useState(-1);
-  const suggestionFocusIndexRef = useRef(-1);
-  // suggestionFocusIndex değiştiğinde ref'i güncelle
-  useEffect(() => {
-    suggestionFocusIndexRef.current = suggestionFocusIndex;
-  }, [suggestionFocusIndex]);
-
-  // Tüm kritik state'leri tutan ref (Event listener içinde güncel verilere erişmek için)
-  const stateRef = useRef({});
-  useEffect(() => {
-    stateRef.current = {
-      combo1Query,
-      combo2Query,
-      player1,
-      player2,
-      filteredPlayers,
-      activeEditableField,
-      suggestionFocusIndex
-    };
-  }, [combo1Query, combo2Query, player1, player2, filteredPlayers, activeEditableField, suggestionFocusIndex]);
-
-  // Öneri listesi odaklandığında anlık kopyayı sakla (enter sırasında bozulmaması için)
-  const suggestionSnapshotRef = useRef({ p1: [], p2: [] });
-
   const isVirtualKeyboardEnabled = deviceProfile?.enableVirtualKeyboard ?? false;
   const keyboardStatusText = {
     'p1-manual': '1. oyuncu – manuel isim girişi',
-    'p2-manual': '2. oyuncu – manuel isim girişi',
-    'p1-combo': '1. oyuncu – 3CSCORE araması',
-    'p2-combo': '2. oyuncu – 3CSCORE araması'
+    'p2-manual': '2. oyuncu – manuel isim girişi'
   };
 
   useEffect(() => {
@@ -189,11 +178,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setTimeout(() => keyboardRef.focusFirstKey(), 0);
     }
   }, [activeEditableField, isVirtualKeyboardEnabled]);
-
-  // activeEditableField değiştiğinde öneri fokusunu sıfırla
-  useEffect(() => {
-    setSuggestionFocusIndex(-1);
-  }, [activeEditableField]);
 
   const [showMatchStartOverlay, setShowMatchStartOverlay] = useState(false);
   const [matchStartCountdown, setMatchStartCountdown] = useState(5);
@@ -245,7 +229,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
     if ((isPlayer1Field && localFocusIndex !== 2) || (isPlayer2Field && localFocusIndex !== 5)) {
       setActiveEditableField(null);
-      setSuggestionFocusIndex(-1);
     }
   }, [localFocusIndex, activeEditableField]);
 
@@ -258,49 +241,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       .replace(/ı/g, 'i');
   }, []);
 
-  const getPlayerNameById = React.useCallback((id) => {
-    if (!id) return "";
-    const found = filteredPlayers.find((user) => user.id === id);
-    return found ? found.fullName : "";
-  }, [filteredPlayers]);
-
-  const getPlayerSuggestions = React.useCallback((query, excludeId) => {
-    if (!query || query.trim().length < 2) return [];
-    const normalizedQuery = normalizeSearchText(query.trim());
-    return filteredPlayers
-      .filter((user) => {
-        if (user.id === excludeId) return false;
-        return normalizeSearchText(user.fullName).startsWith(normalizedQuery);
-      })
-      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-      .slice(0, 3);
-  }, [filteredPlayers, normalizeSearchText]);
-
-  // Suggestions için ref'ler (closure sorununu önlemek için)
-  const combo1SuggestionsRef = useRef([]);
-  const combo2SuggestionsRef = useRef([]);
-
-  const combo1Suggestions = React.useMemo(() => {
-    console.log(`🔄 combo1Suggestions hesaplanıyor: Field=${activeEditableField} Query="${combo1Query}" Player2=${player2}`);
-    const result = activeEditableField === 'p1-combo'
-      ? getPlayerSuggestions(combo1Query, player2)
-      : [];
-    // Ref'i senkron olarak güncelle
-    combo1SuggestionsRef.current = result;
-    console.log('🔄 combo1Suggestions güncellendi:', result.length, 'öneri');
-    return result;
-  }, [activeEditableField, combo1Query, player2, getPlayerSuggestions]);
-
-  const combo2Suggestions = React.useMemo(() => {
-    console.log(`🔄 combo2Suggestions hesaplanıyor: Field=${activeEditableField} Query="${combo2Query}" Player1=${player1}`);
-    const result = activeEditableField === 'p2-combo'
-      ? getPlayerSuggestions(combo2Query, player1)
-      : [];
-    // Ref'i senkron olarak güncelle
-    combo2SuggestionsRef.current = result;
-    console.log('🔄 combo2Suggestions güncellendi:', result.length, 'öneri');
-    return result;
-  }, [activeEditableField, combo2Query, player1, getPlayerSuggestions]);
 
   const showFieldWarning = React.useCallback((index) => {
     if (index === 2) {
@@ -330,78 +270,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     } else if (activeEditableField === 'p2-manual') {
       setActiveEditableField(null);
       setTimeout(() => p2InputRef.current?.blur(), 0);
-    } else if (activeEditableField === 'p1-combo') {
-      setActiveEditableField(null);
-      setCombo1Query(getPlayerNameById(player1) || "");
-      setTimeout(() => p1ComboInputRef.current?.blur(), 0);
-    } else if (activeEditableField === 'p2-combo') {
-      setActiveEditableField(null);
-      setCombo2Query(getPlayerNameById(player2) || "");
-      setTimeout(() => p2ComboInputRef.current?.blur(), 0);
     }
-  }, [activeEditableField, getPlayerNameById, player1, player2]);
+  }, [activeEditableField]);
 
-  const handleComboSuggestionClick = React.useCallback((playerKey, player) => {
-    if (playerKey === 'p1') {
-      setPlayer1(player.id);
-      setPlayer1Warning("");
-      setCombo1Query(player.fullName);
-      setActiveEditableField(null);
-      setLocalFocusIndex(3);
-      setTimeout(() => p1ComboInputRef.current?.blur(), 0);
-    } else {
-      setPlayer2(player.id);
-      setPlayer2Warning("");
-      setCombo2Query(player.fullName);
-      setActiveEditableField(null);
-      setLocalFocusIndex(6);
-      setTimeout(() => p2ComboInputRef.current?.blur(), 0);
-    }
-  }, []);
-
-  const handleComboConfirm = React.useCallback((playerKey, forceIndex = null) => {
-    const isFirst = playerKey === 'p1';
-    // Ref'lerden güncel suggestions al (closure sorununu önlemek için)
-    const suggestions = (isFirst ? combo1SuggestionsRef.current : combo2SuggestionsRef.current);
-    const index = isFirst ? 2 : 5;
-    
-    // forceIndex verilmişse o indeksteki öneriyi seç, yoksa suggestionFocusIndex'e bak
-    const selectedIndex = forceIndex !== null ? forceIndex : suggestionFocusIndex;
-    
-    console.log('📋 handleComboConfirm:', { playerKey, forceIndex, selectedIndex, suggestionsLength: suggestions.length, suggestions });
-    
-    // Eğer öneri seçili değilse (-1) ve forceIndex de verilmemişse, uyarı göster
-    if (selectedIndex < 0 || selectedIndex >= suggestions.length) {
-      // Öneri yoksa veya seçili değilse uyarı
-      console.log('⚠️ Geçersiz index veya boş öneriler');
-      if (suggestions.length === 0) {
-        showFieldWarning(index);
-      }
-      return;
-    }
-    
-    const selected = suggestions[selectedIndex];
-    console.log('✅ Seçilen oyuncu:', selected);
-    if (selected) {
-      if (isFirst) {
-        setPlayer1(selected.id);
-        setPlayer1Warning("");
-        setCombo1Query(selected.fullName);
-        setActiveEditableField(null);
-        setSuggestionFocusIndex(-1);
-        setLocalFocusIndex(3);
-        setTimeout(() => p1ComboInputRef.current?.blur(), 0);
-      } else {
-        setPlayer2(selected.id);
-        setPlayer2Warning("");
-        setCombo2Query(selected.fullName);
-        setActiveEditableField(null);
-        setSuggestionFocusIndex(-1);
-        setLocalFocusIndex(6);
-        setTimeout(() => p2ComboInputRef.current?.blur(), 0);
-      }
-    }
-  }, [suggestionFocusIndex, showFieldWarning]);
 
   const handleVirtualKeyPress = React.useCallback((value) => {
     if (activeEditableField === 'p1-manual') {
@@ -410,10 +281,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name((prev) => `${prev}${value}`);
       setPlayer2Warning("");
-    } else if (activeEditableField === 'p1-combo') {
-      setCombo1Query((prev) => `${prev}${value}`);
-    } else if (activeEditableField === 'p2-combo') {
-      setCombo2Query((prev) => `${prev}${value}`);
     }
   }, [activeEditableField]);
 
@@ -422,10 +289,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setManualPlayer1Name((prev) => prev.slice(0, -1));
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name((prev) => prev.slice(0, -1));
-    } else if (activeEditableField === 'p1-combo') {
-      setCombo1Query((prev) => prev.slice(0, -1));
-    } else if (activeEditableField === 'p2-combo') {
-      setCombo2Query((prev) => prev.slice(0, -1));
     }
   }, [activeEditableField]);
 
@@ -436,10 +299,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name("");
       setPlayer2Warning("");
-    } else if (activeEditableField === 'p1-combo') {
-      setCombo1Query("");
-    } else if (activeEditableField === 'p2-combo') {
-      setCombo2Query("");
     }
   }, [activeEditableField]);
 
@@ -454,51 +313,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setActiveEditableField(null);
       setLocalFocusIndex(6);
       setTimeout(() => p2InputRef.current?.blur(), 0);
-    } else if (activeEditableField === 'p1-combo') {
-      // Combo alanında ENTER: Eğer öneri seçiliyse onayla
-      if (suggestionFocusIndex >= 0) {
-        // Güncel suggestions'ı doğrudan hesapla
-        const suggestions = getPlayerSuggestions(combo1Query, player2);
-        if (suggestions && suggestions.length > suggestionFocusIndex) {
-          const selected = suggestions[suggestionFocusIndex];
-          if (selected) {
-            setPlayer1(selected.id);
-            setPlayer1Warning("");
-            setCombo1Query(selected.fullName);
-            setActiveEditableField(null);
-            setSuggestionFocusIndex(-1);
-            setLocalFocusIndex(3);
-          }
-        }
-      }
-    } else if (activeEditableField === 'p2-combo') {
-      if (suggestionFocusIndex >= 0) {
-        // Güncel suggestions'ı doğrudan hesapla
-        const suggestions = getPlayerSuggestions(combo2Query, player1);
-        if (suggestions && suggestions.length > suggestionFocusIndex) {
-          const selected = suggestions[suggestionFocusIndex];
-          if (selected) {
-            setPlayer2(selected.id);
-            setPlayer2Warning("");
-            setCombo2Query(selected.fullName);
-            setActiveEditableField(null);
-            setSuggestionFocusIndex(-1);
-            setLocalFocusIndex(6);
-          }
-        }
-      }
     }
-  }, [activeEditableField, suggestionFocusIndex, combo1Query, combo2Query, player1, player2, getPlayerSuggestions]);
+  }, [activeEditableField]);
 
   const handleVirtualExit = React.useCallback(() => {
     cancelActiveEditing();
-    setSuggestionFocusIndex(-1);
   }, [cancelActiveEditing]);
 
   const renderInlineKeyboard = (fieldKey) => {
     if (!isVirtualKeyboardEnabled || activeEditableField !== fieldKey) return null;
     const status = keyboardStatusText[fieldKey] || 'Sanal klavye';
-    const isSuggestionListActive = suggestionFocusIndex >= 0;
     return (
       <div className="virtual-keyboard-inline">
         <div className="virtual-keyboard-inline__status">{status}</div>
@@ -515,23 +339,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           onClear={handleVirtualClear}
           onEnter={handleVirtualEnter}
           onExit={handleVirtualExit}
-          suppressVerticalNavigation={isSuggestionListActive}
         />
       </div>
     );
   };
-
-  useEffect(() => {
-    if (activeEditableField !== 'p1-combo') {
-      setCombo1Query(getPlayerNameById(player1) || "");
-    }
-  }, [player1, activeEditableField, getPlayerNameById]);
-
-  useEffect(() => {
-    if (activeEditableField !== 'p2-combo') {
-      setCombo2Query(getPlayerNameById(player2) || "");
-    }
-  }, [player2, activeEditableField, getPlayerNameById]);
 
   const handleFreeStart = () => {
       // Free Mode: Player 1, Player 2, Default Targets, No Penalty/Aso, isFreeMode=true
@@ -546,23 +357,30 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   // Yoksa, test amacıyla "İbrahim TOPYILDIZ" kullanıcısını simüle et.
   // DİKKAT: names dizisi boşken (ilk yüklemede) find çalışmaz, bu yüzden useEffect içinde veya names dolduktan sonra hesaplanmalı.
   useEffect(() => {
-    if (names.length > 0) {
-      console.log("🔍 Kullanıcı Arama Başladı. Toplam Oyuncu:", names.length);
-      
-      if (loggedInUser) {
-        console.log("✅ Giriş Yapan Kullanıcı:", loggedInUser);
-        setCurrentUser(loggedInUser);
-        // Kullanıcının iline göre filtrele
-        const filtered = loggedInUser.city 
-          ? names.filter(u => u.city === loggedInUser.city)
-          : names;
-        setFilteredPlayers(filtered);
-      } else {
-        // Giriş yapan yoksa tüm listeyi göster
-        setFilteredPlayers(names);
-      }
+    if (names.length === 0) return;
+
+    console.log("🔍 Kullanıcı Arama Başladı. Toplam Oyuncu:", names.length);
+
+    if (loggedInUser) {
+      console.log("✅ Giriş Yapan Kullanıcı:", loggedInUser);
+      setCurrentUser(loggedInUser);
+      setFilteredPlayers(filterPlayersByCity(names, loggedInUser.city));
+      return;
     }
-  }, [names, loggedInUser]);
+
+    const normalizedDefaultName = normalizeSearchText(DEFAULT_USER_PROFILE.fullName);
+    const fallbackUser = names.find((user) => normalizeSearchText(user.fullName) === normalizedDefaultName);
+
+    if (fallbackUser) {
+      console.log("ℹ️ Varsayılan kullanıcı atanıyor:", fallbackUser.fullName);
+      setCurrentUser(fallbackUser);
+      setFilteredPlayers(filterPlayersByCity(names, fallbackUser.city));
+    } else {
+      console.log("⚠️ Varsayılan kullanıcı listede bulunamadı, tüm oyuncular gösterilecek.");
+      setCurrentUser(DEFAULT_USER_PROFILE);
+      setFilteredPlayers(names);
+    }
+  }, [names, loggedInUser, normalizeSearchText]);
     
   // --------------------------------------------
 
@@ -590,14 +408,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         ]);
         
         if (isMounted) {
-          setNames(playerNames);
+          const finalList = Array.isArray(playerNames) && playerNames.length > 0
+            ? playerNames
+            : FALLBACK_PLAYER_LIST;
+          setNames(finalList);
           setLoading(false);
         }
       } catch (err) {
         console.error('Oyuncu isimleri yüklenemedi:', err);
         // Hata durumunda boş liste ile devam et, kullanıcıyı engelleme
         if (isMounted) {
-          setNames([]);
+          setNames(FALLBACK_PLAYER_LIST);
           setLoading(false);
         }
       }
@@ -684,28 +505,25 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     // 6: Score, 7: Rack, 8: Penalty, 9: Aso, 10: Start
     const maxIndex = 10; 
 
-    // Helper to change focus
     const changeFocus = (newIndex) => {
-        setLocalFocusIndex(newIndex);
+      setLocalFocusIndex(newIndex);
     };
 
-    // Helper to cycle players
     const cyclePlayer = (currentPlayerId, direction, list) => {
-        const available = list && list.length > 0 ? list : [{id: 'guest', fullName: 'Misafir'}];
-        const currentIndex = available.findIndex(p => p.id === currentPlayerId);
-        let nextIndex;
-        if (direction === 'next') {
-            nextIndex = currentIndex + 1 >= available.length ? 0 : currentIndex + 1;
-        } else {
-            nextIndex = currentIndex - 1 < 0 ? available.length - 1 : currentIndex - 1;
-        }
-        return available[nextIndex].id;
+      const available = list && list.length > 0 ? list : [{ id: 'guest', fullName: 'Misafir' }];
+      const currentIndex = available.findIndex(p => p.id === currentPlayerId);
+      let nextIndex;
+      if (direction === 'next') {
+        nextIndex = currentIndex + 1 >= available.length ? 0 : currentIndex + 1;
+      } else {
+        nextIndex = currentIndex - 1 < 0 ? available.length - 1 : currentIndex - 1;
+      }
+      return available[nextIndex].id;
     };
 
     const p1List = filteredPlayers;
     const p2List = filteredPlayers.filter(u => u.id !== player1);
 
-    // Helper to validate input before moving forward
     if (e.key === 'ArrowRight') {
       if (canMoveForward(localFocusIndex)) {
         if (localFocusIndex === 2) setPlayer1Warning("");
@@ -715,159 +533,85 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         showFieldWarning(localFocusIndex);
       }
     } else if (e.key === 'ArrowLeft') {
-      // Öneri seçiliyken sol tuşla geri çık (yazmaya dön)
-      if (suggestionFocusIndex >= 0) {
-        setSuggestionFocusIndex(-1);
-        return;
-      }
       changeFocus(localFocusIndex > 0 ? localFocusIndex - 1 : maxIndex);
     } else if (e.key === 'ArrowUp') {
-      // Öneri listesinde yukarı git
-      if (suggestionFocusIndex >= 0) {
-        const suggestions = activeEditableField === 'p1-combo' ? combo1Suggestions : combo2Suggestions;
-        if (suggestionFocusIndex > 0) {
-          setSuggestionFocusIndex(suggestionFocusIndex - 1);
-        } else {
-          // En üstteyken yukarı basınca en alta git
-          setSuggestionFocusIndex(suggestions.length - 1);
-        }
-        return;
-      }
-      
       let handled = false;
-      // Value Changes
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'prev', p1List)); handled = true; }
       if (localFocusIndex === 5 && !isManualPlayer2) { setPlayer2(cyclePlayer(player2, 'prev', p2List)); handled = true; }
-        
       if (localFocusIndex === 6) { setTargetScore(Math.min(50, targetScore + 5)); handled = true; }
       if (localFocusIndex === 7) { setTargetRack(Math.min(50, targetRack + 5)); handled = true; }
-
       if (!handled) {
-        // ArrowUp artık paneller arasında odak değişimi yapmaz.
+        // No-op: arrow navigation between panels disabled intentionally
       }
-
     } else if (e.key === 'ArrowDown') {
-      // Öneri listesinde aşağı git
-      if (suggestionFocusIndex >= 0) {
-        const suggestions = activeEditableField === 'p1-combo' ? combo1Suggestions : combo2Suggestions;
-        if (suggestionFocusIndex < suggestions.length - 1) {
-          setSuggestionFocusIndex(suggestionFocusIndex + 1);
-        } else {
-          // En alttayken aşağı basınca en üste git
-          setSuggestionFocusIndex(0);
-        }
-        return;
-      }
-      
-      // Combo alanındaysak ve öneriler varsa, ilk öneriye odaklan
-      if (activeEditableField === 'p1-combo' && combo1Suggestions.length > 0) {
-        suggestionSnapshotRef.current.p1 = combo1Suggestions;
-        keyboardRefs.current['p1-combo']?.blurActiveKey?.();
-        setSuggestionFocusIndex(0);
-        return;
-      }
-      if (activeEditableField === 'p2-combo' && combo2Suggestions.length > 0) {
-        suggestionSnapshotRef.current.p2 = combo2Suggestions;
-        keyboardRefs.current['p2-combo']?.blurActiveKey?.();
-        setSuggestionFocusIndex(0);
-        return;
-      }
-      
       let handled = false;
-      // Value Changes
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'next', p1List)); handled = true; }
       if (localFocusIndex === 5 && !isManualPlayer2) { setPlayer2(cyclePlayer(player2, 'next', p2List)); handled = true; }
-
       if (localFocusIndex === 6) { setTargetScore(Math.max(5, targetScore - 5)); handled = true; }
       if (localFocusIndex === 7) { setTargetRack(Math.max(5, targetRack - 5)); handled = true; }
-
       if (!handled) {
-        // ArrowDown artık paneller arasında odak değişimi yapmaz.
+        // No-op
       }
-
     } else if (e.key === ' ') {
-      // SPACE tuşu: Checkbox toggle ve diğer işlemler için
       e.preventDefault();
-      
-      // Diğer durumlar için ENTER gibi davran
       if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 3) { setIsManualPlayer2(false); setActiveEditableField(null); changeFocus(5); }
       else if (localFocusIndex === 4) { setIsManualPlayer2(true); setActiveEditableField(null); changeFocus(5); }
       else if (localFocusIndex === 8) setHasPenalty(!hasPenalty);
       else if (localFocusIndex === 9) setHasAso(!hasAso);
-      
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      
-      // Öneri seçiliyse, seçimi onayla ve bir sonraki tab'a geç
-      if (activeEditableField === 'p1-combo' && suggestionFocusIndex >= 0) {
-        handleComboConfirm('p1', suggestionFocusIndex);
-        return;
-      }
-      if (activeEditableField === 'p2-combo' && suggestionFocusIndex >= 0) {
-        handleComboConfirm('p2', suggestionFocusIndex);
-        return;
-      }
-      
       if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
-      else if (localFocusIndex === 2) { 
-          if (isManualPlayer1) {
-            if (activeEditableField === 'p1-manual') {
-              if (canMoveForward(2)) {
-                setActiveEditableField(null);
-                p1InputRef.current?.blur();
-                setPlayer1Warning("");
-                changeFocus(3);
-              } else {
-                showFieldWarning(2);
-              }
+      else if (localFocusIndex === 2) {
+        if (isManualPlayer1) {
+          if (activeEditableField === 'p1-manual') {
+            if (canMoveForward(2)) {
+              setActiveEditableField(null);
+              p1InputRef.current?.blur();
+              setPlayer1Warning("");
+              changeFocus(3);
             } else {
-              setActiveEditableField('p1-manual');
-              setTimeout(() => p1InputRef.current?.blur(), 0);
+              showFieldWarning(2);
             }
           } else {
-            if (activeEditableField === 'p1-combo') {
-              // Öneri seçili değilse, ENTER ile bir şey yapma (yazmaya devam)
-              // Kullanıcı SPACE ile önerilere geçmeli
-            } else {
-              setCombo1Query(getPlayerNameById(player1) || "");
-              setActiveEditableField('p1-combo');
-              setSuggestionFocusIndex(-1);
-              setTimeout(() => p1ComboInputRef.current?.blur(), 0);
-            }
+            setActiveEditableField('p1-manual');
+            setTimeout(() => p1InputRef.current?.blur(), 0);
           }
-      } 
+        } else {
+          if (player1) {
+            changeFocus(3);
+          } else {
+            showFieldWarning(2);
+          }
+        }
+      }
       else if (localFocusIndex === 3) { setIsManualPlayer2(false); setActiveEditableField(null); changeFocus(5); }
       else if (localFocusIndex === 4) { setIsManualPlayer2(true); setActiveEditableField(null); changeFocus(5); }
-      else if (localFocusIndex === 5) { 
-          if (isManualPlayer2) {
-            if (activeEditableField === 'p2-manual') {
-              if (canMoveForward(5)) {
-                setActiveEditableField(null);
-                p2InputRef.current?.blur();
-                setPlayer2Warning("");
-                changeFocus(6);
-              } else {
-                showFieldWarning(5);
-              }
+      else if (localFocusIndex === 5) {
+        if (isManualPlayer2) {
+          if (activeEditableField === 'p2-manual') {
+            if (canMoveForward(5)) {
+              setActiveEditableField(null);
+              p2InputRef.current?.blur();
+              setPlayer2Warning("");
+              changeFocus(6);
             } else {
-              setActiveEditableField('p2-manual');
-              setTimeout(() => p2InputRef.current?.blur(), 0);
+              showFieldWarning(5);
             }
           } else {
-            if (activeEditableField === 'p2-combo') {
-              // Öneri seçili değilse, ENTER ile bir şey yapma
-            } else {
-              setCombo2Query(getPlayerNameById(player2) || "");
-              setActiveEditableField('p2-combo');
-              setSuggestionFocusIndex(-1);
-              setTimeout(() => p2ComboInputRef.current?.blur(), 0);
-            }
+            setActiveEditableField('p2-manual');
+            setTimeout(() => p2InputRef.current?.blur(), 0);
           }
-      } 
-      
+        } else {
+          if (player2) {
+            changeFocus(6);
+          } else {
+            showFieldWarning(5);
+          }
+        }
+      }
       else if (localFocusIndex === 6) {
         changeFocus(7);
       }
@@ -878,20 +622,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       else if (localFocusIndex === 9) setHasAso(!hasAso);
       else if (localFocusIndex === 10) handleStart();
     } else if (e.key === 'Backspace') {
-        if (localFocusIndex > 0) {
-            setLocalFocusIndex(localFocusIndex - 1);
-        }
+      if (localFocusIndex > 0) {
+        setLocalFocusIndex(localFocusIndex - 1);
+      }
     } else if (e.key === 'Escape') {
-        setDeviceMode(null); // Back to Main Menu
+      setDeviceMode(null); // Back to Main Menu
     }
   };
 
   useEffect(() => {
     navHandlersRef.current = {
       handleNavAction,
-      handleLocalNavAction,
-      handleComboConfirm,
-      handleVirtualEnter
+      handleLocalNavAction
     };
   });
 
@@ -944,54 +686,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') navHandlersRef.current.handleNavAction('LEFT');
         else if (e.key === 'Enter' || e.key === ' ') navHandlersRef.current.handleNavAction('ENTER');
       } else if (deviceMode === 'local') {
-        // Güncel değerleri ref'lerden al (closure sorununu önlemek için)
         const currentActiveField = activeEditableFieldRef.current;
-        const currentSuggestionIndex = suggestionFocusIndexRef.current;
         
-        // If editing input, allow typing but trap Enter/Escape/Backspace/ArrowDown
         if (currentActiveField) {
           if (e.key === 'Enter') {
             e.preventDefault();
-            
-            console.log('🔑 Enter basıldı. ActiveField:', currentActiveField, 'Index:', currentSuggestionIndex);
-
-            // Combo alanındayken Enter ile seçim yap (stateRef kullanarak en güncel verilerle)
-            if ((currentActiveField === 'p1-combo' || currentActiveField === 'p2-combo') && currentSuggestionIndex >= 0) {
-              const state = stateRef.current;
-              const isFirst = currentActiveField === 'p1-combo';
-              const snapshot = suggestionSnapshotRef.current[isFirst ? 'p1' : 'p2'] || [];
-
-              console.log('🔍 Enter snapshot kullanılıyor:', snapshot.length, 'öneri');
-
-              if (snapshot && snapshot.length > currentSuggestionIndex) {
-                const selected = snapshot[currentSuggestionIndex];
-                if (selected) {
-                  console.log('✅ Enter ile seçim yapıldı (Snapshot):', selected.fullName);
-                  if (isFirst) {
-                    setPlayer1(selected.id);
-                    setPlayer1Warning("");
-                    setCombo1Query(selected.fullName);
-                    setActiveEditableField(null);
-                    setSuggestionFocusIndex(-1);
-                    setLocalFocusIndex(3);
-                  } else {
-                    setPlayer2(selected.id);
-                    setPlayer2Warning("");
-                    setCombo2Query(selected.fullName);
-                    setActiveEditableField(null);
-                    setSuggestionFocusIndex(-1);
-                    setLocalFocusIndex(6);
-                  }
-                  return;
-                }
-              } else {
-                console.log('⚠️ Snapshot boş veya index geçersiz');
-              }
-            } else {
-                console.log('⚠️ Combo alanı değil veya index < 0');
-            }
-            
-            navHandlersRef.current.handleLocalNavAction(e);
+            handleVirtualEnter();
             return;
           }
           if (['Escape', 'BrowserBack', 'GoBack'].includes(e.key)) {
@@ -1001,25 +701,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           }
           if (e.key === 'Backspace') {
             e.preventDefault();
-            // Sanal klavyenin backspace işlevini tetikle
             if (currentActiveField === 'p1-manual') {
               setManualPlayer1Name((prev) => prev.slice(0, -1));
             } else if (currentActiveField === 'p2-manual') {
               setManualPlayer2Name((prev) => prev.slice(0, -1));
-            } else if (currentActiveField === 'p1-combo') {
-              setCombo1Query((prev) => prev.slice(0, -1));
-            } else if (currentActiveField === 'p2-combo') {
-              setCombo2Query((prev) => prev.slice(0, -1));
             }
             return;
           }
-          // ArrowDown/ArrowUp/ArrowLeft: Öneri navigasyonu için handleLocalNavAction'a gönder
-          if (['ArrowDown', 'ArrowUp', 'ArrowLeft'].includes(e.key)) {
+          if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             e.preventDefault();
             navHandlersRef.current.handleLocalNavAction(e);
             return;
           }
-          // Allow typing while editing
           return;
         }
 
@@ -1064,9 +757,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     filteredPlayers,
     hasPenalty,
     hasAso,
-    activeEditableField,
-    cancelActiveEditing,
-    handleVirtualExit
+    handleVirtualExit,
+    handleVirtualEnter
   ]);
 
   // Mod seçim ekranında beklerken gelen maç komutlarını dinle
@@ -2318,63 +2010,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     <>
                       <div className="input-header">3CSCORE OYUNCUSU</div>
                       <div className="combo-wrapper">
-                        <input
-                          id="p1-combo-input"
-                          type="text"
-                          autoComplete="off"
-                          readOnly={activeEditableField !== 'p1-combo'}
-                          value={activeEditableField === 'p1-combo' ? combo1Query : (getPlayerNameById(player1) || "")}
-                          onChange={(e) => {
-                              if (activeEditableField === 'p1-combo') {
-                                  setCombo1Query(e.target.value);
-                              }
-                          }}
-                          placeholder={activeEditableField === 'p1-combo' ? "İlk harfleri yazın..." : "Oyuncu seçin..."}
+                        <select
+                          id="p1-input"
                           className="player-input modern"
-                          style={{
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
-                              ...getFocusGlowStyle(2),
-                              cursor: activeEditableField === 'p1-combo' ? 'text' : 'default'
+                          value={player1}
+                          onChange={(e) => {
+                            setPlayer1(e.target.value);
+                            setPlayer1Warning("");
                           }}
                           onFocus={() => setLocalFocusIndex(2)}
-                          ref={p1ComboInputRef}
-                        />
-                        {activeEditableField === 'p1-combo' && combo1Suggestions.length > 0 && (
-                          <div className="combo-suggestions">
-                            {combo1Suggestions.map((player, index) => (
-                              <button
-                                type="button"
-                                key={player.id}
-                                className={`combo-suggestion-item ${suggestionFocusIndex === index ? 'focused' : ''}`}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => handleComboSuggestionClick('p1', player)}
-                                style={{
-                                  background: suggestionFocusIndex === index ? 'rgba(255, 215, 0, 0.3)' : undefined,
-                                  border: suggestionFocusIndex === index ? '2px solid #FFD700' : undefined,
-                                  boxShadow: suggestionFocusIndex === index ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
-                                }}
-                              >
-                                {player.fullName}
-                              </button>
-                            ))}
-                            {/* İpucu mesajı */}
-                            <div className="combo-suggestions-hint" style={{
-                              fontSize: '10px',
-                              color: 'rgba(255, 255, 255, 0.6)',
-                              textAlign: 'center',
-                              padding: '6px 8px',
-                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                              background: 'rgba(0, 0, 0, 0.2)'
-                            }}>
-                              {suggestionFocusIndex >= 0 
-                                ? '⬆⬇ Seç • ENTER Onayla • ◀ Geri' 
-                                : '⬇ Önerilere git'}
-                            </div>
-                          </div>
-                        )}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                            ...getFocusGlowStyle(2),
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="">Oyuncu seçin...</option>
+                          {filteredPlayers.map((player) => (
+                            <option key={player.id} value={player.id}>{player.fullName}</option>
+                          ))}
+                        </select>
                       </div>
-                      {renderInlineKeyboard('p1-combo')}
                     </>
                   ) : (
                     <>
@@ -2474,63 +2131,30 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     <>
                       <div className="input-header">3CSCORE OYUNCUSU</div>
                       <div className="combo-wrapper">
-                        <input
-                          id="p2-combo-input"
-                          type="text"
-                          autoComplete="off"
-                          readOnly={activeEditableField !== 'p2-combo'}
-                          value={activeEditableField === 'p2-combo' ? combo2Query : (getPlayerNameById(player2) || "")}
-                          onChange={(e) => {
-                              if (activeEditableField === 'p2-combo') {
-                                  setCombo2Query(e.target.value);
-                              }
-                          }}
-                          placeholder={activeEditableField === 'p2-combo' ? "İlk harfleri yazın..." : "Oyuncu seçin..."}
+                        <select
+                          id="p2-input"
                           className="player-input modern"
-                          style={{
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
-                              ...getFocusGlowStyle(5),
-                              cursor: activeEditableField === 'p2-combo' ? 'text' : 'default'
+                          value={player2}
+                          onChange={(e) => {
+                            setPlayer2(e.target.value);
+                            setPlayer2Warning("");
                           }}
                           onFocus={() => setLocalFocusIndex(5)}
-                          ref={p2ComboInputRef}
-                        />
-                        {activeEditableField === 'p2-combo' && combo2Suggestions.length > 0 && (
-                          <div className="combo-suggestions">
-                            {combo2Suggestions.map((player, index) => (
-                              <button
-                                type="button"
-                                key={player.id}
-                                className={`combo-suggestion-item ${suggestionFocusIndex === index ? 'focused' : ''}`}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => handleComboSuggestionClick('p2', player)}
-                                style={{
-                                  background: suggestionFocusIndex === index ? 'rgba(255, 215, 0, 0.3)' : undefined,
-                                  border: suggestionFocusIndex === index ? '2px solid #FFD700' : undefined,
-                                  boxShadow: suggestionFocusIndex === index ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
-                                }}
-                              >
-                                {player.fullName}
-                              </button>
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                            ...getFocusGlowStyle(5),
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="">Oyuncu seçin...</option>
+                          {filteredPlayers
+                            .filter((player) => player.id !== player1)
+                            .map((player) => (
+                              <option key={player.id} value={player.id}>{player.fullName}</option>
                             ))}
-                            {/* İpucu mesajı */}
-                            <div className="combo-suggestions-hint" style={{
-                              fontSize: '10px',
-                              color: 'rgba(255, 255, 255, 0.6)',
-                              textAlign: 'center',
-                              padding: '6px 8px',
-                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                              background: 'rgba(0, 0, 0, 0.2)'
-                            }}>
-                              {suggestionFocusIndex >= 0 
-                                ? '⬆⬇ Seç • ENTER Onayla • ◀ Geri' 
-                                : '⬇ Önerilere git'}
-                            </div>
-                          </div>
-                        )}
+                        </select>
                       </div>
-                      {renderInlineKeyboard('p2-combo')}
                     </>
                   ) : (
                     <>

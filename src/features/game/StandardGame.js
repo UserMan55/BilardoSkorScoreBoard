@@ -38,6 +38,9 @@ function StandardGame({
   const [notification, setNotification] = useState(null); // { message, type: 'info'|'warning'|'success' }
   const [warningMessage, setWarningMessage] = useState(null); // Son X Sayı/İstaka uyarısı
   
+  // Menu Overlay State (must be before handlersRef)
+  const [showMenuOverlay, setShowMenuOverlay] = useState(false);
+  
   // Save Confirmation State
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingSaveData, setPendingSaveData] = useState(null);
@@ -63,7 +66,8 @@ function StandardGame({
       handleConfirmSave,
       handleCancelSave,
       handleNewMatch,
-      handleRematch
+      handleRematch,
+      setShowMenuOverlay
     };
   });
 
@@ -100,8 +104,32 @@ function StandardGame({
             case 'UNDO':
               handlersRef.current.handleUndo();
               break;
+            case 'TOGGLE_TIMER':
+              console.log('🎯 TOGGLE_TIMER case matched!');
+              if (handlersRef.current.handleToggleTimer) {
+                handlersRef.current.handleToggleTimer();
+              } else {
+                console.error('❌ handleToggleTimer not found in ref!');
+              }
+              break;
+            case 'EXIT':
+              // Menu overlay'i aç (maçtan çıkış onayı için)
+              if (handlersRef.current.setShowMenuOverlay) {
+                handlersRef.current.setShowMenuOverlay(true);
+              }
+              break;
+            case 'MENU_CANCEL':
+              // Menu overlay'i kapat
+              if (handlersRef.current.setShowMenuOverlay) {
+                handlersRef.current.setShowMenuOverlay(false);
+              }
+              break;
+            case 'MENU_CONFIRM':
+              // Maçtan çık
+              handlersRef.current.handleExit();
+              break;
             default:
-              console.warn("Bilinmeyen komut:", data.command);
+              console.warn("⚠️ Bilinmeyen komut:", data.command, "| Type:", typeof data.command);
           }
         }
       }
@@ -154,7 +182,17 @@ function StandardGame({
         run: runCount,
         currentTurn: currentTurn,
         hr1: player1Stats.hr1,
-        hr2: player2Stats.hr1 // Player 2 HR1
+        hr2: player2Stats.hr1, // Player 2 HR1
+        isTimerRunning: isTimerRunning,
+        timerPhase: timerPhase,
+        timerResetTrigger: timerResetTrigger,
+        isTimerPaused: isTimerPaused,
+        player1TimeoutLeft: player1TimeoutLeft,
+        player2TimeoutLeft: player2TimeoutLeft,
+        notification: notification,
+        warningMessage: warningMessage,
+        showMenuOverlay: showMenuOverlay,
+        gameEnded: gameEnded
       }
     };
 
@@ -180,7 +218,17 @@ function StandardGame({
     hasPenalty,
     hasAso,
     player1Stats.hr1,
-    player2Stats.hr1
+    player2Stats.hr1,
+    isTimerRunning,
+    timerPhase,
+    timerResetTrigger,
+    isTimerPaused,
+    player1TimeoutLeft,
+    player2TimeoutLeft,
+    notification,
+    warningMessage,
+    showMenuOverlay,
+    gameEnded
   ]);
 
   // Birleşik uyarı mesajı oluştur (istaka + skor)
@@ -330,17 +378,21 @@ function StandardGame({
   };
 
   const handleToggleTimer = () => {
+    console.log('🕐 Timer toggle called! Current state:', isTimerRunning);
+    
     // History'ye kaydet
     saveToHistory();
     
     // Timer durdurulduğu zaman (isTimerRunning true ise, başlatılı demek)
     if (isTimerRunning) {
       // Timer durdurma işlemi (PAUSE)
+      console.log('⏸️ Pausing timer');
       setIsTimerRunning(false);
       setTimerPhase('idle');
       setIsTimerPaused(true); // Pause durumunu aç
     } else {
       // Timer başlatma işlemi
+      console.log('▶️ Starting timer');
       setIsTimerRunning(true);
       setTimerPhase('running'); // Timer çalışma durumuna geç
       setIsTimerPaused(false); // Pause durumunu kapat
@@ -520,9 +572,6 @@ function StandardGame({
 
   // Modal Focus State
   const [modalFocusIndex, setModalFocusIndex] = useState(1); // 0: Left Button, 1: Right Button (Default: Confirm/New Match)
-
-  // Menu Overlay State
-  const [showMenuOverlay, setShowMenuOverlay] = useState(false);
 
   // Sound Mute State
   const [isMuted, setIsMuted] = useState(false);
