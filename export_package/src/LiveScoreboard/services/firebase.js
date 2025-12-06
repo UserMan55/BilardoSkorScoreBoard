@@ -34,15 +34,16 @@ export async function sendRemoteStartCommand(matchData, tableId = 'table_1') {
 }
 
 // Oyun içi komut gönderir (Mobil/Kumanda tarafı)
+// NOT: Client timestamp kullanılıyor (serverTimestamp network round-trip ekliyor)
 export async function sendMatchCommand(commandType, payload = {}, tableId = 'table_1') {
   try {
-    await setDoc(doc(db, "live_matches", tableId), {
+    const now = Date.now();
+    setDoc(doc(db, "live_matches", tableId), {
       status: 'COMMAND',
       command: commandType,
       payload: payload,
-      timestamp: serverTimestamp()
-    }, { merge: true });
-    console.log(`Oyun komutu gönderildi (${commandType}):`, payload);
+      timestamp: { seconds: Math.floor(now / 1000), nanoseconds: (now % 1000) * 1000000 }
+    }); // await kaldırıldı - fire and forget
     return true;
   } catch (error) {
     console.error("Oyun komutu gönderilemedi:", error);
@@ -68,18 +69,37 @@ export function listenForMatchCommands(onCommandReceived, tableId = 'table_1') {
 
 // --- TABLE STATUS FUNCTIONS ---
 
-// Masanın durumunu günceller (BUSY, IDLE)
+// Debounce için değişkenler
+let tableStatusDebounceTimer = null;
+let pendingTableStatus = null;
+
+// Masanın durumunu günceller (BUSY, IDLE) - Debounced (100ms)
 export async function updateTableStatus(tableId, status, matchData = null) {
-  try {
-    await setDoc(doc(db, "table_status", tableId), {
-      status: status, // 'BUSY' or 'IDLE'
-      currentMatch: matchData,
-      lastUpdated: serverTimestamp()
-    });
-    console.log(`Masa durumu güncellendi: ${tableId} -> ${status}`);
-  } catch (error) {
-    console.error("Masa durumu güncellenemedi:", error);
+  // Pending durumu kaydet
+  pendingTableStatus = { tableId, status, matchData };
+  
+  // Eğer zaten bir timer varsa temizle
+  if (tableStatusDebounceTimer) {
+    clearTimeout(tableStatusDebounceTimer);
   }
+  
+  // 50ms sonra gönder (hızlı güncelleme için optimize edildi)
+  tableStatusDebounceTimer = setTimeout(async () => {
+    if (!pendingTableStatus) return;
+    
+    const { tableId: id, status: st, matchData: md } = pendingTableStatus;
+    pendingTableStatus = null;
+    
+    try {
+      await setDoc(doc(db, "table_status", id), {
+        status: st,
+        currentMatch: md,
+        lastUpdated: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Masa durumu güncellenemedi:", error);
+    }
+  }, 100);
 }
 
 // Masanın durumunu dinler (Mobil tarafı için)

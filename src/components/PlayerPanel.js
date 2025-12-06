@@ -6,7 +6,8 @@ function PlayerPanel({
   playerIndex = 0,
   isActive = false,
   borderColor = 'transparent',
-  timeoutLeft = 2
+  timeoutLeft = 2,
+  photoURL = null
 }) {
   const formattedAvg = Number(avg).toFixed(3);
 
@@ -29,20 +30,70 @@ function PlayerPanel({
       position: 'relative',
       transition: 'all 0.3s ease'
     }}>
-      {/* Oyuncu Adı Kutusu */}
+      {/* Oyuncu Adı ve Fotoğraf Kutusu */}
       <div style={{
-        fontFamily: "Arial, sans-serif",
-        fontSize: 24,
-        fontWeight: 800,
+        display: 'flex',
+        flexDirection: playerIndex === 0 ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        gap: '12px',
         marginBottom: '10px',
-        background: '#fff', // Her iki panel için sabit beyaz arka plan
-        color: '#222', // Her iki panel için sabit koyu yazı
+        background: playerIndex === 0 ? '#FFFFFF' : '#FFD700',
         borderRadius: 12,
-        padding: '8px 0',
+        padding: '8px 16px',
         width: '96%',
-        textAlign: 'center'
+        boxSizing: 'border-box'
       }}>
-        {name}
+        {/* Oyuncu Fotoğrafı */}
+        {photoURL ? (
+          <div style={{
+            width: 70,
+            height: 70,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '3px solid #333',
+            flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}>
+            <img 
+              src={photoURL} 
+              alt={name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+            />
+          </div>
+        ) : (
+          <div style={{
+            width: 70,
+            height: 70,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: '#fff',
+            flexShrink: 0,
+            border: '3px solid #333',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}>
+            {name ? name.charAt(0).toUpperCase() : '?'}
+          </div>
+        )}
+        {/* Oyuncu Adı */}
+        <div style={{
+          fontFamily: "Arial, sans-serif",
+          fontSize: 24,
+          fontWeight: 800,
+          color: '#222',
+          textAlign: 'center',
+          flex: 1
+        }}>
+          {name}
+        </div>
       </div>
       {/* Skor Kutusu ve Timeout */}
       <div style={{
@@ -150,7 +201,7 @@ function PlayerPanel({
       <div style={{
         fontFamily: "Arial, sans-serif",
         width: '96%',
-        background: '#fff', // Her iki panel için sabit beyaz arka plan
+        background: playerIndex === 0 ? '#FFFFFF' : '#FFD700',
         borderRadius: 12,
         padding: '14px 0 8px 0',
         fontWeight: 'bold',

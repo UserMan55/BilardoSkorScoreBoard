@@ -80,16 +80,15 @@ function StandardGame({
 
   // Uzaktan kumanda komutlarını dinle
   useEffect(() => {
-    let lastProcessedTimestamp = Date.now() / 1000; // Şimdiki zaman (saniye cinsinden)
+    let lastProcessedTimestamp = 0;
 
     const unsubscribe = listenForMatchCommands((data) => {
       if (data && data.status === 'COMMAND') {
         const currentTimestamp = data.timestamp?.seconds || 0;
         
-        // Sadece component mount olduktan sonra gelen ve yeni komutları işle
+        // Sadece yeni komutları işle
         if (currentTimestamp > lastProcessedTimestamp) {
           lastProcessedTimestamp = currentTimestamp;
-          console.log("📡 Uzaktan komut alındı:", data.command);
           
           switch (data.command) {
             case 'PLUS':
@@ -105,31 +104,28 @@ function StandardGame({
               handlersRef.current.handleUndo();
               break;
             case 'TOGGLE_TIMER':
-              console.log('🎯 TOGGLE_TIMER case matched!');
-              if (handlersRef.current.handleToggleTimer) {
-                handlersRef.current.handleToggleTimer();
-              } else {
-                console.error('❌ handleToggleTimer not found in ref!');
-              }
+              handlersRef.current.handleToggleTimer?.();
               break;
             case 'EXIT':
-              // Menu overlay'i aç (maçtan çıkış onayı için)
-              if (handlersRef.current.setShowMenuOverlay) {
-                handlersRef.current.setShowMenuOverlay(true);
-              }
+              handlersRef.current.setShowMenuOverlay?.(true);
               break;
             case 'MENU_CANCEL':
-              // Menu overlay'i kapat
-              if (handlersRef.current.setShowMenuOverlay) {
-                handlersRef.current.setShowMenuOverlay(false);
-              }
+              handlersRef.current.setShowMenuOverlay?.(false);
               break;
             case 'MENU_CONFIRM':
-              // Maçtan çık
               handlersRef.current.handleExit();
               break;
+            case 'SAVE_CONFIRM':
+              handlersRef.current.handleConfirmSave?.();
+              break;
+            case 'SAVE_CANCEL':
+              handlersRef.current.handleCancelSave?.();
+              break;
+            case 'NAV':
+              // Navigasyon komutları - gelecekte menü navigasyonu için
+              break;
             default:
-              console.warn("⚠️ Bilinmeyen komut:", data.command, "| Type:", typeof data.command);
+              break;
           }
         }
       }
@@ -192,7 +188,8 @@ function StandardGame({
         notification: notification,
         warningMessage: warningMessage,
         showMenuOverlay: showMenuOverlay,
-        gameEnded: gameEnded
+        gameEnded: gameEnded,
+        showSaveConfirm: showSaveConfirm
       }
     };
 
@@ -228,7 +225,8 @@ function StandardGame({
     notification,
     warningMessage,
     showMenuOverlay,
-    gameEnded
+    gameEnded,
+    showSaveConfirm
   ]);
 
   // Birleşik uyarı mesajı oluştur (istaka + skor)

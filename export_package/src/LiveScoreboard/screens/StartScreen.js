@@ -870,10 +870,24 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       const user = names.find(u => u.id === idOrName);
       return user ? user.fullName : idOrName;
     };
+    
+    // ID'den Fotoğraf URL'si Çözümleme
+    const resolvePhoto = (idOrName) => {
+      const user = names.find(u => u.id === idOrName || u.fullName === idOrName);
+      return user?.photoURL || null;
+    };
 
     if (activeTab === "2vs2") {
       let finalPlayer1 = isManualPlayer1 ? manualPlayer1Name.trim() : resolveName(player1);
       let finalPlayer2 = isManualPlayer2 ? manualPlayer2Name.trim() : resolveName(player2);
+      
+      // Fotoğraf URL'lerini al
+      const photo1 = isManualPlayer1 ? null : resolvePhoto(player1);
+      const photo2 = isManualPlayer2 ? null : resolvePhoto(player2);
+      
+      console.log("📷 handleRemoteSend - player1 ID:", player1, "-> name:", finalPlayer1, "-> photo:", photo1);
+      console.log("📷 handleRemoteSend - player2 ID:", player2, "-> name:", finalPlayer2, "-> photo:", photo2);
+      console.log("📷 names array sample:", names.slice(0, 3).map(n => ({ id: n.id, name: n.fullName, photo: n.photoURL ? 'VAR' : 'YOK' })));
       
       // İsim girilmemişse varsayılan isimleri ata
       if (!finalPlayer1) finalPlayer1 = "OYUNCU 1";
@@ -884,6 +898,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           await sendRemoteStartCommand({
             mode: "2vs2",
             players: [finalPlayer1, finalPlayer2],
+            playerPhotos: { [finalPlayer1]: photo1, [finalPlayer2]: photo2 },
             settings: { targetScore, targetRack, hasPenalty, hasAso }
           }, selectedTableId);
           setErrorMessage("📡 Komut Başarıyla Gönderildi!");
@@ -997,88 +1012,71 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   );
   // Match Start Overlay
   if (showMatchStartOverlay && incomingMatchData) {
+    const photo1 = incomingMatchData.playerPhotos?.[incomingMatchData.players[0]];
+    const photo2 = incomingMatchData.playerPhotos?.[incomingMatchData.players[1]];
+    
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(135deg, rgba(16, 20, 43, 0.98), rgba(30, 35, 65, 0.98))',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-        animation: 'fadeIn 0.3s ease-in'
-      }}>
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
-          backdropFilter: 'blur(20px)',
-          borderRadius: '24px',
-          padding: '50px 60px',
-          border: '2px solid rgba(76, 175, 80, 0.3)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-          textAlign: 'center',
-          maxWidth: '600px',
-          animation: 'slideUp 0.5s ease-out'
-        }}>
-          <div style={{
-            fontSize: '72px',
-            marginBottom: '30px',
-            animation: 'pulse 2s infinite'
-          }}>🎱</div>
-          
-          <h1 style={{
-            fontSize: '48px',
-            fontWeight: '700',
-            color: '#4CAF50',
-            marginBottom: '20px',
-            textShadow: '0 0 20px rgba(76, 175, 80, 0.5)',
-            letterSpacing: '2px'
-          }}>CANLI MAÇ BAŞLIYOR</h1>
-          
-          <div style={{
-            fontSize: '24px',
-            color: 'rgba(255, 255, 255, 0.9)',
-            marginBottom: '30px',
-            lineHeight: '1.6'
-          }}>
-            <div style={{ marginBottom: '15px' }}>
-              <strong style={{ color: '#4CAF50' }}>{incomingMatchData.players[0]}</strong>
-              <span style={{ margin: '0 15px', color: 'rgba(255, 255, 255, 0.5)' }}>VS</span>
-              <strong style={{ color: '#4CAF50' }}>{incomingMatchData.players[1]}</strong>
+      <div className="match-start-overlay">
+        <div className="match-start-screen">
+          <div className="match-start-title">CANLI MAÇ BAŞLIYOR...</div>
+
+          <div className="match-start-players">
+            <div className="match-start-player">
+              <div className="match-player-photo">
+                {photo1 ? (
+                  <img src={photo1} alt={incomingMatchData.players[0]} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                )}
+              </div>
+              <div className="match-player-name">{incomingMatchData.players[0]}</div>
             </div>
-            <div style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.6)' }}>
-              Hedef: {incomingMatchData.settings.targetScore} puan / {incomingMatchData.settings.targetRack} raket
+
+            <div className="match-start-vs">VS</div>
+
+            <div className="match-start-player">
+              <div className="match-player-photo">
+                {photo2 ? (
+                  <img src={photo2} alt={incomingMatchData.players[1]} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                )}
+              </div>
+              <div className="match-player-name">{incomingMatchData.players[1]}</div>
             </div>
           </div>
-          
-          <div style={{
-            fontSize: '80px',
-            fontWeight: '700',
-            color: '#ffffff',
-            textShadow: '0 0 30px rgba(76, 175, 80, 0.8)',
-            animation: 'countdownPulse 1s infinite'
-          }}>
-            {matchStartCountdown}
+
+          <div className="match-start-details">
+            <div className="match-detail-item">
+              <span className="match-detail-label">Hedef Sayı</span>
+              <span className="match-detail-value">{incomingMatchData.settings.targetScore}</span>
+            </div>
+            <div className="match-detail-item">
+              <span className="match-detail-label">Hedef İstaka</span>
+              <span className="match-detail-value">{incomingMatchData.settings.targetRack}</span>
+            </div>
+            <div className="match-detail-item">
+              <span className="match-detail-label">Penaltı</span>
+              <span className="match-detail-value" style={{ color: incomingMatchData.settings.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
+                {incomingMatchData.settings.hasPenalty ? 'VAR' : 'YOK'}
+              </span>
+            </div>
+            <div className="match-detail-item">
+              <span className="match-detail-label">ASO</span>
+              <span className="match-detail-value" style={{ color: incomingMatchData.settings.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
+                {incomingMatchData.settings.hasAso ? 'VAR' : 'YOK'}
+              </span>
+            </div>
           </div>
+
+          {matchStartCountdown > 0 && (
+            <div className="match-start-countdown">{matchStartCountdown}</div>
+          )}
         </div>
-        
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes countdownPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-          }
-        `}</style>
       </div>
     );
   }

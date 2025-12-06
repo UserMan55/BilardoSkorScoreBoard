@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listenToTableStatus, sendMatchCommand, getUserProfiles } from '../services/firebase';
+import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands } from '../services/firebase';
 import TimerProgressBar from '../components/TimerProgressBar';
 import './MobileController.css';
 
@@ -10,44 +10,33 @@ function MobileController({ onBack, tableId = 'table_1' }) {
   const [playerPhotos, setPlayerPhotos] = useState({});
   const [countdown, setCountdown] = useState(null);
   const [timerRunning, setTimerRunning] = useState(false);
-  const lastCommandTimeRef = React.useRef(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [matchStarting, setMatchStarting] = useState(false); // START komutu geldiğinde true
+  const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
 
-  const handleNavCommand = async (action) => {
-    const now = Date.now();
-    if (now - lastCommandTimeRef.current < 50) return; // 50ms throttle for faster response
-    lastCommandTimeRef.current = now;
-
-    if (navigator.vibrate) navigator.vibrate(30);
-    
-    // Optimistic UI update isn't possible for remote state, but we can ensure the button feels responsive
-    // The button CSS :active state handles the visual feedback locally.
-    
-    await sendMatchCommand('NAV', { action }, tableId);
+  // Navigasyon komutları için (ok tuşları gibi) - throttle yok, anında tepki
+  const handleNavCommand = (action) => {
+    if (navigator.vibrate) navigator.vibrate(15);
+    sendMatchCommand('NAV', { action }, tableId);
   };
 
   // Masa durumunu dinle (Canlı Skor için)
   useEffect(() => {
     const unsubscribe = listenToTableStatus(tableId, (data) => {
+      setIsLoading(false); // İlk veri geldi
       if (data && data.status === 'BUSY' && data.currentMatch) {
         setMatchData(data.currentMatch);
         
-        // Eğer stats yoksa (maç yeni başlıyor), countdown başlat
-        if (!data.currentMatch.stats) {
-          setCountdown(3);
-          let count = 3;
-          const countdownInterval = setInterval(() => {
-            count--;
-            setCountdown(count);
-            if (count <= 0) {
-              clearInterval(countdownInterval);
-              setCountdown(null);
-            }
-          }, 1000);
-        } else {
+        // matchData geldiğinde matchStarting durumunu sıfırla (geri sayım ekranını kapat)
+        setMatchStarting(false);
+        setStartingMatchData(null);
+        
+        // Stats varsa güncelle
+        if (data.currentMatch.stats) {
           setLiveStats(data.currentMatch.stats);
           setCountdown(null);
           // Update timer status
-          if (data.currentMatch.stats && data.currentMatch.stats.timerRunning !== undefined) {
+          if (data.currentMatch.stats.timerRunning !== undefined) {
             setTimerRunning(data.currentMatch.stats.timerRunning);
           }
         }
@@ -56,21 +45,90 @@ function MobileController({ onBack, tableId = 'table_1' }) {
       } else if (data && data.status === 'IDLE') {
         // Masa boşa düştüyse maç bitmiştir veya iptal edilmiştir
         setMatchEnded(true);
+        setMatchStarting(false); // Maç başlatma durumunu sıfırla
+        setStartingMatchData(null);
       }
     });
 
     return () => unsubscribe();
   }, [tableId]);
 
+  // START komutunu dinle (live_matches collection) - Maç başlıyor ekranı için
+  useEffect(() => {
+    let lastTimestamp = 0;
+    const mountTime = Date.now() / 1000; // Component mount zamanı
+    let countdownIntervalRef = null;
+    
+    const unsubscribe = listenForMatchCommands((data) => {
+      if (data && data.status === 'START') {
+        const currentTimestamp = data.timestamp?.seconds || 0;
+        
+        // Eğer bu komut component mount'undan önce (5 saniyeden fazla) geldiyse atla
+        const isStaleData = (mountTime - currentTimestamp) > 5;
+        
+        if (isStaleData) {
+          console.log("📱 MobileController: Eski START komutu atlandı", currentTimestamp);
+          lastTimestamp = currentTimestamp;
+          return;
+        }
+        
+        // Sadece yeni gelen komutları işle
+        if (currentTimestamp > lastTimestamp) {
+          lastTimestamp = currentTimestamp;
+          console.log("📱 MobileController: START komutu alındı", data);
+          
+          setMatchStarting(true);
+          setStartingMatchData(data);
+          setIsLoading(false);
+          
+          // Fotoğrafları doğrudan START komutundan al (varsa)
+          if (data.playerPhotos) {
+            console.log("📷 Fotoğraflar START komutundan alındı:", data.playerPhotos);
+            setPlayerPhotos(data.playerPhotos);
+          }
+          
+          // Önceki geri sayımı temizle
+          if (countdownIntervalRef) {
+            clearInterval(countdownIntervalRef);
+          }
+          
+          // Geri sayım başlat
+          setCountdown(3);
+          let count = 3;
+          countdownIntervalRef = setInterval(() => {
+            count--;
+            setCountdown(count);
+            if (count <= 0) {
+              clearInterval(countdownIntervalRef);
+              countdownIntervalRef = null;
+              setCountdown(null);
+              // Geri sayım bitti, matchData gelene kadar bekle
+              // matchData geldiğinde listenToTableStatus otomatik olarak matchStarting'i false yapacak
+            }
+          }, 1000);
+        }
+      }
+    }, tableId);
+
+    return () => {
+      unsubscribe();
+      if (countdownIntervalRef) {
+        clearInterval(countdownIntervalRef);
+      }
+    };
+  }, [tableId]);
+
   // Fetch player photos from Firebase
   useEffect(() => {
-    if (matchData && matchData.players) {
+    // startingMatchData veya matchData'dan oyuncu isimlerini al
+    const players = startingMatchData?.players || matchData?.players;
+    if (players) {
       const fetchPlayerPhotos = async () => {
         try {
           const allUsers = await getUserProfiles();
           const photos = {};
           
-          matchData.players.forEach(playerName => {
+          players.forEach(playerName => {
             const user = allUsers.find(u => 
               u.fullName.toLowerCase() === playerName.toLowerCase()
             );
@@ -87,30 +145,119 @@ function MobileController({ onBack, tableId = 'table_1' }) {
       
       fetchPlayerPhotos();
     }
-  }, [matchData]);
+  }, [matchData, startingMatchData]);
 
   const handleBackToHome = () => {
     setMatchData(null);
     setLiveStats(null);
     setMatchEnded(false);
+    setMatchStarting(false);
+    setStartingMatchData(null);
     if (onBack) onBack();
   };
 
-  const handleCommand = async (command) => {
-    console.log('📱 Mobile command sent:', command);
-    
+  const handleCommand = (command) => {
     // Titreşim geri bildirimi (mobil cihazlar için)
     if (navigator.vibrate) {
-      navigator.vibrate(40); // Shorter, snappier feedback
+      navigator.vibrate(20); // Kısa titreşim
     }
     
-    // Toggle timer state optimistically for instant UI feedback
+    // Timer için optimistic update (görsel geri bildirim)
     if (command === 'TOGGLE_TIMER') {
       setTimerRunning(prev => !prev);
     }
     
-    await sendMatchCommand(command, {}, tableId);
+    // NOT: RUN değeri için optimistic update kaldırıldı
+    // Tabela tarafı ile tutarsızlık oluşuyordu (race condition)
+    // Artık sadece Firebase'den gelen değerler kullanılıyor
+    
+    // Fire-and-forget: await kaldırıldı, buton anında tepki veriyor
+    sendMatchCommand(command, {}, tableId);
   };
+
+  // Loading durumu - Firebase'den ilk veri bekleniyor
+  if (isLoading) {
+    return (
+      <div className="mobile-controller-wrapper">
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <h2>Bağlanıyor...</h2>
+          <p>Masa durumu kontrol ediliyor</p>
+        </div>
+      </div>
+    );
+  }
+
+  // START komutu geldi - Maç başlıyor ekranı (matchData henüz yok ama startingMatchData var)
+  if (matchStarting && startingMatchData && !matchData) {
+    return (
+      <div className="mobile-controller-wrapper">
+        <div className="match-starting-screen">
+          <div className="starting-title">CANLI MAÇ BAŞLIYOR...</div>
+          
+          <div className="starting-players">
+            <div className="starting-player">
+              <div className="starting-player-photo">
+                {playerPhotos[startingMatchData.players[0]] ? (
+                  <img src={playerPhotos[startingMatchData.players[0]]} alt={startingMatchData.players[0]} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                )}
+              </div>
+              <div className="starting-player-name">{startingMatchData.players[0]}</div>
+            </div>
+            
+            <div className="starting-vs">VS</div>
+            
+            <div className="starting-player">
+              <div className="starting-player-photo">
+                {playerPhotos[startingMatchData.players[1]] ? (
+                  <img src={playerPhotos[startingMatchData.players[1]]} alt={startingMatchData.players[1]} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                )}
+              </div>
+              <div className="starting-player-name">{startingMatchData.players[1]}</div>
+            </div>
+          </div>
+          
+          <div className="starting-details">
+            <div className="starting-detail-item">
+              <span className="detail-label">Hedef Sayı:</span>
+              <span className="detail-value">{startingMatchData.settings?.targetScore || 30}</span>
+            </div>
+            <div className="starting-detail-item">
+              <span className="detail-label">Hedef İstaka:</span>
+              <span className="detail-value">{startingMatchData.settings?.targetRack || 30}</span>
+            </div>
+            <div className="starting-detail-item">
+              <span className="detail-label">Penaltı:</span>
+              <span className="detail-value" style={{ color: startingMatchData.settings?.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
+                {startingMatchData.settings?.hasPenalty ? 'VAR' : 'YOK'}
+              </span>
+            </div>
+            <div className="starting-detail-item">
+              <span className="detail-label">ASO:</span>
+              <span className="detail-value" style={{ color: startingMatchData.settings?.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
+                {startingMatchData.settings?.hasAso ? 'VAR' : 'YOK'}
+              </span>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          {countdown !== null && countdown > 0 && (
+            <div className="starting-countdown">
+              {countdown}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!matchData) {
     return (
@@ -217,12 +364,14 @@ function MobileController({ onBack, tableId = 'table_1' }) {
     );
   }
 
-  if (matchEnded) {
+  // Maç Sonucu Kaydetme Onayı (showSaveConfirm aktifken)
+  if (liveStats?.showSaveConfirm) {
     return (
       <div className="mobile-controller-wrapper">
-        <div className="match-end-screen">
-          <div className="end-icon">🏆</div>
-          <h2>MAÇ BİTTİ</h2>
+        <div className="save-confirm-screen">
+          <div className="save-icon">💾</div>
+          <h2>Maç Sonucu Kaydedilsin mi?</h2>
+          <p className="save-description">Maç verilerini veritabanına kaydetmek istiyor musunuz?</p>
           <div className="final-score">
             <div className="final-player">
               <div className="player-name">{matchData.players[0]}</div>
@@ -233,6 +382,59 @@ function MobileController({ onBack, tableId = 'table_1' }) {
               <div className="player-name">{matchData.players[1]}</div>
               <div className="player-score">{liveStats?.score2 || 0}</div>
             </div>
+          </div>
+          <div className="save-buttons">
+            <button 
+              className="save-btn cancel" 
+              onClick={() => handleCommand('SAVE_CANCEL')}
+            >
+              Hayır, Kaydetme
+            </button>
+            <button 
+              className="save-btn confirm" 
+              onClick={() => handleCommand('SAVE_CONFIRM')}
+            >
+              Evet, Kaydet
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Maç bitti ekranı: matchEnded (IDLE durumu) VEYA gameEnded true ve showSaveConfirm false
+  const showMatchEndScreen = matchEnded || (liveStats?.gameEnded && !liveStats?.showSaveConfirm);
+
+  if (showMatchEndScreen) {
+    return (
+      <div className="mobile-controller-wrapper">
+        <div className="match-end-screen">
+          <div className="end-icon">🏆</div>
+          <h2>MAÇ BİTTİ</h2>
+          <div className="final-score">
+            <div className="final-player">
+              <div className="player-name">{matchData?.players?.[0] || 'Oyuncu 1'}</div>
+              <div className="player-score">{liveStats?.score1 || 0}</div>
+            </div>
+            <div className="vs-text">-</div>
+            <div className="final-player">
+              <div className="player-name">{matchData?.players?.[1] || 'Oyuncu 2'}</div>
+              <div className="player-score">{liveStats?.score2 || 0}</div>
+            </div>
+          </div>
+          <div className="match-end-buttons">
+            <button 
+              className="match-end-btn rematch" 
+              onClick={() => handleCommand('REMATCH')}
+            >
+              🔄 Aynı Maç
+            </button>
+            <button 
+              className="match-end-btn new-match" 
+              onClick={() => handleCommand('NEW_MATCH')}
+            >
+              ➕ Yeni Maç
+            </button>
           </div>
           <button className="back-home-btn" onClick={handleBackToHome}>
             Ana Ekrana Dön
@@ -255,7 +457,7 @@ function MobileController({ onBack, tableId = 'table_1' }) {
       {/* Match Stats */}
       <div className="match-stats-panel">
             <div className="stats-row player-row">
-              <div className={`player-card ${liveStats?.currentTurn === 0 ? 'active' : ''}`}>
+              <div className={`player-card player1 ${liveStats?.currentTurn === 0 ? 'active' : ''}`}>
                 <div className="player-name">{matchData.players[0]}</div>
                 {/* Profile Picture */}
                 <div className="player-profile-pic">
@@ -282,11 +484,11 @@ function MobileController({ onBack, tableId = 'table_1' }) {
               
               <div className="center-info">
                 <div className="inning-label">INNING</div>
-                <div className="inning-value">{liveStats?.inning || 1}</div>
+                <div className="inning-value">{liveStats?.inning ?? 0}</div>
                 <div className="vs-separator">VS</div>
               </div>
               
-              <div className={`player-card ${liveStats?.currentTurn === 1 ? 'active' : ''}`}>
+              <div className={`player-card player2 ${liveStats?.currentTurn === 1 ? 'active' : ''}`}>
                 <div className="player-name">{matchData.players[1]}</div>
                 {/* Profile Picture */}
                 <div className="player-profile-pic">

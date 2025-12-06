@@ -10,13 +10,40 @@
 
 .waiting-screen,
 .match-end-screen,
-.match-starting-screen {
+.match-starting-screen,
+.save-confirm-screen,
+.loading-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 80vh;
   text-align: center;
+}
+
+/* Loading Screen */
+.loading-screen h2 {
+  font-size: 24px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.loading-screen p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #FFD700;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Match Starting Screen */
@@ -232,6 +259,18 @@
 }
 
 .player-card.active {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Player 1 - White theme when active */
+.player-card.player1.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #FFFFFF;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+/* Player 2 - Gold theme when active */
+.player-card.player2.active {
   background: rgba(255, 215, 0, 0.2);
   border-color: #FFD700;
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
@@ -314,12 +353,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  margin-top: -8px;
+  justify-content: flex-start;
+  gap: 2px;
+  margin-top: -5px;
+  padding-top: 0;
 }
 
 .inning-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.6);
   text-transform: uppercase;
@@ -327,11 +368,12 @@
 }
 
 .inning-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: bold;
   color: #FFD700;
   text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
-  margin-bottom: 3px;
+  line-height: 1;
+  margin-bottom: 5px;
 }
 
 .vs-separator {
@@ -457,6 +499,45 @@
   transform: scale(0.95);
 }
 
+/* Match End Buttons */
+.match-end-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 350px;
+}
+
+.match-end-btn {
+  flex: 1;
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.match-end-btn:active {
+  transform: scale(0.95);
+}
+
+.match-end-btn.rematch {
+  background: linear-gradient(135deg, #48d84d 0%, #2d8a30 100%);
+  color: white;
+  box-shadow: 0 5px 15px rgba(72, 216, 77, 0.4);
+}
+
+.match-end-btn.new-match {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
 
 
 .ctrl-btn {
@@ -754,8 +835,8 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin-top: -15px;
-  margin-bottom: 5px;
+  margin-top: -25px;
+  margin-bottom: 10px;
 }
 
 .run-label {
@@ -933,5 +1014,62 @@
   background: linear-gradient(145deg, #44A89E 0%, #3A9288 100%);
 }
 
+/* Save Confirm Screen */
+.save-confirm-screen {
+  animation: fadeIn 0.3s ease-out;
+}
 
+.save-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  animation: bounce 1s ease-in-out infinite;
+}
 
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.save-confirm-screen h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.save-description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 25px;
+}
+
+.save-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.save-btn {
+  padding: 15px 25px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.save-btn:active {
+  transform: scale(0.95);
+}
+
+.save-btn.cancel {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.save-btn.confirm {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+}

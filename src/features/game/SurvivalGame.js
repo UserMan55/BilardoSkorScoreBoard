@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import GameController from './GameController'; // We might need a specialized controller or adapt this one
+import { getUserProfiles } from '../../services/firebase';
 
 function SurvivalGame({
   players: initialPlayers, // Array of player names
@@ -58,6 +59,9 @@ function SurvivalGame({
   const [showNegativeScoreModal, setShowNegativeScoreModal] = useState(false);
   const [negativeScorePlayerIndex, setNegativeScorePlayerIndex] = useState(null);
 
+  // Player Photos State
+  const [playerPhotos, setPlayerPhotos] = useState({});
+
   // Derived state
   const currentPlayer = players[currentTurn];
   const playerCount = players.length;
@@ -82,6 +86,33 @@ function SurvivalGame({
       handler();
     }
   };
+
+  // Player Photos Yükleme
+  useEffect(() => {
+    const fetchPlayerPhotos = async () => {
+      try {
+        const playerNames = initialPlayers || [];
+        if (playerNames.length === 0) return;
+        
+        const profiles = await getUserProfiles();
+        const photosMap = {};
+        
+        playerNames.forEach(name => {
+          const profile = profiles.find(p => p.name === name);
+          if (profile && profile.photoURL) {
+            photosMap[name] = profile.photoURL;
+          }
+        });
+        
+        setPlayerPhotos(photosMap);
+        console.log('[SurvivalGame] Oyuncu fotoğrafları yüklendi:', photosMap);
+      } catch (error) {
+        console.error('[SurvivalGame] Fotoğraf yükleme hatası:', error);
+      }
+    };
+    
+    fetchPlayerPhotos();
+  }, [initialPlayers]);
 
   // Notification helper
   const showNotification = (message, type = 'info', duration = 3000) => {
@@ -795,14 +826,62 @@ function SurvivalGame({
               </div>
             )}
 
-            {/* Player Name */}
+            {/* Player Name with Photo */}
             <div style={{ 
-              fontSize: '32px', 
-              fontWeight: 'bold', 
-              marginBottom: '10px',
-              color: nameColor
+              display: 'flex',
+              flexDirection: index === 0 ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '10px'
             }}>
-              {player.name}
+              {/* Player Photo */}
+              {playerPhotos[player.name] ? (
+                <div style={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: `3px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}>
+                  <img 
+                    src={playerPhotos[player.name]} 
+                    alt={player.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                </div>
+              ) : (
+                <div style={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 28,
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  flexShrink: 0,
+                  border: `3px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}>
+                  {player.name ? player.name.charAt(0).toUpperCase() : '?'}
+                </div>
+              )}
+              {/* Player Name */}
+              <span style={{ 
+                fontSize: '32px', 
+                fontWeight: 'bold', 
+                color: nameColor
+              }}>
+                {player.name}
+              </span>
             </div>
             
             {/* Score */}
