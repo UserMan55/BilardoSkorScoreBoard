@@ -245,7 +245,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
+  gap: 8px;
 }
 
 .player-card {
@@ -259,6 +259,18 @@
 }
 
 .player-card.active {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Player 1 - White theme when active */
+.player-card.player1.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #FFFFFF;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+/* Player 2 - Gold theme when active */
+.player-card.player2.active {
   background: rgba(255, 215, 0, 0.2);
   border-color: #FFD700;
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
@@ -337,37 +349,32 @@
   box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
 }
 
-.center-info {
-  display: flex;
-  flex-direction: column;
+.inning-badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 2px;
-  margin-top: -5px;
-  padding-top: 0;
+  gap: 8px;
+  margin: 0 0 6px 4px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .inning-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
 }
 
 .inning-value {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 800;
   color: #FFD700;
   text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
   line-height: 1;
-  margin-bottom: 5px;
-}
-
-.vs-separator {
-  font-size: 24px;
-  font-weight: bold;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .info-row {
@@ -487,6 +494,45 @@
   transform: scale(0.95);
 }
 
+/* Match End Buttons */
+.match-end-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 350px;
+}
+
+.match-end-btn {
+  flex: 1;
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.match-end-btn:active {
+  transform: scale(0.95);
+}
+
+.match-end-btn.rematch {
+  background: linear-gradient(135deg, #48d84d 0%, #2d8a30 100%);
+  color: white;
+  box-shadow: 0 5px 15px rgba(72, 216, 77, 0.4);
+}
+
+.match-end-btn.new-match {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
 
 
 .ctrl-btn {

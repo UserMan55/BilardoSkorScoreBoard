@@ -4,7 +4,7 @@ import ScorePanel from '../../components/ScorePanel';
 import GameController from './GameController';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
-import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands } from '../../services/firebase';
+import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles } from '../../services/firebase';
 
 function StandardGame({
   player1Name,
@@ -18,6 +18,7 @@ function StandardGame({
 }) {
   // Oyun state'leri
   const [currentTurn, setCurrentTurn] = useState(0); // 0: player1, 1: player2
+  const [playerPhotos, setPlayerPhotos] = useState({});
   const [inning, setInning] = useState(0);
   const [runCount, setRunCount] = useState(0);
   const [player1Score, setPlayer1Score] = useState(0);
@@ -78,6 +79,31 @@ function StandardGame({
     }
   };
 
+  // Oyuncu fotoğraflarını yükle
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        const users = await getUserProfiles();
+        const photos = {};
+        
+        [player1Name, player2Name].forEach(playerName => {
+          const user = users.find(u => 
+            u.fullName.trim().toLowerCase() === playerName.trim().toLowerCase()
+          );
+          if (user?.photoURL) {
+            photos[playerName] = user.photoURL;
+          }
+        });
+        
+        setPlayerPhotos(photos);
+      } catch (error) {
+        console.error('Fotoğraflar yüklenemedi:', error);
+      }
+    };
+    
+    fetchPhotos();
+  }, [player1Name, player2Name]);
+
   // Uzaktan kumanda komutlarını dinle
   useEffect(() => {
     let lastProcessedTimestamp = 0;
@@ -120,6 +146,12 @@ function StandardGame({
               break;
             case 'SAVE_CANCEL':
               handlersRef.current.handleCancelSave?.();
+              break;
+            case 'NEW_MATCH':
+              handlersRef.current.handleNewMatch?.();
+              break;
+            case 'REMATCH':
+              handlersRef.current.handleRematch?.();
               break;
             case 'NAV':
               // Navigasyon komutları - gelecekte menü navigasyonu için
@@ -193,12 +225,11 @@ function StandardGame({
       }
     };
 
-    if (!gameEnded) {
-      if (isFreeMode) {
-        // Serbest modda masa durumunu güncelleme veya IDLE olarak tut
-      } else {
-        updateTableStatus('table_1', 'BUSY', liveStats);
-      }
+    // Her durumda güncelle (gameEnded sonrası da mobil tarafın yeni maç/aynı maç ekranını görebilmesi için)
+    if (isFreeMode) {
+      // Serbest modda masa durumunu güncelleme veya IDLE olarak tut
+    } else {
+      updateTableStatus('table_1', 'BUSY', liveStats);
     }
   }, [
     player1Score,
@@ -792,14 +823,16 @@ function StandardGame({
   };
 
   const handleExit = () => {
-    // Çıkış onayı
-    const confirmExit = window.confirm(
-      `Maçı sonlandırmak istediğinize emin misiniz?\n\nMevcut Durum:\n${player1Name}: ${player1Score} sayı\n${player2Name}: ${player2Score} sayı\nİstaka: ${inning}\n\nÇıkarsanız maç sonuçları kaydedilmeyecek.`
-    );
-    
-    if (confirmExit) {
+    // Uzaktan kumandadan gelen MENU_CONFIRM komutu zaten onay almış demektir
+    // showMenuOverlay true ise, kullanıcı menüden "MAÇTAN ÇIK" butonuna basmıştır
+    if (showMenuOverlay) {
+      setShowMenuOverlay(false);
       onExit();
+      return;
     }
+    
+    // Lokal klavye ile çağrıldıysa menü overlay'i aç
+    setShowMenuOverlay(true);
   };
 
   const handleOk = () => {
@@ -1401,6 +1434,7 @@ function StandardGame({
           isActive={currentTurn === 0}
           borderColor={currentTurn === 0 ? '#FFFFFF' : 'transparent'}
           timeoutLeft={player1TimeoutLeft}
+          photoURL={playerPhotos[player1Name]}
         />
         
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
@@ -1442,6 +1476,7 @@ function StandardGame({
           isActive={currentTurn === 1}
           borderColor={currentTurn === 1 ? '#FFD700' : 'transparent'}
           timeoutLeft={player2TimeoutLeft}
+          photoURL={playerPhotos[player2Name]}
         />
       </div>
       <div style={{ width: '100%' }}>

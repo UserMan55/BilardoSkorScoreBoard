@@ -73,7 +73,7 @@ export function listenForMatchCommands(onCommandReceived, tableId = 'table_1') {
 let tableStatusDebounceTimer = null;
 let pendingTableStatus = null;
 
-// Masanın durumunu günceller (BUSY, IDLE) - Debounced (100ms)
+// Masanın durumunu günceller (BUSY, IDLE) - Debounced (30ms - ultra hızlı)
 export async function updateTableStatus(tableId, status, matchData = null) {
   // Pending durumu kaydet
   pendingTableStatus = { tableId, status, matchData };
@@ -83,7 +83,7 @@ export async function updateTableStatus(tableId, status, matchData = null) {
     clearTimeout(tableStatusDebounceTimer);
   }
   
-  // 50ms sonra gönder (hızlı güncelleme için optimize edildi)
+  // 30ms sonra gönder (ultra hızlı güncelleme için optimize edildi)
   tableStatusDebounceTimer = setTimeout(async () => {
     if (!pendingTableStatus) return;
     
@@ -91,15 +91,16 @@ export async function updateTableStatus(tableId, status, matchData = null) {
     pendingTableStatus = null;
     
     try {
+      // Client timestamp kullanarak network round-trip azaltılıyor
       await setDoc(doc(db, "table_status", id), {
         status: st,
         currentMatch: md,
-        lastUpdated: serverTimestamp()
+        lastUpdated: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
       });
     } catch (error) {
       console.error("Masa durumu güncellenemedi:", error);
     }
-  }, 100);
+  }, 30);
 }
 
 // Masanın durumunu dinler (Mobil tarafı için)

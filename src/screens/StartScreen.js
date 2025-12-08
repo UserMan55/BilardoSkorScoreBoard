@@ -20,6 +20,8 @@ const SALON_INFO = {
   logo: "/logo.png"
 };
 
+const FALLBACK_AVATAR = "/logo.png";
+
 const TABLE_BACKGROUND_URL = `${process.env.PUBLIC_URL || ''}/3cscoreTable.png`;
 
 const START_SCREEN_BACKGROUND_STYLE = {
@@ -61,6 +63,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [deviceMode, setDeviceMode] = useState(null);
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
   const [showMobileController, setShowMobileController] = useState(false);
+  const [controllerReadOnly, setControllerReadOnly] = useState(false);
   // Navigation State
   const [focusedIndex, setFocusedIndex] = useState(1);
   const focusedIndexRef = React.useRef(1);
@@ -181,6 +184,14 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
   const [showMatchStartOverlay, setShowMatchStartOverlay] = useState(false);
   const [matchStartCountdown, setMatchStartCountdown] = useState(5);
+  const [showLiveWatch, setShowLiveWatch] = useState(false);
+
+  // Masa boşaldığında canlı izleme modunu kapat
+  useEffect(() => {
+    if (!tableStatus || tableStatus.status !== 'BUSY') {
+      setShowLiveWatch(false);
+    }
+  }, [tableStatus]);
 
   // Local Game Navigation State
   const [localFocusIndex, setLocalFocusIndex] = useState(0); // 0: Tabs, 1: P1, 2: P2, 3: Target/P3, 4: Rack/P4, 5: Start
@@ -847,6 +858,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     };
   }, [showMatchStartOverlay, incomingMatchData, executeGameStart]);
 
+  const selectedPlayer1Photo = (!isManualPlayer1 && player1)
+    ? (names.find(u => u.id === player1)?.photoURL || null)
+    : null;
+  const selectedPlayer2Photo = (!isManualPlayer2 && player2)
+    ? (names.find(u => u.id === player2)?.photoURL || null)
+    : null;
+
+  const shouldShowPlayer1Badge = (!isManualPlayer1 && !!player1) || (isManualPlayer1 && manualPlayer1Name.trim() !== "");
+  const shouldShowPlayer2Badge = (!isManualPlayer2 && !!player2) || (isManualPlayer2 && manualPlayer2Name.trim() !== "");
+
   const handleStart = () => {
     // ID'den İsim Çözümleme
     const resolveName = (idOrName) => {
@@ -904,6 +925,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           setErrorMessage("📡 Komut Başarıyla Gönderildi!");
           setTimeout(() => {
             setErrorMessage(null);
+            setControllerReadOnly(false);
             setShowMobileController(true); // Mobil kontrol paneline geç
           }, 2000);
         } catch (error) {
@@ -1023,13 +1045,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           <div className="match-start-players">
             <div className="match-start-player">
               <div className="match-player-photo">
-                {photo1 ? (
-                  <img src={photo1} alt={incomingMatchData.players[0]} />
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                  </svg>
-                )}
+                <img src={photo1 || FALLBACK_AVATAR} alt={incomingMatchData.players[0]} />
               </div>
               <div className="match-player-name">{incomingMatchData.players[0]}</div>
             </div>
@@ -1038,13 +1054,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
             <div className="match-start-player">
               <div className="match-player-photo">
-                {photo2 ? (
-                  <img src={photo2} alt={incomingMatchData.players[1]} />
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                  </svg>
-                )}
+                <img src={photo2 || FALLBACK_AVATAR} alt={incomingMatchData.players[1]} />
               </div>
               <div className="match-player-name">{incomingMatchData.players[1]}</div>
             </div>
@@ -1442,8 +1452,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   if (showMobileController) {
     return (
       <MobileController 
-        onBack={() => setShowMobileController(false)} 
+        onBack={() => {
+          setShowMobileController(false);
+          setControllerReadOnly(false);
+        }} 
         tableId={SALON_INFO.tables[0].id}
+        readOnly={controllerReadOnly}
       />
     );
   }
@@ -1453,13 +1467,66 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const showRemoteButton = deviceMode === 'controller';
   const showLocalButton = deviceMode === 'local';
   const isTableBusy = tableStatus?.status === 'BUSY';
+  const liveMatch = isTableBusy && tableStatus?.currentMatch ? tableStatus.currentMatch : null;
+  const livePlayerPhotos = liveMatch?.playerPhotos || {};
   const isReviewMode = deviceMode === 'local' && localFocusIndex === 10;
+
+  const handleOpenLiveWatch = (tableId) => {
+    if (!liveMatch) return;
+    setSelectedTableId(tableId);
+    setControllerReadOnly(true);
+    setShowMobileController(true);
+  };
 
   return (
     <div className="start-screen-wrapper" style={{
       ...START_SCREEN_BACKGROUND_STYLE,
       position: 'relative'
     }}>
+
+      {/* CANLI İZLE MODAL */}
+      {showLiveWatch && liveMatch && (
+        <div className="live-watch-overlay" role="dialog" aria-label="Canlı maç takibi">
+          <div className="live-watch-modal">
+            <div className="live-watch-header">
+              <div>
+                <div className="live-watch-title">CANLI MAÇ TAKİP</div>
+                <div className="live-watch-sub">{SALON_INFO.tables[0].name} • İstaka {liveMatch.stats?.inning ?? 0}</div>
+              </div>
+              <button className="live-watch-close" onClick={() => setShowLiveWatch(false)}>Kapat</button>
+            </div>
+
+            <div className="live-watch-body">
+              <div className="live-watch-player">
+                <div className="live-avatar large">
+                  <img src={livePlayerPhotos[liveMatch.players?.[0]] || FALLBACK_AVATAR} alt={liveMatch.players?.[0] || 'Oyuncu 1'} />
+                </div>
+                <div className="live-watch-name">{liveMatch.players?.[0] || 'Oyuncu 1'}</div>
+                <div className="live-watch-score">{liveMatch.stats?.score1 ?? 0}</div>
+                <div className="live-watch-hr">HR1: {liveMatch.stats?.hr1 ?? 0} | HR2: {liveMatch.stats?.hr2 ?? 0}</div>
+              </div>
+
+              <div className="live-watch-center">
+                <div className="live-watch-vs">VS</div>
+                <div className="live-watch-inning">İstaka {liveMatch.stats?.inning ?? 0}</div>
+                <div className="live-watch-targets">
+                  <span>Hedef Skor: {liveMatch.settings?.targetScore ?? '-'}</span>
+                  <span>Hedef İstaka: {liveMatch.settings?.targetRack ?? '-'}</span>
+                </div>
+              </div>
+
+              <div className="live-watch-player">
+                <div className="live-avatar large">
+                  <img src={livePlayerPhotos[liveMatch.players?.[1]] || FALLBACK_AVATAR} alt={liveMatch.players?.[1] || 'Oyuncu 2'} />
+                </div>
+                <div className="live-watch-name">{liveMatch.players?.[1] || 'Oyuncu 2'}</div>
+                <div className="live-watch-score">{liveMatch.stats?.score2 ?? 0}</div>
+                <div className="live-watch-hr">HR1: {liveMatch.stats?.hr1_2 ?? 0} | HR2: {liveMatch.stats?.hr2_2 ?? 0}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {deviceMode === 'local' && (
         <button 
@@ -1571,172 +1638,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           </div>
         )}
 
-        {/* PANEL 1: CANLI MAÇLAR (Sadece Controller Modunda) */}
-        {deviceMode === 'controller' && (
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
-          }}>
-
-            {/* Active Match Info Accordion */}
-            <div style={{ marginBottom: '0' }}>
-            <button
-              onClick={() => setIsMatchInfoOpen(!isMatchInfoOpen)}
-              style={{
-                width: '100%',
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>📊</span>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '15px' }}>Canlı Maçlar</div>
-                  <div style={{ fontSize: '12px', color: '#64748b' }}>
-                    {isTableBusy && tableStatus?.currentMatch ? (
-                      <>
-                        <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{SALON_INFO.tables[0].name}:</span> {tableStatus.currentMatch.players[0]} vs {tableStatus.currentMatch.players[1]}
-                      </>
-                    ) : (
-                      <span style={{ color: '#94a3b8' }}>Şu an oynanan maç yok</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <span style={{ 
-                transform: isMatchInfoOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
-                transition: 'transform 0.3s',
-                color: '#94a3b8'
-              }}>▼</span>
-            </button>
-
-            {isMatchInfoOpen && (
-              <div style={{
-                marginTop: '10px',
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '20px',
-                animation: 'slideDown 0.3s ease-out',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-              }}>
-                {isTableBusy && tableStatus?.currentMatch ? (
-                  <>
-                    {/* Table Name Badge */}
-                    <div style={{ 
-                      textAlign: 'center', 
-                      marginBottom: '15px',
-                      display: 'flex',
-                      justifyContent: 'center'
-                    }}>
-                      <span style={{
-                        background: '#e0f2fe',
-                        color: '#0369a1',
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        {SALON_INFO.tables[0].name}
-                      </span>
-                    </div>
-
-                    {/* Score Board */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      {/* Player 1 */}
-                      <div style={{ 
-                        textAlign: 'center', 
-                        flex: 1,
-                        background: tableStatus.currentMatch.currentTurn === 0 ? '#ffffff' : 'transparent',
-                        borderRadius: '12px',
-                        padding: '10px',
-                        transition: 'all 0.3s ease',
-                        boxShadow: tableStatus.currentMatch.currentTurn === 0 ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-                        border: tableStatus.currentMatch.currentTurn === 0 ? '1px solid #e2e8f0' : '1px solid transparent'
-                      }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#64748b', marginBottom: '5px' }}>
-                          {tableStatus.currentMatch.players[0]}
-                        </div>
-                        <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>
-                          {tableStatus.currentMatch.stats?.score1 || 0}
-                        </div>
-                      </div>
-
-                      {/* VS / Inning */}
-                      <div style={{ textAlign: 'center', padding: '0 15px' }}>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>ISTAKA</div>
-                        <div style={{ fontSize: '20px', fontWeight: '700', color: '#3b82f6' }}>
-                          {tableStatus.currentMatch.stats?.inning || 0}
-                        </div>
-                      </div>
-
-                      {/* Player 2 */}
-                      <div style={{ 
-                        textAlign: 'center', 
-                        flex: 1,
-                        background: tableStatus.currentMatch.currentTurn === 1 ? '#FFD700' : 'transparent',
-                        borderRadius: '12px',
-                        padding: '10px',
-                        transition: 'all 0.3s ease',
-                        boxShadow: tableStatus.currentMatch.currentTurn === 1 ? '0 4px 12px rgba(255, 215, 0, 0.3)' : 'none'
-                      }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: tableStatus.currentMatch.currentTurn === 1 ? '#1a1d2e' : '#64748b', marginBottom: '5px' }}>
-                          {tableStatus.currentMatch.players[1]}
-                        </div>
-                        <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>
-                          {tableStatus.currentMatch.stats?.score2 || 0}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Targets */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      gap: '20px',
-                      paddingTop: '15px',
-                      borderTop: '1px solid #f1f5f9'
-                    }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>HEDEF SKOR</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#475569' }}>
-                          {tableStatus.currentMatch.settings?.targetScore || '-'}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>HEDEF ISTAKA</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#475569' }}>
-                          {tableStatus.currentMatch.settings?.targetRack || '-'}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                    <div style={{ fontSize: '24px', marginBottom: '10px' }}>📭</div>
-                    <div>Şu an oynanan canlı maç bulunmuyor.</div>
-                  </div>
-                )}
-              </div>
-            )}
-            </div>
-          </div>
-        )}
-
         {/* PANEL 2: CANLI MAÇ BAŞLAT */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.95)',
@@ -1817,6 +1718,22 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                        
                        const isSelected = selectedTableId === table.id;
                        
+                       const liveMatchForTable = (table.id === SALON_INFO.tables[0].id) ? liveMatch : null;
+                       const firebasePlayerPhotos = liveMatchForTable?.playerPhotos || {};
+                       
+                       // Oyuncu fotoğraflarını al - önce Firebase'den, yoksa names dizisinden
+                       const getPlayerPhoto = (playerName) => {
+                         if (firebasePlayerPhotos[playerName]) {
+                           return firebasePlayerPhotos[playerName];
+                         }
+                         // names dizisinden ara (fullName ile eşleşen)
+                         const foundPlayer = names.find(n => n.fullName === playerName);
+                         return foundPlayer?.photoURL || null;
+                       };
+                       
+                       const player1Photo = liveMatchForTable?.players?.[0] ? getPlayerPhoto(liveMatchForTable.players[0]) : null;
+                       const player2Photo = liveMatchForTable?.players?.[1] ? getPlayerPhoto(liveMatchForTable.players[1]) : null;
+
                        return (
                          <div 
                            key={table.id}
@@ -1825,43 +1742,186 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                            style={{
                              border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0',
                              background: '#fff',
-                             cursor: isBusy ? 'not-allowed' : 'pointer',
-                             opacity: isBusy ? 0.7 : 1
+                             cursor: isBusy ? 'default' : 'pointer',
+                             opacity: isBusy ? 0.9 : 1,
+                             flexDirection: 'column',
+                             alignItems: 'stretch',
+                             padding: '12px'
                            }}
                          >
+                           {/* Üst Kısım: Masa resmi, adı ve durum */}
                            <div style={{ 
-                              width: '60px', 
-                              height: '36px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                             display: 'flex', 
+                             alignItems: 'center', 
+                             gap: '10px',
+                             marginBottom: isBusy && liveMatchForTable ? '10px' : '0'
                            }}>
-                             <img 
-                               src="/table.png" 
-                               alt="Masa" 
-                               style={{
-                                 width: '100%',
-                                 height: '100%',
-                                 objectFit: 'contain'
-                               }} 
-                             />
+                             <div style={{ 
+                                width: '50px', 
+                                height: '30px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                             }}>
+                               <img 
+                                 src="/table.png" 
+                                 alt="Masa" 
+                                 style={{
+                                   width: '100%',
+                                   height: '100%',
+                                   objectFit: 'contain'
+                                 }} 
+                               />
+                             </div>
+                             
+                             <div style={{ flex: 1, textAlign: 'left', fontWeight: '700', color: '#0f172a', fontSize: '14px' }}>
+                               {table.name}
+                             </div>
+                             
+                             <div style={{
+                               padding: '3px 8px',
+                               borderRadius: '4px',
+                               background: isBusy ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                               color: isBusy ? '#ef4444' : '#22c55e',
+                               fontSize: '10px',
+                               fontWeight: '700',
+                               border: `1px solid ${isBusy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`
+                             }}>
+                               {isBusy ? 'DOLU' : 'BOŞ'}
+                             </div>
                            </div>
-                           
-                           <div style={{ flex: 1, textAlign: 'left', fontWeight: '700', color: '#0f172a' }}>
-                             {table.name}
-                           </div>
-                           
-                           <div style={{
-                             padding: '4px 8px',
-                             borderRadius: '6px',
-                             background: isBusy ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                             color: isBusy ? '#ef4444' : '#22c55e',
-                             fontSize: '11px',
-                             fontWeight: '700',
-                             border: `1px solid ${isBusy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`
-                           }}>
-                             {isBusy ? 'MASA DOLU' : 'MASA BOŞ'}
-                           </div>
+
+                           {/* Alt Kısım: Canlı maç bilgisi (sadece masa doluysa) */}
+                           {isBusy && liveMatchForTable && (
+                             <>
+                               {/* Oyuncu bilgileri - yatay düzen */}
+                               <div style={{
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 justifyContent: 'center',
+                                 background: 'rgba(15, 23, 42, 0.03)',
+                                 borderRadius: '8px',
+                                 padding: '10px 12px',
+                                 marginBottom: '8px',
+                                 gap: '8px'
+                               }}>
+                                 {/* Oyuncu 1 */}
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                     {liveMatchForTable.players?.[0] || 'Oyuncu 1'}
+                                   </span>
+                                   <div style={{
+                                     width: '32px',
+                                     height: '32px',
+                                     borderRadius: '50%',
+                                     overflow: 'hidden',
+                                     border: '2px solid #3b82f6',
+                                     flexShrink: 0,
+                                     display: 'flex',
+                                     alignItems: 'center',
+                                     justifyContent: 'center',
+                                     background: '#1e293b'
+                                   }}>
+                                     <img 
+                                       src={player1Photo || FALLBACK_AVATAR} 
+                                       alt="" 
+                                       style={{ 
+                                         width: '100%', 
+                                         height: '100%', 
+                                         objectFit: player1Photo ? 'cover' : 'contain',
+                                         padding: player1Photo ? '0' : '4px',
+                                         display: 'block' 
+                                       }}
+                                     />
+                                   </div>
+                                   <span style={{ 
+                                     fontSize: '18px', 
+                                     fontWeight: '800', 
+                                     color: '#0f172a',
+                                     minWidth: '24px',
+                                     textAlign: 'center'
+                                   }}>
+                                     {liveMatchForTable.stats?.score1 ?? 0}
+                                   </span>
+                                 </div>
+
+                                 {/* Tire işareti */}
+                                 <div style={{
+                                   fontSize: '18px',
+                                   fontWeight: '800',
+                                   color: '#64748b',
+                                   padding: '0 4px'
+                                 }}>
+                                   -
+                                 </div>
+
+                                 {/* Oyuncu 2 */}
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <span style={{ 
+                                     fontSize: '18px', 
+                                     fontWeight: '800', 
+                                     color: '#0f172a',
+                                     minWidth: '24px',
+                                     textAlign: 'center'
+                                   }}>
+                                     {liveMatchForTable.stats?.score2 ?? 0}
+                                   </span>
+                                   <div style={{
+                                     width: '32px',
+                                     height: '32px',
+                                     borderRadius: '50%',
+                                     overflow: 'hidden',
+                                     border: '2px solid #f59e0b',
+                                     flexShrink: 0,
+                                     display: 'flex',
+                                     alignItems: 'center',
+                                     justifyContent: 'center',
+                                     background: '#1e293b'
+                                   }}>
+                                     <img 
+                                       src={player2Photo || FALLBACK_AVATAR} 
+                                       alt="" 
+                                       style={{ 
+                                         width: '100%', 
+                                         height: '100%', 
+                                         objectFit: player2Photo ? 'cover' : 'contain',
+                                         padding: player2Photo ? '0' : '4px',
+                                         display: 'block' 
+                                       }}
+                                     />
+                                   </div>
+                                   <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                                     {liveMatchForTable.players?.[1] || 'Oyuncu 2'}
+                                   </span>
+                                 </div>
+                               </div>
+
+                               {/* Canlı Takip Et Butonu */}
+                               <button 
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleOpenLiveWatch(table.id);
+                                 }}
+                                 style={{
+                                   width: '100%',
+                                   padding: '8px 12px',
+                                   background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                                   color: '#fff',
+                                   border: 'none',
+                                   borderRadius: '6px',
+                                   fontSize: '11px',
+                                   fontWeight: '700',
+                                   cursor: 'pointer',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center',
+                                   gap: '6px'
+                                 }}
+                               >
+                                 📺 CANLI TAKİP ET
+                               </button>
+                             </>
+                           )}
                          </div>
                        );
                     })}
@@ -1961,6 +2021,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     padding: '10px',
                     transition: 'all 0.2s'
                 }}>
+                  {shouldShowPlayer1Badge && (
+                    <div className="player-photo-badge">
+                      <img src={selectedPlayer1Photo || FALLBACK_AVATAR} alt={manualPlayer1Name || 'Oyuncu 1'} />
+                    </div>
+                  )}
                   <label className="player-label">1. Oyuncu</label>
                   
                   {/* Minimal Toggle */}
@@ -2075,13 +2140,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   )}
                 </div>
 
-                <div className="vs-divider">VS</div>
-
                 <div className={`player-input-group player-2-panel ${getGroupClass([3, 4, 5])} ${!isManualPlayer2 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
                     borderRadius: '12px',
                     padding: '10px',
                     transition: 'all 0.2s'
                 }}>
+                  {shouldShowPlayer2Badge && (
+                    <div className="player-photo-badge">
+                      <img src={selectedPlayer2Photo || FALLBACK_AVATAR} alt={manualPlayer2Name || 'Oyuncu 2'} />
+                    </div>
+                  )}
                   <label className="player-label">2. Oyuncu</label>
                   
                   {/* Minimal Toggle */}

@@ -618,8 +618,11 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
               </div>
             )}
           </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default MobileController;
+
