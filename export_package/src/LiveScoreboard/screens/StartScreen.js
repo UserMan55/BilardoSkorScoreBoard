@@ -16,7 +16,9 @@ import "./StartScreen.css";
 const SALON_INFO = {
   name: "SALON 3CSCORE",
   city: "SAMSUN",
-  tables: [{ id: "table_1", name: "Masa 1" }],
+  tables: [
+    { id: "table_1", name: "Masa 1" }
+  ],
   logo: "/logo.png"
 };
 
@@ -126,6 +128,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
   // Table Status State
   const [tableStatus, setTableStatus] = useState(null); // { status: 'BUSY' | 'IDLE', currentMatch: ... }
+  const [allTableStatuses, setAllTableStatuses] = useState({}); // Tüm masaların durumları: { table_1: {...}, table_2: {...} }
   const [isMatchInfoOpen, setIsMatchInfoOpen] = useState(false); // Accordion state for Live Matches
   const [isStartMatchOpen, setIsStartMatchOpen] = useState(true); // Accordion state for Start Match
   const [winnerOverlayData, setWinnerOverlayData] = useState(null); // Kazanan ekranı verisi
@@ -168,6 +171,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const p1InputRef = useRef(null);
   const p2InputRef = useRef(null);
   const keyboardRefs = useRef({});
+  const playerSelectionRef = useRef(null);
+  const player1PanelRef = useRef(null);
+  const player2PanelRef = useRef(null);
+  const matchSettingsRef = useRef(null);
+  const penaltyAsoRef = useRef(null);
+  const reviewPanelRef = useRef(null);
   const isVirtualKeyboardEnabled = deviceProfile?.enableVirtualKeyboard ?? false;
   const keyboardStatusText = {
     'p1-manual': '1. oyuncu – manuel isim girişi',
@@ -242,6 +251,89 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setActiveEditableField(null);
     }
   }, [localFocusIndex, activeEditableField]);
+
+  // Document click listener for auto-tab navigation (mouse only)
+  useEffect(() => {
+    if (deviceMode !== 'local') return;
+
+    const isPointInside = (el, x, y) => {
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
+    const handleDocumentClick = (e) => {
+      const playerSelectionEl = playerSelectionRef.current;
+      const player1PanelEl = player1PanelRef.current;
+      const player2PanelEl = player2PanelRef.current;
+      const matchSettingsEl = matchSettingsRef.current;
+      const penaltyAsoEl = penaltyAsoRef.current;
+      const reviewPanelEl = reviewPanelRef.current;
+      const startBtn = document.getElementById('start-game-btn');
+
+      // Click coordinates (supports touch as well)
+      const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+      const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+
+      // Review mode'dayken panel dışına tıklandığında geri dön
+      const clickedInReviewPanel = reviewPanelEl && reviewPanelEl.contains(e.target);
+      const clickedStartBtn = startBtn && startBtn.contains(e.target);
+      if (localFocusIndex === 10) {
+        if (!clickedInReviewPanel && !clickedStartBtn) {
+          setTimeout(() => setLocalFocusIndex(0), 50);
+        }
+        return;
+      }
+
+      // Önce contains ile kontrol et, olmazsa koordinatla kontrol et
+      const clickedInPlayer1Panel = (player1PanelEl && player1PanelEl.contains(e.target)) || isPointInside(player1PanelEl, clientX, clientY);
+      const clickedInPlayer2Panel = (player2PanelEl && player2PanelEl.contains(e.target)) || isPointInside(player2PanelEl, clientX, clientY);
+      const clickedInMatchSettings = (matchSettingsEl && matchSettingsEl.contains(e.target)) || isPointInside(matchSettingsEl, clientX, clientY);
+      const clickedInPenaltyAso = (penaltyAsoEl && penaltyAsoEl.contains(e.target)) || isPointInside(penaltyAsoEl, clientX, clientY);
+      const clickedInPlayerSelection = (playerSelectionEl && playerSelectionEl.contains(e.target)) || isPointInside(playerSelectionEl, clientX, clientY);
+
+      // Hangi panele tıklandıysa o panele geç
+      let targetIndex = null;
+
+      if (clickedInPlayer1Panel) {
+        targetIndex = 0;
+      } else if (clickedInPlayer2Panel) {
+        targetIndex = 3;
+      } else if (clickedInMatchSettings) {
+        targetIndex = 6;
+      } else if (clickedInPenaltyAso) {
+        targetIndex = 8;
+      } else if (clickedInPlayerSelection) {
+        // Player selection container'ı (boş alan) -> oyuncu 1'e odaklan
+        targetIndex = 0;
+      } else if (clickedStartBtn) {
+        targetIndex = 10;
+      }
+
+      if (targetIndex !== null) {
+        const currentPanel =
+          (localFocusIndex >= 0 && localFocusIndex <= 2) ? 'p1' :
+          (localFocusIndex >= 3 && localFocusIndex <= 5) ? 'p2' :
+          (localFocusIndex >= 6 && localFocusIndex <= 7) ? 'match' :
+          (localFocusIndex >= 8 && localFocusIndex <= 9) ? 'penalty' :
+          (localFocusIndex === 10) ? 'start' : null;
+
+        const targetPanel =
+          (targetIndex >= 0 && targetIndex <= 2) ? 'p1' :
+          (targetIndex >= 3 && targetIndex <= 5) ? 'p2' :
+          (targetIndex >= 6 && targetIndex <= 7) ? 'match' :
+          (targetIndex >= 8 && targetIndex <= 9) ? 'penalty' :
+          (targetIndex === 10) ? 'start' : null;
+
+        if (currentPanel !== targetPanel) {
+          setTimeout(() => setLocalFocusIndex(targetIndex), 50);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  }, [deviceMode, localFocusIndex]);
 
   const normalizeSearchText = React.useCallback((text = "") => {
     return text
@@ -493,6 +585,46 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     }
   }, [deviceMode, selectedTableId]);
 
+  // TÜM MASALARIN DURUMUNU DİNLE (Masa seçim ekranı için)
+  useEffect(() => {
+    const tables = SALON_INFO.tables || [];
+    const unsubscribes = [];
+    
+    tables.forEach((table) => {
+      const unsubscribe = listenToTableStatus(table.id, (data) => {
+        console.log(`📊 Masa ${table.id} durumu:`, data);
+        setAllTableStatuses(prev => ({
+          ...prev,
+          [table.id]: data
+        }));
+      });
+      unsubscribes.push(unsubscribe);
+    });
+    
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, []);
+
+  // 3CScore oyun moduna girildiğinde formu sıfırla
+  const resetStandardGameForm = () => {
+    setPlayer1("");
+    setPlayer2("");
+    setIsManualPlayer1(false);
+    setIsManualPlayer2(false);
+    setManualPlayer1Name("");
+    setManualPlayer2Name("");
+    setPlayer1Warning("");
+    setPlayer2Warning("");
+    setTargetScore(30);
+    setTargetRack(30);
+    setHasPenalty(false);
+    setHasAso(true);
+    // setTimeout ile odak ayarla - render tamamlandıktan sonra
+    setTimeout(() => setLocalFocusIndex(0), 100);
+    // isReviewMode otomatik olarak false olur çünkü localFocusIndex !== 10
+  };
+
   // Merkezi Navigasyon Mantığı (Klavye ve Firebase Ortak)
   const handleNavAction = (action) => {
       playFeedbackSound();
@@ -504,7 +636,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       } else if (action === 'ENTER') {
           const current = focusedIndexRef.current;
           if (current === 1) handleFreeStart();
-          else if (current === 2) { setDeviceMode('local'); setActiveTab('2vs2'); }
+          else if (current === 2) { resetStandardGameForm(); setDeviceMode('local'); setActiveTab('2vs2'); }
           else if (current === 3) { setDeviceMode('local'); setActiveTab('survival'); }
       }
   };
@@ -1045,7 +1177,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           <div className="match-start-players">
             <div className="match-start-player">
               <div className="match-player-photo">
-                <img src={photo1 || FALLBACK_AVATAR} alt={incomingMatchData.players[0]} />
+                <img src={photo1 || FALLBACK_AVATAR} alt={incomingMatchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="match-player-name">{incomingMatchData.players[0]}</div>
             </div>
@@ -1054,7 +1186,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
             <div className="match-start-player">
               <div className="match-player-photo">
-                <img src={photo2 || FALLBACK_AVATAR} alt={incomingMatchData.players[1]} />
+                <img src={photo2 || FALLBACK_AVATAR} alt={incomingMatchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="match-player-name">{incomingMatchData.players[1]}</div>
             </div>
@@ -1427,7 +1559,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             <GameModeSelector 
               focusedIndex={focusedIndex}
               onFreeStart={handleFreeStart}
-              onStandardStart={() => { setDeviceMode('local'); setActiveTab('2vs2'); }}
+              onStandardStart={() => { resetStandardGameForm(); setDeviceMode('local'); setActiveTab('2vs2'); }}
               onSurvivalStart={() => { setDeviceMode('local'); setActiveTab('survival'); }}
             />
           </div>
@@ -1466,8 +1598,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
   const showRemoteButton = deviceMode === 'controller';
   const showLocalButton = deviceMode === 'local';
-  const isTableBusy = tableStatus?.status === 'BUSY';
-  const liveMatch = isTableBusy && tableStatus?.currentMatch ? tableStatus.currentMatch : null;
+  // Seçili masanın durumunu allTableStatuses'tan al
+  const selectedTableStatus = allTableStatuses[selectedTableId];
+  const isTableBusy = selectedTableStatus?.status === 'BUSY';
+  const liveMatch = isTableBusy && selectedTableStatus?.currentMatch ? selectedTableStatus.currentMatch : null;
   const livePlayerPhotos = liveMatch?.playerPhotos || {};
   const isReviewMode = deviceMode === 'local' && localFocusIndex === 10;
 
@@ -1499,7 +1633,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             <div className="live-watch-body">
               <div className="live-watch-player">
                 <div className="live-avatar large">
-                  <img src={livePlayerPhotos[liveMatch.players?.[0]] || FALLBACK_AVATAR} alt={liveMatch.players?.[0] || 'Oyuncu 1'} />
+                  <img src={livePlayerPhotos[liveMatch.players?.[0]] || FALLBACK_AVATAR} alt={liveMatch.players?.[0] || 'Oyuncu 1'} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                 </div>
                 <div className="live-watch-name">{liveMatch.players?.[0] || 'Oyuncu 1'}</div>
                 <div className="live-watch-score">{liveMatch.stats?.score1 ?? 0}</div>
@@ -1517,7 +1651,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
               <div className="live-watch-player">
                 <div className="live-avatar large">
-                  <img src={livePlayerPhotos[liveMatch.players?.[1]] || FALLBACK_AVATAR} alt={liveMatch.players?.[1] || 'Oyuncu 2'} />
+                  <img src={livePlayerPhotos[liveMatch.players?.[1]] || FALLBACK_AVATAR} alt={liveMatch.players?.[1] || 'Oyuncu 2'} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                 </div>
                 <div className="live-watch-name">{liveMatch.players?.[1] || 'Oyuncu 2'}</div>
                 <div className="live-watch-score">{liveMatch.stats?.score2 ?? 0}</div>
@@ -1706,19 +1840,14 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {SALON_INFO.tables.map(table => {
-                       // Masa durumunu belirle
-                       let isBusy = false;
-                       if (table.id === 'table_1') {
-                         isBusy = isTableBusy; // Mevcut durumdan al
-                       } else if (table.id === 'table_2') {
-                         isBusy = true; // Örnek: Masa 2 dolu
-                       } else {
-                         isBusy = false; // Diğerleri boş
-                       }
+                       // Masa durumunu allTableStatuses'dan al
+                       const tableStatusData = allTableStatuses[table.id];
+                       const isBusy = tableStatusData?.status === 'BUSY';
                        
                        const isSelected = selectedTableId === table.id;
                        
-                       const liveMatchForTable = (table.id === SALON_INFO.tables[0].id) ? liveMatch : null;
+                       // Bu masa için canlı maç bilgisini al
+                       const liveMatchForTable = isBusy ? tableStatusData?.currentMatch : null;
                        const firebasePlayerPhotos = liveMatchForTable?.playerPhotos || {};
                        
                        // Oyuncu fotoğraflarını al - önce Firebase'den, yoksa names dizisinden
@@ -1738,15 +1867,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                          <div 
                            key={table.id}
                            className="table-selection-item"
-                           onClick={() => !isBusy && setSelectedTableId(table.id)}
+                           onClick={() => setSelectedTableId(table.id)}
                            style={{
-                             border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                             background: '#fff',
-                             cursor: isBusy ? 'default' : 'pointer',
-                             opacity: isBusy ? 0.9 : 1,
+                             border: isSelected ? '3px solid #3b82f6' : '1px solid #e2e8f0',
+                             background: isSelected ? 'rgba(59, 130, 246, 0.05)' : '#fff',
+                             cursor: 'pointer',
+                             opacity: 1,
                              flexDirection: 'column',
                              alignItems: 'stretch',
-                             padding: '12px'
+                             padding: '12px',
+                             boxShadow: isSelected ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : 'none',
+                             transform: isSelected ? 'scale(1.01)' : 'scale(1)',
+                             transition: 'all 0.2s ease'
                            }}
                          >
                            {/* Üst Kısım: Masa resmi, adı ve durum */}
@@ -1825,6 +1957,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                                      <img 
                                        src={player1Photo || FALLBACK_AVATAR} 
                                        alt="" 
+                                       onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
                                        style={{ 
                                          width: '100%', 
                                          height: '100%', 
@@ -1881,6 +2014,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                                      <img 
                                        src={player2Photo || FALLBACK_AVATAR} 
                                        alt="" 
+                                       onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
                                        style={{ 
                                          width: '100%', 
                                          height: '100%', 
@@ -1937,7 +2071,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
               {activeTab === '2vs2' && (
                 <>
               {isReviewMode ? (
-                <div className="match-review-card" style={{
+                <div ref={reviewPanelRef} className="match-review-card" style={{
                     background: 'rgba(15, 23, 42, 0.95)',
                     border: '2px solid #00f2fe',
                     boxShadow: '0 0 30px rgba(0, 242, 254, 0.2), inset 0 0 20px rgba(0, 242, 254, 0.05)',
@@ -1954,9 +2088,30 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 }}>
                     {/* Players */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%', justifyContent: 'center' }}>
-                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'white', textAlign: 'right', flex: 1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                            {isManualPlayer1 ? (manualPlayer1Name || "İsimsiz") : (names.find(u => u.id === player1)?.fullName || "Seçilmedi")}
+                        {/* Player 1 with Photo */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '10px' }}>
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                border: '3px solid #00f2fe',
+                                boxShadow: '0 0 20px rgba(0, 242, 254, 0.3)',
+                                background: 'rgba(0, 242, 254, 0.1)'
+                            }}>
+                                <img 
+                                    src={selectedPlayer1Photo || FALLBACK_AVATAR} 
+                                    alt="Oyuncu 1" 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
+                                />
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+                                {isManualPlayer1 ? (manualPlayer1Name || "İsimsiz") : (names.find(u => u.id === player1)?.fullName || "Seçilmedi")}
+                            </div>
                         </div>
+                        
+                        {/* VS Badge */}
                         <div style={{ 
                             fontSize: '24px', 
                             fontWeight: '900', 
@@ -1971,8 +2126,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                             justifyContent: 'center',
                             boxShadow: '0 0 15px rgba(0, 242, 254, 0.2)'
                         }}>VS</div>
-                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'white', textAlign: 'left', flex: 1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                            {isManualPlayer2 ? (manualPlayer2Name || "İsimsiz") : (names.find(u => u.id === player2)?.fullName || "Seçilmedi")}
+                        
+                        {/* Player 2 with Photo */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '10px' }}>
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                border: '3px solid #00f2fe',
+                                boxShadow: '0 0 20px rgba(0, 242, 254, 0.3)',
+                                background: 'rgba(0, 242, 254, 0.1)'
+                            }}>
+                                <img 
+                                    src={selectedPlayer2Photo || FALLBACK_AVATAR} 
+                                    alt="Oyuncu 2" 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
+                                />
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+                                {isManualPlayer2 ? (manualPlayer2Name || "İsimsiz") : (names.find(u => u.id === player2)?.fullName || "Seçilmedi")}
+                            </div>
                         </div>
                     </div>
 
@@ -2015,15 +2190,34 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 </div>
               ) : (
                 <>
-              <div className="player-selection">
-                <div className={`player-input-group player-1-panel ${getGroupClass([0, 1, 2])} ${!isManualPlayer1 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
+              <div 
+                ref={playerSelectionRef}
+                className="player-selection"
+                tabIndex={-1}
+                onBlur={(e) => {
+                  // Oyuncu panellerinden çıkıldığında
+                  const relatedTarget = e.relatedTarget;
+                  const currentTarget = e.currentTarget;
+                  if (relatedTarget && !currentTarget.contains(relatedTarget)) {
+                    // Oyuncu 1 panelinden çıkıldı ve oyuncu seçilmişse
+                    if ((localFocusIndex >= 0 && localFocusIndex <= 2) && (player1 || manualPlayer1Name)) {
+                      setTimeout(() => setLocalFocusIndex(3), 50);
+                    }
+                    // Oyuncu 2 panelinden çıkıldı ve oyuncu seçilmişse
+                    else if ((localFocusIndex >= 3 && localFocusIndex <= 5) && (player2 || manualPlayer2Name)) {
+                      setTimeout(() => setLocalFocusIndex(6), 50);
+                    }
+                  }
+                }}
+              >
+                <div ref={player1PanelRef} className={`player-input-group player-1-panel ${getGroupClass([0, 1, 2])} ${!isManualPlayer1 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
                     borderRadius: '12px',
                     padding: '10px',
                     transition: 'all 0.2s'
                 }}>
                   {shouldShowPlayer1Badge && (
                     <div className="player-photo-badge">
-                      <img src={selectedPlayer1Photo || FALLBACK_AVATAR} alt={manualPlayer1Name || 'Oyuncu 1'} />
+                      <img src={selectedPlayer1Photo || FALLBACK_AVATAR} alt={manualPlayer1Name || 'Oyuncu 1'} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                     </div>
                   )}
                   <label className="player-label">1. Oyuncu</label>
@@ -2080,6 +2274,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                           onChange={(e) => {
                             setPlayer1(e.target.value);
                             setPlayer1Warning("");
+                            // Oyuncu seçildiğinde Oyuncu 2 paneline geç
+                            if (e.target.value) {
+                              setTimeout(() => setLocalFocusIndex(3), 100);
+                            }
                           }}
                           onFocus={() => setLocalFocusIndex(2)}
                           style={{
@@ -2140,14 +2338,14 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   )}
                 </div>
 
-                <div className={`player-input-group player-2-panel ${getGroupClass([3, 4, 5])} ${!isManualPlayer2 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
+                <div ref={player2PanelRef} className={`player-input-group player-2-panel ${getGroupClass([3, 4, 5])} ${!isManualPlayer2 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
                     borderRadius: '12px',
                     padding: '10px',
                     transition: 'all 0.2s'
                 }}>
                   {shouldShowPlayer2Badge && (
                     <div className="player-photo-badge">
-                      <img src={selectedPlayer2Photo || FALLBACK_AVATAR} alt={manualPlayer2Name || 'Oyuncu 2'} />
+                      <img src={selectedPlayer2Photo || FALLBACK_AVATAR} alt={manualPlayer2Name || 'Oyuncu 2'} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                     </div>
                   )}
                   <label className="player-label">2. Oyuncu</label>
@@ -2204,6 +2402,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                           onChange={(e) => {
                             setPlayer2(e.target.value);
                             setPlayer2Warning("");
+                            // Oyuncu seçildiğinde Hedef Sayı paneline geç
+                            if (e.target.value) {
+                              setTimeout(() => setLocalFocusIndex(6), 100);
+                            }
                           }}
                           onFocus={() => setLocalFocusIndex(5)}
                           style={{
@@ -2267,7 +2469,22 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 </div>
               </div>
 
-              <div className={`match-settings ${getGroupClass([6, 7])}`}>
+              <div 
+                ref={matchSettingsRef}
+                className={`match-settings ${getGroupClass([6, 7])}`}
+                tabIndex={-1}
+                onBlur={(e) => {
+                  // Panel dışına tıklandığında (focus kaybedildiğinde)
+                  const relatedTarget = e.relatedTarget;
+                  const currentTarget = e.currentTarget;
+                  // Eğer yeni focus edilen element bu panel içinde değilse VEYA null ise (dışarı tıklandı)
+                  const isOutside = !relatedTarget || !currentTarget.contains(relatedTarget);
+                  if (isOutside && (localFocusIndex === 6 || localFocusIndex === 7)) {
+                    // Penaltı/ASO paneline geç
+                    setTimeout(() => setLocalFocusIndex(8), 100);
+                  }
+                }}
+              >
                 <div className="setting-group" style={{ 
                     border: '1px solid transparent',
                     borderRadius: '12px',
@@ -2341,7 +2558,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 </div>
               </div>
 
-              <div className={`match-options ${getGroupClass([8, 9])}`}>
+              <div ref={penaltyAsoRef} className={`match-options ${getGroupClass([8, 9])}`}>
                 <label className="checkbox-container" style={{
                     border: '1px solid transparent',
                     borderRadius: '8px',
@@ -2385,40 +2602,59 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
               )}
 
               <div className="action-buttons-container">
-                {showLocalButton && (
+                {showLocalButton && (() => {
+                  // Her iki oyuncu seçilmiş mi kontrolü
+                  const isPlayer1Ready = isManualPlayer1 ? manualPlayer1Name.trim() : player1;
+                  const isPlayer2Ready = isManualPlayer2 ? manualPlayer2Name.trim() : player2;
+                  const canStartMatch = isPlayer1Ready && isPlayer2Ready;
+                  
+                  return (
                   <button 
                     id="start-game-btn"
-                    className={`start-button active ${getGroupClass([10])}`}
-                    onClick={() => {
+                    className={`start-button ${canStartMatch ? 'active' : 'disabled'} ${getGroupClass([10])}`}
+                    onClick={canStartMatch ? () => {
                       if (localFocusIndex !== 10) {
                         setLocalFocusIndex(10);
                       } else {
                         handleStart();
                       }
-                    }}
+                    } : undefined}
                     onFocus={() => setLocalFocusIndex(10)}
+                    disabled={!canStartMatch}
                     style={{
                       transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                      background: canStartMatch ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#64748b',
+                      cursor: canStartMatch ? 'pointer' : 'not-allowed',
+                      opacity: canStartMatch ? 1 : 0.7,
                       ...getFocusGlowStyle(10, 3)
                     }}
                   >
-                    Maçı Başlat
+                    {canStartMatch ? 'Maçı Başlat' : '⚠️ Oyuncu Seçin'}
                   </button>
-                )}
-                {showRemoteButton && (
+                  );
+                })()}
+                {showRemoteButton && (() => {
+                  // Her iki oyuncu seçilmiş mi kontrolü
+                  const isPlayer1Ready = isManualPlayer1 ? manualPlayer1Name.trim() : player1;
+                  const isPlayer2Ready = isManualPlayer2 ? manualPlayer2Name.trim() : player2;
+                  const canStartMatch = isPlayer1Ready && isPlayer2Ready && !isTableBusy;
+                  
+                  return (
                   <button 
-                    className={`start-button ${!isTableBusy ? "active" : "disabled"}`}
-                    onClick={handleRemoteSend}
-                    disabled={isTableBusy}
+                    className={`start-button ${canStartMatch ? "active" : "disabled"}`}
+                    onClick={canStartMatch ? handleRemoteSend : undefined}
+                    disabled={!canStartMatch}
                     style={{ 
-                      background: isTableBusy ? '#334155' : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                      cursor: isTableBusy ? 'not-allowed' : 'pointer',
-                      opacity: isTableBusy ? 0.8 : 1
+                      background: canStartMatch ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#64748b',
+                      cursor: canStartMatch ? 'pointer' : 'not-allowed',
+                      opacity: canStartMatch ? 1 : 0.7,
+                      fontWeight: '700'
                     }}
                   >
-                    {isTableBusy ? '⛔ DOLU MASA' : '📡 Uzaktan Başlat'}
+                    {isTableBusy ? '⛔ MASA DOLU' : (!isPlayer1Ready || !isPlayer2Ready) ? '⚠️ OYUNCU SEÇİN' : '▶ MAÇI BAŞLAT'}
                   </button>
-                )}
+                  );
+                })()}
               </div>
               </>
               )}

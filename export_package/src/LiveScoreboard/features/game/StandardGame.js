@@ -14,7 +14,9 @@ function StandardGame({
   hasPenalty,
   hasAso,
   onExit,
-  isFreeMode = false
+  isFreeMode = false,
+  tableName = 'Masa 1',
+  salonName = 'SALON 3CSCORE'
 }) {
   // Oyun state'leri
   const [currentTurn, setCurrentTurn] = useState(0); // 0: player1, 1: player2
@@ -1446,6 +1448,8 @@ function StandardGame({
             hasPenalty={hasPenalty}
             hasAso={hasAso}
             isFreeMode={isFreeMode}
+            tableName={tableName}
+            salonName={salonName}
           />
         </div>
         <PlayerPanel

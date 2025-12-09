@@ -93,6 +93,13 @@
   object-fit: cover;
 }
 
+.starting-player-photo img[src$="logo.png"] {
+  object-fit: contain;
+  padding: 15%;
+  background: #1e293b;
+  box-sizing: border-box;
+}
+
 .starting-player-photo svg {
   width: 50px;
   height: 50px;
@@ -335,6 +342,13 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.player-profile-pic img[src$="logo.png"] {
+  object-fit: contain;
+  padding: 12%;
+  background: #1e293b;
+  box-sizing: border-box;
 }
 
 /* Mobile Timer Container */

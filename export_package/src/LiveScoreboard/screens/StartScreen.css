@@ -364,6 +364,13 @@
   object-fit: cover;
 }
 
+.live-avatar img[src$="logo.png"] {
+  object-fit: contain;
+  padding: 15%;
+  background: #1e293b;
+  box-sizing: border-box;
+}
+
 .live-name {
   font-size: 14px;
   font-weight: 700;
@@ -1375,7 +1382,6 @@
   filter: blur(3px);
   opacity: 0.5;
   transform: scale(0.95);
-  pointer-events: none;
 }
 
 .start-screen-panel.focus-mode .player-input-group.active-group,
@@ -1612,6 +1618,12 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.match-player-photo img[src$="logo.png"] {
+  object-fit: contain;
+  padding: 20%;
+  background: #1e293b;
 }
 
 .match-player-photo svg {

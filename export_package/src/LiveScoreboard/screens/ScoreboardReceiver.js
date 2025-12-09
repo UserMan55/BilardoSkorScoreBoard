@@ -120,7 +120,7 @@ function ScoreboardReceiver({ onStartGame }) {
           <div className="scoreboard-starting-players">
             <div className="scoreboard-starting-player">
               <div className="scoreboard-player-photo">
-                <img src={playerPhotos[matchPreview.players[0]] || FALLBACK_AVATAR} alt={matchPreview.players[0]} />
+                <img src={playerPhotos[matchPreview.players[0]] || FALLBACK_AVATAR} alt={matchPreview.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="scoreboard-player-name">{matchPreview.players[0]}</div>
             </div>
@@ -129,7 +129,7 @@ function ScoreboardReceiver({ onStartGame }) {
 
             <div className="scoreboard-starting-player">
               <div className="scoreboard-player-photo">
-                <img src={playerPhotos[matchPreview.players[1]] || FALLBACK_AVATAR} alt={matchPreview.players[1]} />
+                <img src={playerPhotos[matchPreview.players[1]] || FALLBACK_AVATAR} alt={matchPreview.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="scoreboard-player-name">{matchPreview.players[1]}</div>
             </div>
