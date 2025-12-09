@@ -439,6 +439,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
           <span className="live-dot"></span>
           CANLI MAÇ
         </div>
+        {/* Çıkış Butonu - readOnly modunda da görünür */}
+        <button 
+          className="header-exit-btn"
+          onClick={handleBackToHome}
+          title="Çıkış"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Match Stats */}
@@ -544,14 +552,16 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
 
           {/* Modern Remote Control */}
           <div className="remote-control">
-            {/* Power Button - Top Left */}
-            <button 
-              className="power-btn-exit"
-              onClick={() => handleCommand('EXIT')}
-              title="Maçtan Çık"
-            >
-              ✕
-            </button>
+            {/* Power Button - Top Left (sadece kontrol modunda) */}
+            {!isReadOnly && (
+              <button 
+                className="power-btn-exit"
+                onClick={() => handleCommand('EXIT')}
+                title="Maçtan Çık"
+              >
+                ✕
+              </button>
+            )}
 
             {/* RUN Display */}
             <div className="run-display">

@@ -186,7 +186,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [matchStartCountdown, setMatchStartCountdown] = useState(5);
   const [showLiveWatch, setShowLiveWatch] = useState(false);
 
-  // Masa boşalınca canlı izleme modunu kapat
+  // Masa boşaldığında canlı izleme modunu kapat
   useEffect(() => {
     if (!tableStatus || tableStatus.status !== 'BUSY') {
       setShowLiveWatch(false);
@@ -2389,7 +2389,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   <button 
                     id="start-game-btn"
                     className={`start-button active ${getGroupClass([10])}`}
-                    onClick={handleStart}
+                    onClick={() => {
+                      if (localFocusIndex !== 10) {
+                        setLocalFocusIndex(10);
+                      } else {
+                        handleStart();
+                      }
+                    }}
                     onFocus={() => setLocalFocusIndex(10)}
                     style={{
                       transition: 'box-shadow 0.2s ease, border 0.2s ease',

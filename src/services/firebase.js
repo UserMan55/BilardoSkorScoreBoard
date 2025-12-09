@@ -236,6 +236,56 @@ export async function getPlayerNames() {
             salon = override.salon;
           }
 
+          // photoURL validasyonu - boş, geçersiz veya placeholder URL'leri filtrele
+          let validPhotoURL = userData.photoURL || null;
+          if (validPhotoURL) {
+            const urlLower = validPhotoURL.toLowerCase();
+            
+            // Bilinen placeholder/avatar generator servisleri (blacklist)
+            const invalidDomains = [
+              'ui-avatars.com',
+              'api.dicebear.com',
+              'avatars.dicebear.com',
+              'robohash.org',
+              'api.adorable.io',
+              'avataaars.io',
+              'boringavatars.com', 
+              'avatar.oxro.io',
+              'joeschmoe.io',
+              'pravatar.cc',
+              'i.pravatar.cc',
+              'api.multiavatar.com',
+              'avatars.abstractapi.com',
+              'avatar.iran.liara.run',
+              'source.boringavatars.com'
+            ];
+            
+            // URL parametreleri ile avatar oluşturan servisler
+            const invalidParams = [
+              'name=',      // ui-avatars: ?name=John+Doe
+              'initials=',  // initial avatar servisleri
+              'text=',      // text-based avatarlar
+              '?letter',    // letter avatar
+              '&letter'     // letter avatar
+            ];
+            
+            // Domain kontrolü
+            const hasInvalidDomain = invalidDomains.some(domain => urlLower.includes(domain));
+            
+            // Parametre kontrolü
+            const hasInvalidParam = invalidParams.some(param => urlLower.includes(param));
+            
+            // Boş veya geçersiz
+            const isEmpty = !validPhotoURL.trim();
+            
+            if (isEmpty || hasInvalidDomain || hasInvalidParam) {
+              console.log(`❌ Filtered: ${fullName} | Domain: ${hasInvalidDomain} | Param: ${hasInvalidParam}`);
+              validPhotoURL = null;
+            } else {
+              console.log(`✅ Accepted: ${fullName}: ${validPhotoURL.substring(0, 60)}...`);
+            }
+          }
+
           users.push({
             id: doc.id, // Benzersiz Firebase ID (Entegrasyon için kritik)
             username: userData.username || "",
@@ -243,7 +293,7 @@ export async function getPlayerNames() {
             email: userData.email || "",
             city: city,
             salon: salon,
-            photoURL: userData.photoURL || null
+            photoURL: validPhotoURL
           });
         } else {
           console.log(`Tekrar eden isim atlandı: ${fullName}`);

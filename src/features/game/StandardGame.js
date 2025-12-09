@@ -14,7 +14,9 @@ function StandardGame({
   hasPenalty,
   hasAso,
   onExit,
-  isFreeMode = false
+  isFreeMode = false,
+  tableName = 'Masa 1',
+  salonName = 'SALON 3CSCORE'
 }) {
   // Oyun state'leri
   const [currentTurn, setCurrentTurn] = useState(0); // 0: player1, 1: player2
@@ -733,7 +735,9 @@ function StandardGame({
   };
 
   const handleCancelSave = () => {
-    showNotification("ℹ️ Maç sonucu kaydedilmedi.", 'info', 3000);
+    if (showSaveConfirm) {
+      showNotification("ℹ️ Maç sonucu kaydedilmedi.", 'info', 3000);
+    }
     setShowSaveConfirm(false);
     setPendingSaveData(null);
   };
@@ -1372,30 +1376,6 @@ function StandardGame({
         </div>
       )}
 
-      {/* Sol alt köşede hedef bilgisi */}
-      {!isFreeMode && (
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        left: '20px',
-        background: 'rgba(0, 0, 0, 0.7)',
-        color: 'white',
-        padding: '10px 15px',
-        borderRadius: '6px',
-        fontSize: '12px',
-        fontWeight: '600',
-        zIndex: 10,
-        border: '2px solid #667eea'
-      }}>
-        <div style={{ marginBottom: '5px' }}>Hedef Sayı: <span style={{ color: '#FFD700', fontSize: '14px' }}>{targetScore}</span></div>
-        <div style={{ marginBottom: '5px' }}>Hedef İstaka: <span style={{ color: '#FFD700', fontSize: '14px' }}>{targetRack}</span></div>
-        <div style={{ marginTop: '8px', borderTop: '1px solid #667eea', paddingTop: '5px' }}>
-          <div style={{ marginBottom: '3px', fontSize: '11px' }}>Penaltı: <span style={{ color: hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>{hasPenalty ? '✓' : '✗'}</span></div>
-          <div style={{ fontSize: '11px' }}>ASO: <span style={{ color: hasAso ? '#00FF00' : '#FF6B6B' }}>{hasAso ? '✓' : '✗'}</span></div>
-        </div>
-      </div>
-      )}
-
       <div style={{
         padding: '5px 20px 5px 20px',
         borderRadius: '25px',
@@ -1462,7 +1442,14 @@ function StandardGame({
             run={runCount} 
             runColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'} 
             onShowController={() => {}} // Controller açılmasını engelle
-            isControllerHidden={true} // Controller her zaman gizli
+            isControllerHidden={false} // Ayar butonu kaldırıldı
+            targetScore={targetScore}
+            targetRack={targetRack}
+            hasPenalty={hasPenalty}
+            hasAso={hasAso}
+            isFreeMode={isFreeMode}
+            tableName={tableName}
+            salonName={salonName}
           />
         </div>
         <PlayerPanel

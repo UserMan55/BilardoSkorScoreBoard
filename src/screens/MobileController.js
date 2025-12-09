@@ -205,7 +205,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
           <div className="starting-players">
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[startingMatchData.players[0]] || FALLBACK_AVATAR} alt={startingMatchData.players[0]} />
+                <img src={playerPhotos[startingMatchData.players[0]] || FALLBACK_AVATAR} alt={startingMatchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="starting-player-name">{startingMatchData.players[0]}</div>
             </div>
@@ -214,7 +214,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
             
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[startingMatchData.players[1]] || FALLBACK_AVATAR} alt={startingMatchData.players[1]} />
+                <img src={playerPhotos[startingMatchData.players[1]] || FALLBACK_AVATAR} alt={startingMatchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="starting-player-name">{startingMatchData.players[1]}</div>
             </div>
@@ -302,7 +302,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
           <div className="starting-players">
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} />
+                <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="starting-player-name">{matchData.players[0]}</div>
             </div>
@@ -311,7 +311,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
             
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} />
+                <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
               <div className="starting-player-name">{matchData.players[1]}</div>
             </div>
@@ -439,6 +439,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
           <span className="live-dot"></span>
           CANLI MAÇ
         </div>
+        {/* Çıkış Butonu - readOnly modunda da görünür */}
+        <button 
+          className="header-exit-btn"
+          onClick={handleBackToHome}
+          title="Çıkış"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Match Stats */}
@@ -453,7 +461,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
                 <div className="player-name">{matchData.players[0]}</div>
                 {/* Profile Picture */}
                 <div className="player-profile-pic">
-                  <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} />
+                  <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                 </div>
                 <div className="player-score">{liveStats?.score1 || 0}</div>
                 <div className="player-stats">
@@ -471,7 +479,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
                 <div className="player-name">{matchData.players[1]}</div>
                 {/* Profile Picture */}
                 <div className="player-profile-pic">
-                  <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} />
+                  <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
                 </div>
                 <div className="player-score">{liveStats?.score2 || 0}</div>
                 <div className="player-stats">
@@ -544,14 +552,16 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
 
           {/* Modern Remote Control */}
           <div className="remote-control">
-            {/* Power Button - Top Left */}
-            <button 
-              className="power-btn-exit"
-              onClick={() => handleCommand('EXIT')}
-              title="Maçtan Çık"
-            >
-              ✕
-            </button>
+            {/* Power Button - Top Left (sadece kontrol modunda) */}
+            {!isReadOnly && (
+              <button 
+                className="power-btn-exit"
+                onClick={() => handleCommand('EXIT')}
+                title="Maçtan Çık"
+              >
+                ✕
+              </button>
+            )}
 
             {/* RUN Display */}
             <div className="run-display">

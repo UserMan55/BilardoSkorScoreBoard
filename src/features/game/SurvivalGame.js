@@ -5,7 +5,9 @@ import { getUserProfiles } from '../../services/firebase';
 
 function SurvivalGame({
   players: initialPlayers, // Array of player names
-  onExit
+  onExit,
+  tableName = 'Masa 1',
+  salonName = 'SALON 3CSCORE'
 }) {
   // Game Constants
   const STARTING_SCORE = 10;
@@ -509,6 +511,32 @@ function SurvivalGame({
           <div style={{ fontSize: '42px', fontWeight: 'bold', color: '#FFD700', letterSpacing: '2px' }}>
             SURVIVAL
           </div>
+          {salonName && (
+            <div style={{
+              background: 'rgba(255, 215, 0, 0.15)',
+              padding: '4px 12px',
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 215, 0, 0.4)',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#FFD700'
+            }}>
+              🏠 {salonName}
+            </div>
+          )}
+          {tableName && (
+            <div style={{
+              background: 'rgba(78, 205, 196, 0.2)',
+              padding: '4px 12px',
+              borderRadius: '6px',
+              border: '1px solid rgba(78, 205, 196, 0.5)',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#4ECDC4'
+            }}>
+              📍 {tableName}
+            </div>
+          )}
         </div>
 
         {/* Game Timer Display */}
@@ -848,6 +876,13 @@ function SurvivalGame({
                   <img 
                     src={playerPhotos[player.name]} 
                     alt={player.name}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/logo.png';
+                      e.target.style.objectFit = 'contain';
+                      e.target.style.padding = '10%';
+                      e.target.style.background = '#1e293b';
+                    }}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -860,18 +895,24 @@ function SurvivalGame({
                   width: 70,
                   height: 70,
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: '#1e293b',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 28,
-                  fontWeight: 'bold',
-                  color: '#fff',
                   flexShrink: 0,
                   border: `3px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  overflow: 'hidden'
                 }}>
-                  {player.name ? player.name.charAt(0).toUpperCase() : '?'}
+                  <img 
+                    src="/logo.png" 
+                    alt="3CScore"
+                    style={{
+                      width: '80%',
+                      height: '80%',
+                      objectFit: 'contain'
+                    }}
+                  />
                 </div>
               )}
               {/* Player Name */}

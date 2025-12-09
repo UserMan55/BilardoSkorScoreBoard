@@ -178,10 +178,37 @@
 /* Live Match Header */
 .live-match-header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
   padding: 0 10px;
+}
+
+/* Header Çıkış Butonu */
+.header-exit-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.header-exit-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+}
+
+.header-exit-btn:active {
+  transform: scale(0.9);
+  background: rgba(239, 68, 68, 0.5);
 }
 
 .back-button-large {

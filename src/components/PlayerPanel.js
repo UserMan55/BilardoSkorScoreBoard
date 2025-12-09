@@ -57,6 +57,13 @@ function PlayerPanel({
             <img 
               src={photoURL} 
               alt={name}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = '/logo.png';
+                e.target.style.objectFit = 'contain';
+                e.target.style.padding = '10%';
+                e.target.style.background = '#1e293b';
+              }}
               style={{
                 width: '100%',
                 height: '100%',
@@ -69,18 +76,24 @@ function PlayerPanel({
             width: 70,
             height: 70,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: '#1e293b',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 28,
-            fontWeight: 'bold',
-            color: '#fff',
             flexShrink: 0,
             border: '3px solid #333',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            overflow: 'hidden'
           }}>
-            {name ? name.charAt(0).toUpperCase() : '?'}
+            <img 
+              src="/logo.png" 
+              alt="3CScore"
+              style={{
+                width: '80%',
+                height: '80%',
+                objectFit: 'contain'
+              }}
+            />
           </div>
         )}
         {/* Oyuncu Adı */}

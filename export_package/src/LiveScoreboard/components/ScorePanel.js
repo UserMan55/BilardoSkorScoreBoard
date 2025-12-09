@@ -1,7 +1,18 @@
 import React from 'react';
-import LogoPanel from './LogoPanel';
 
-function ScorePanel({ inning, run, runColor = '#fff', onShowController, isControllerHidden = false }) {
+function ScorePanel({ 
+  inning, 
+  run, 
+  runColor = '#fff', 
+  onShowController, 
+  isControllerHidden = false,
+  // Maç bilgileri (logo yerine)
+  targetScore,
+  targetRack,
+  hasPenalty,
+  hasAso,
+  isFreeMode = false
+}) {
   return (
     <div style={{
       width: 240,
@@ -49,8 +60,39 @@ function ScorePanel({ inning, run, runColor = '#fff', onShowController, isContro
           {run}
         </div>
       </div>
-      {/* LOGO tam ortada */}
-      <LogoPanel />
+
+      {/* Maç Bilgileri Paneli (Logo yerine) */}
+      {!isFreeMode && targetScore !== undefined && (
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.5)',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          margin: '8px 0',
+          fontSize: '11px',
+          fontWeight: '600',
+          border: '1px solid rgba(102, 126, 234, 0.5)',
+          width: '90%',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ color: '#888' }}>Hedef Sayı:</span>
+            <span style={{ color: '#FFD700' }}>{targetScore}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ color: '#888' }}>Hedef İstaka:</span>
+            <span style={{ color: '#FFD700' }}>{targetRack}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingTop: '4px', borderTop: '1px solid rgba(102, 126, 234, 0.3)' }}>
+            <span style={{ color: '#888' }}>Penaltı:</span>
+            <span style={{ color: hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>{hasPenalty ? '✓' : '✗'}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#888' }}>ASO:</span>
+            <span style={{ color: hasAso ? '#00FF00' : '#FF6B6B' }}>{hasAso ? '✓' : '✗'}</span>
+          </div>
+        </div>
+      )}
+
       {/* INNING başlığı ve kutusu */}
       <div style={{
         display: 'flex',
@@ -81,41 +123,6 @@ function ScorePanel({ inning, run, runColor = '#fff', onShowController, isContro
         }}>
           {inning}
         </div>
-
-        {/* Kumanda toggle ikonu - sadece gizlendiğinde görünsün */}
-        {isControllerHidden && (
-          <button
-            onClick={onShowController}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
-              cursor: 'pointer',
-              fontSize: '20px',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: '12px',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-              fontWeight: 'bold'
-            }}
-            title="Kumandayı göster"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
-            }}
-          >
-            ⚙️
-          </button>
-        )}
       </div>
     </div>
   );

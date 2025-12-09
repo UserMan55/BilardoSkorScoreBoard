@@ -60,7 +60,7 @@ function App() {
     }
   }, [screen]);
 
-  const handleStartStandard = (p1, p2, tScore, tRack, penalty, aso, isFreeMode = false) => {
+  const handleStartStandard = (p1, p2, tScore, tRack, penalty, aso, isFreeMode = false, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {
     const settings = {
       player1Name: p1,
       player2Name: p2,
@@ -68,7 +68,9 @@ function App() {
       targetRack: tRack,
       hasPenalty: penalty,
       hasAso: aso,
-      isFreeMode: isFreeMode
+      isFreeMode: isFreeMode,
+      tableName: tableName,
+      salonName: salonName
     };
     setGameSettings(settings);
     setScreen('standard');
@@ -83,8 +85,9 @@ function App() {
     }
   };
 
-  const handleStartSurvival = (players) => {
+  const handleStartSurvival = (players, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {
     setSurvivalPlayers(players);
+    setGameSettings({ tableName, salonName });
     setScreen('survival');
     
     // Masa durumunu BUSY yap
@@ -116,7 +119,9 @@ function App() {
         targetScore: targetScore,
         targetRack: targetRack,
         hasPenalty: hasPenalty,
-        hasAso: hasAso
+        hasAso: hasAso,
+        tableName: data.tableName || 'Masa 1',
+        salonName: data.salonName || 'SALON 3CSCORE'
       };
       
       setGameSettings(settings);
@@ -145,7 +150,7 @@ function App() {
         />
       )}
       {screen === 'standard' && <StandardGame {...gameSettings} onExit={handleExitGame} />}
-      {screen === 'survival' && <SurvivalGame players={survivalPlayers} onExit={handleExitGame} />}
+      {screen === 'survival' && <SurvivalGame players={survivalPlayers} onExit={handleExitGame} tableName={gameSettings?.tableName || 'Masa 1'} salonName={gameSettings?.salonName || 'SALON 3CSCORE'} />}
     </>
   );
 }
