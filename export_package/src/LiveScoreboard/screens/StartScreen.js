@@ -74,6 +74,31 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     focusedIndexRef.current = focusedIndex;
   }, [focusedIndex]);
 
+  // Force first focus to Player 1 when entering local mode
+  useEffect(() => {
+    if (deviceMode === 'local') {
+      console.log('🎯 LOCAL MODE ENTERED - Setting localFocusIndex to 0');
+      // Immediately set focus index to 0 (Player 1)
+      setLocalFocusIndex(0);
+      // Blur any active element first
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      // Focus P1 after a short delay to let React render
+      const timer = setTimeout(() => {
+        console.log('🎯 TIMER FIRED - Trying to focus p1-mode-3c, current localFocusIndex:', localFocusIndex);
+        const p1Btn = document.getElementById('p1-mode-3c');
+        if (p1Btn) {
+          p1Btn.focus();
+          console.log('🎯 FOCUSED p1-mode-3c successfully');
+        } else {
+          console.log('🎯 ERROR: p1-mode-3c not found!');
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [deviceMode]);
+
   // Audio Context Ref
   const audioCtxRef = React.useRef(null);
   const navHandlersRef = React.useRef({
@@ -208,6 +233,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   // Sync DOM focus with localFocusIndex for inputs
   useEffect(() => {
     if (deviceMode === 'local') {
+      console.log('🔄 SYNC EFFECT - localFocusIndex:', localFocusIndex, 'isManualPlayer1:', isManualPlayer1, 'isManualPlayer2:', isManualPlayer2);
       const focusMap = {
         0: 'p1-mode-3c',
         1: 'p1-mode-other',
@@ -223,12 +249,20 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       };
       
       const elementId = focusMap[localFocusIndex];
+      console.log('🔄 Will focus element:', elementId);
       if (elementId) {
         // Use setTimeout to allow render to complete if switching modes
         setTimeout(() => {
             const el = document.getElementById(elementId);
-            if (el) el.focus();
-        }, 0);
+            // Sadece element varsa ve şu anki aktif element değilse focus yap
+            // Bu, gereksiz focus tetiklemelerini ve döngüleri önler
+            if (el && document.activeElement !== el) {
+                console.log('🔄 FOCUSING:', elementId);
+                el.focus();
+            } else {
+                console.log('🔄 SKIPPED focus (already focused or not found):', elementId, 'activeElement:', document.activeElement?.id);
+            }
+        }, 50);
       }
     }
   }, [localFocusIndex, deviceMode, isManualPlayer1, isManualPlayer2]);
@@ -253,6 +287,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   }, [localFocusIndex, activeEditableField]);
 
   // Document click listener for auto-tab navigation (mouse only)
+  // Uses a ref to track if we've just entered local mode (to ignore the initial click)
+  const localModeEntryTimeRef = React.useRef(0);
+  
+  useEffect(() => {
+    if (deviceMode === 'local') {
+      // Record the time when we entered local mode
+      localModeEntryTimeRef.current = Date.now();
+    }
+  }, [deviceMode]);
+  
   useEffect(() => {
     if (deviceMode !== 'local') return;
 
@@ -263,6 +307,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     };
 
     const handleDocumentClick = (e) => {
+      // Ignore clicks for 500ms after entering local mode
+      // This prevents the mode selection click from being processed
+      if (Date.now() - localModeEntryTimeRef.current < 500) {
+        console.log('🚫 CLICK IGNORED - too soon after entering local mode');
+        return;
+      }
+      
       const playerSelectionEl = playerSelectionRef.current;
       const player1PanelEl = player1PanelRef.current;
       const player2PanelEl = player2PanelRef.current;
@@ -621,7 +672,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     setHasPenalty(false);
     setHasAso(true);
     // setTimeout ile odak ayarla - render tamamlandıktan sonra
-    setTimeout(() => setLocalFocusIndex(0), 100);
+    setLocalFocusIndex(0);
     // isReviewMode otomatik olarak false olur çünkü localFocusIndex !== 10
   };
 
@@ -2194,21 +2245,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 ref={playerSelectionRef}
                 className="player-selection"
                 tabIndex={-1}
-                onBlur={(e) => {
-                  // Oyuncu panellerinden çıkıldığında
-                  const relatedTarget = e.relatedTarget;
-                  const currentTarget = e.currentTarget;
-                  if (relatedTarget && !currentTarget.contains(relatedTarget)) {
-                    // Oyuncu 1 panelinden çıkıldı ve oyuncu seçilmişse
-                    if ((localFocusIndex >= 0 && localFocusIndex <= 2) && (player1 || manualPlayer1Name)) {
-                      setTimeout(() => setLocalFocusIndex(3), 50);
-                    }
-                    // Oyuncu 2 panelinden çıkıldı ve oyuncu seçilmişse
-                    else if ((localFocusIndex >= 3 && localFocusIndex <= 5) && (player2 || manualPlayer2Name)) {
-                      setTimeout(() => setLocalFocusIndex(6), 50);
-                    }
-                  }
-                }}
+                /* onBlur logic removed to prevent race conditions with reset buttons */
               >
                 <div ref={player1PanelRef} className={`player-input-group player-1-panel ${getGroupClass([0, 1, 2])} ${!isManualPlayer1 ? 'mode-3cscore' : 'mode-other'}`} style={{ 
                     borderRadius: '12px',
@@ -2236,7 +2273,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         setPlayer1Warning("");
                         setActiveEditableField(null);
                       }}
-                      onFocus={() => setLocalFocusIndex(0)}
                       style={{
                         transition: 'box-shadow 0.2s ease, border 0.2s ease',
                         ...getFocusGlowStyle(0)
@@ -2253,7 +2289,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         setPlayer1Warning("");
                         setActiveEditableField(null);
                       }}
-                      onFocus={() => setLocalFocusIndex(1)}
                       style={{
                         transition: 'box-shadow 0.2s ease, border 0.2s ease',
                         ...getFocusGlowStyle(1)
@@ -2279,7 +2314,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                               setTimeout(() => setLocalFocusIndex(3), 100);
                             }
                           }}
-                          onFocus={() => setLocalFocusIndex(2)}
                           style={{
                             border: '1px solid rgba(255,255,255,0.1)',
                             transition: 'box-shadow 0.2s ease, border 0.2s ease',
@@ -2315,7 +2349,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                           ...getFocusGlowStyle(2),
                           cursor: activeEditableField === 'p1-manual' ? 'text' : 'default'
                         }}
-                        onFocus={() => setLocalFocusIndex(2)}
                         onClick={() => {
                             setLocalFocusIndex(2);
                           setActiveEditableField('p1-manual');
@@ -2357,6 +2390,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   }}>
                     <button 
                       id="p2-mode-3c"
+                      tabIndex={-1}
                       className={`mode-toggle-btn mode-3c ${!isManualPlayer2 ? 'active' : ''}`}
                       onClick={() => {
                         setIsManualPlayer2(false);
@@ -2364,7 +2398,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         setPlayer2Warning("");
                         setActiveEditableField(null);
                       }}
-                      onFocus={() => setLocalFocusIndex(3)}
                       style={{
                         transition: 'box-shadow 0.2s ease, border 0.2s ease',
                         ...getFocusGlowStyle(3)
@@ -2374,6 +2407,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     </button>
                     <button 
                       id="p2-mode-other"
+                      tabIndex={-1}
                       className={`mode-toggle-btn mode-other ${isManualPlayer2 ? 'active' : ''}`}
                       onClick={() => {
                         setIsManualPlayer2(true);
@@ -2381,7 +2415,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         setPlayer2Warning("");
                         setActiveEditableField(null);
                       }}
-                      onFocus={() => setLocalFocusIndex(4)}
                       style={{
                         transition: 'box-shadow 0.2s ease, border 0.2s ease',
                         ...getFocusGlowStyle(4)
@@ -2397,6 +2430,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                       <div className="combo-wrapper">
                         <select
                           id="p2-input"
+                          tabIndex={-1}
                           className="player-input modern"
                           value={player2}
                           onChange={(e) => {
@@ -2404,10 +2438,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                             setPlayer2Warning("");
                             // Oyuncu seçildiğinde Hedef Sayı paneline geç
                             if (e.target.value) {
+                              // Focus'u manuel olarak kaldır ve sonraki alana geç
+                              if (document.activeElement) document.activeElement.blur();
                               setTimeout(() => setLocalFocusIndex(6), 100);
                             }
                           }}
-                          onFocus={() => setLocalFocusIndex(5)}
                           style={{
                             border: '1px solid rgba(255,255,255,0.1)',
                             transition: 'box-shadow 0.2s ease, border 0.2s ease',
@@ -2429,6 +2464,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                       <div className="input-header">DİĞER OYUNCU</div>
                       <input
                         id="p2-input"
+                        tabIndex={-1}
                         type="text"
                         autoComplete="off"
                         readOnly={activeEditableField !== 'p2-manual'}
@@ -2445,7 +2481,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                           ...getFocusGlowStyle(5),
                           cursor: activeEditableField === 'p2-manual' ? 'text' : 'default'
                         }}
-                        onFocus={() => setLocalFocusIndex(5)}
                         onClick={() => {
                             setLocalFocusIndex(5);
                           setActiveEditableField('p2-manual');
@@ -2497,7 +2532,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     <button 
                       className="setting-control-btn left"
                       onClick={() => setTargetScore(Math.max(15, targetScore - 5))}
-                      onFocus={() => setLocalFocusIndex(6)}
                       style={{
                         opacity: isReviewMode ? 0.3 : 1,
                         filter: isReviewMode ? 'blur(2px)' : 'none'
@@ -2510,7 +2544,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                       id="score-plus-btn"
                       className="setting-control-btn right"
                       onClick={() => setTargetScore(Math.min(50, targetScore + 5))}
-                      onFocus={() => setLocalFocusIndex(6)}
                       style={{
                         opacity: isReviewMode ? 0.3 : 1,
                         filter: isReviewMode ? 'blur(2px)' : 'none'
@@ -2533,7 +2566,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     <button 
                       className="setting-control-btn left"
                       onClick={() => setTargetRack(Math.max(15, targetRack - 5))}
-                      onFocus={() => setLocalFocusIndex(7)}
                       style={{
                         opacity: isReviewMode ? 0.3 : 1,
                         filter: isReviewMode ? 'blur(2px)' : 'none'
@@ -2546,7 +2578,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                       id="rack-plus-btn"
                       className="setting-control-btn right"
                       onClick={() => setTargetRack(Math.min(50, targetRack + 5))}
-                      onFocus={() => setLocalFocusIndex(7)}
                       style={{
                         opacity: isReviewMode ? 0.3 : 1,
                         filter: isReviewMode ? 'blur(2px)' : 'none'
@@ -2574,7 +2605,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     checked={hasPenalty} 
                     onChange={(e) => setHasPenalty(e.target.checked)}
                     className="checkbox-input"
-                    onFocus={() => setLocalFocusIndex(8)}
                   />
                   <span className="checkbox-label">Penaltı</span>
                 </label>
@@ -2593,7 +2623,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     checked={hasAso} 
                     onChange={(e) => setHasAso(e.target.checked)}
                     className="checkbox-input"
-                    onFocus={() => setLocalFocusIndex(9)}
                   />
                   <span className="checkbox-label">ASO</span>
                 </label>
@@ -2619,7 +2648,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                         handleStart();
                       }
                     } : undefined}
-                    onFocus={() => setLocalFocusIndex(10)}
                     disabled={!canStartMatch}
                     style={{
                       transition: 'box-shadow 0.2s ease, border 0.2s ease',
