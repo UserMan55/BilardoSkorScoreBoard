@@ -18,6 +18,7 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
   onEnter,
   onClear,
   onExit,
+  onSpace,
   suppressVerticalNavigation = false,
   disabledKeys = []
 }, ref) {
@@ -43,9 +44,17 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
       onExit?.();
       return;
     }
+    if (key === 'SPACE') {
+      // Eğer onSpace callback varsa onu çağır, yoksa boşluk karakteri yaz
+      if (onSpace) {
+        onSpace();
+      } else {
+        onKeyPress?.(' ');
+      }
+      return;
+    }
 
-    const value = key === 'SPACE' ? ' ' : key;
-    onKeyPress?.(value);
+    onKeyPress?.(key);
   };
 
   const focusKey = (rowIndex, colIndex) => {
@@ -57,9 +66,24 @@ const VirtualKeyboard = React.forwardRef(function VirtualKeyboard({
   };
 
   const handleKeyDown = (event, rowIndex, colIndex, keyValue) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    // Klavyeden SPACE tuşuna basıldığında
+    if (event.key === ' ') {
       event.preventDefault();
       event.stopPropagation();
+      // Eğer onSpace callback varsa onu çağır (klavye/öneriler geçişi için)
+      if (onSpace) {
+        onSpace();
+      } else {
+        // onSpace yoksa normal davranış: üzerinde olunan tuşu bas
+        handleKeyClick(keyValue);
+      }
+      return;
+    }
+    
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      // Üzerinde olunan tuşu bas (harf, ENTER, BACKSPACE, vs.)
       handleKeyClick(keyValue);
       return;
     }

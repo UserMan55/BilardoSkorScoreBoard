@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import TimerProgressBar from '../../components/TimerProgressBar';
-import GameController from './GameController'; // We might need a specialized controller or adapt this one
 import { getUserProfiles } from '../../services/firebase';
 
 function SurvivalGame({
@@ -44,9 +43,6 @@ function SurvivalGame({
   const [winner, setWinner] = useState(null);
   const [notification, setNotification] = useState(null); // { message, type: 'info'|'warning'|'success' }
   const [showHalfTimeModal, setShowHalfTimeModal] = useState(false);
-
-  // Controller visibility
-  const [isControllerVisible, setIsControllerVisible] = useState(true);
 
   // History for Undo
   const [history, setHistory] = useState([]);
@@ -1072,26 +1068,6 @@ function SurvivalGame({
         isTimerPaused={isTimerPaused}
         activeColor={currentPlayerColor}
         duration={30}
-      />
-
-      {/* Controller */}
-      <GameController 
-        onPlusRun={handlePlusRun}
-        onMinusRun={handleMinusRun}
-        onToggleTimer={handleToggleTimer}
-        onOk={handleOk}
-        onExit={onExit}
-        onUndo={handleUndo}
-        isTimerRunning={isTimerRunning}
-        currentPlayerName={currentPlayer.name}
-        currentTurn={currentTurn}
-        isVisible={isControllerVisible}
-        onToggleVisibility={() => setIsControllerVisible(!isControllerVisible)}
-        gameEnded={gameEnded}
-        currentScore={currentPlayer.score}
-        runCount={currentPlayer.currentRun}
-        targetScore={999} // No target score in survival usually, or it's time based
-        canUndo={history.length > 0}
       />
     </div>
   );

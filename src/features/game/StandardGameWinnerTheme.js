@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import GameController from './GameController';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
 import { saveMatchToTestRecords, updateTableStatus } from '../../services/firebase';
@@ -22,7 +21,6 @@ function StandardGameWinnerTheme({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [player1Runs, setPlayer1Runs] = useState([]); // Tüm run'ları tut
   const [player2Runs, setPlayer2Runs] = useState([]); // Tüm run'ları tut
-  const [isControllerVisible, setIsControllerVisible] = useState(true); // Kumanda görünürlüğü
   const [player1TimeoutLeft, setPlayer1TimeoutLeft] = useState(2); // Oyuncu 1'in timeout hakkı
   const [player2TimeoutLeft, setPlayer2TimeoutLeft] = useState(2); // Oyuncu 2'nin timeout hakkı
   const [timerPhase, setTimerPhase] = useState('idle'); // idle: başlatılmamış, running: çalışıyor, finished: bitti
@@ -1149,25 +1147,6 @@ function StandardGameWinnerTheme({
               {warningMessage}
             </div>
       )}
-
-      <GameController 
-        onPlusRun={handlePlusRun}
-        onMinusRun={handleMinusRun}
-        onToggleTimer={handleToggleTimer}
-        onOk={handleOk}
-        onExit={handleExit}
-        onUndo={handleUndo}
-        isTimerRunning={isTimerRunning}
-        currentPlayerName={currentTurn === 0 ? player1Name : player2Name}
-        currentTurn={currentTurn}
-        isVisible={isControllerVisible}
-        onToggleVisibility={() => setIsControllerVisible(!isControllerVisible)}
-        gameEnded={gameEnded}
-        currentScore={currentTurn === 0 ? player1Score : player2Score}
-        runCount={runCount}
-        targetScore={targetScore}
-        canUndo={history.length > 0}
-      />
     </div>
   );
 }

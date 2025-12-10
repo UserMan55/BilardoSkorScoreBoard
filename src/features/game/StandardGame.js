@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PlayerPanel from '../../components/PlayerPanel';
 import ScorePanel from '../../components/ScorePanel';
-import GameController from './GameController';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
 import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles } from '../../services/firebase';
@@ -58,6 +57,12 @@ function StandardGame({
   // Handlers ref for remote control
   const handlersRef = React.useRef({});
   
+  // onExit ref - her zaman güncel callback'i tutar
+  const onExitRef = React.useRef(onExit);
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
+  
   useEffect(() => {
     handlersRef.current = {
       handlePlusRun,
@@ -68,6 +73,8 @@ function StandardGame({
       handleExit,
       handleConfirmSave,
       handleCancelSave,
+      handleMenuConfirm,
+      handleMenuCancel,
       handleNewMatch,
       handleRematch,
       setShowMenuOverlay
@@ -607,17 +614,6 @@ function StandardGame({
   // Sound Mute State
   const [isMuted, setIsMuted] = useState(false);
 
-  // Mobile Detection
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   // Reset modal focus when modal opens
   useEffect(() => {
     if (showSaveConfirm || gameEnded || showMenuOverlay) {
@@ -664,6 +660,7 @@ function StandardGame({
          } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
             setModalFocusIndex(0);
          } else if (e.key === 'Enter' || e.key === ' ') {
+            console.log('🔴 ENTER/SPACE pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
             if (gameEnded) {
               if (modalFocusIndex === 1) callHandler('handleNewMatch');
               else callHandler('handleRematch');
@@ -672,9 +669,14 @@ function StandardGame({
               else callHandler('handleCancelSave');
             } else if (showMenuOverlay) {
                if (modalFocusIndex === 1) {
-                  // MAÇTAN ÇIK
+                  // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
                   setShowMenuOverlay(false);
-                  onExit(); // Ana ekrana dön
+                  // Kısa gecikme ile çık (event döngüsü tamamlansın)
+                  setTimeout(() => {
+                    if (onExitRef.current) onExitRef.current();
+                  }, 50);
                } else {
                   // VAZGEÇ
                   setShowMenuOverlay(false);
@@ -724,7 +726,7 @@ function StandardGame({
     // Capture: true ile event'i en başta yakala
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex, onExit]);
+  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex]);
 
   const handleConfirmSave = () => {
     if (pendingSaveData) {
@@ -740,6 +742,15 @@ function StandardGame({
     }
     setShowSaveConfirm(false);
     setPendingSaveData(null);
+  };
+
+  const handleMenuConfirm = () => {
+    setShowMenuOverlay(false);
+    if (onExit) onExit();
+  };
+
+  const handleMenuCancel = () => {
+    setShowMenuOverlay(false);
   };
 
   const endGame = (winnerName) => {
@@ -1476,28 +1487,6 @@ function StandardGame({
         isTimerPaused={isTimerPaused}
         activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
         duration={40}
-      />
-      </div>
-      {/* Digital Controller - Mobile Only */}
-      <div style={{ display: isMobile ? 'block' : 'none' }}>
-      <GameController 
-        onPlusRun={handlePlusRun}
-        onMinusRun={handleMinusRun}
-        onToggleTimer={handleToggleTimer}
-        onOk={handleOk}
-        onExit={handleExit}
-        onUndo={handleUndo}
-        isTimerRunning={isTimerRunning}
-        currentPlayerName={currentTurn === 0 ? player1Name : player2Name}
-        currentTurn={currentTurn}
-        isVisible={isMobile}
-        onToggleVisibility={() => {}}
-        gameEnded={gameEnded}
-        currentScore={currentTurn === 0 ? player1Score : player2Score}
-        runCount={runCount}
-        targetScore={targetScore}
-        canUndo={history.length > 0}
-        mode={isMobile ? 'fullscreen' : 'floating'}
       />
       </div>
       

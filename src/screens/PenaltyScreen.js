@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import GameController from '../features/game/GameController';
 import TimerProgressBar from '../components/TimerProgressBar';
 
 function PenaltyScreen({ 
@@ -599,26 +598,6 @@ function PenaltyScreen({
             resetTrigger={timerResetTrigger}
             isTimerPaused={isTimerPaused}
           />
-        </div>
-
-        {/* Game Controller - Digital Controller Devre Dışı */}
-        <div style={{ display: 'none' }}>
-        <GameController 
-          onPlusRun={handlePlusRun}
-          onMinusRun={handleMinusRun}
-          onToggleTimer={handleToggleTimer}
-          onOk={handleOk}
-          onExit={handleExit}
-          isTimerRunning={isTimerRunning}
-          currentPlayerName={currentTurn === 0 ? player1Name : player2Name}
-          currentTurn={currentTurn}
-          isVisible={false}
-          onToggleVisibility={() => {}}
-          gameEnded={false}
-          currentScore={currentTurn === 0 ? currentPlayer1Score : currentPlayer2Score}
-          runCount={runCount}
-          targetScore={999}
-        />
         </div>
       </div>
 

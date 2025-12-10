@@ -58,6 +58,12 @@ function StandardGame({
   // Handlers ref for remote control
   const handlersRef = React.useRef({});
   
+  // onExit ref - her zaman güncel callback'i tutar
+  const onExitRef = React.useRef(onExit);
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
+  
   useEffect(() => {
     handlersRef.current = {
       handlePlusRun,
@@ -68,6 +74,8 @@ function StandardGame({
       handleExit,
       handleConfirmSave,
       handleCancelSave,
+      handleMenuConfirm,
+      handleMenuCancel,
       handleNewMatch,
       handleRematch,
       setShowMenuOverlay
@@ -672,9 +680,14 @@ function StandardGame({
               else callHandler('handleCancelSave');
             } else if (showMenuOverlay) {
                if (modalFocusIndex === 1) {
-                  // MAÇTAN ÇIK
+                  // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
                   setShowMenuOverlay(false);
-                  onExit(); // Ana ekrana dön
+                  // Kısa gecikme ile çık (event döngüsü tamamlansın)
+                  setTimeout(() => {
+                    if (onExitRef.current) onExitRef.current();
+                  }, 50);
                } else {
                   // VAZGEÇ
                   setShowMenuOverlay(false);
@@ -724,7 +737,7 @@ function StandardGame({
     // Capture: true ile event'i en başta yakala
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex, onExit]);
+  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex]);
 
   const handleConfirmSave = () => {
     if (pendingSaveData) {
@@ -740,6 +753,15 @@ function StandardGame({
     }
     setShowSaveConfirm(false);
     setPendingSaveData(null);
+  };
+
+  const handleMenuConfirm = () => {
+    setShowMenuOverlay(false);
+    if (onExit) onExit();
+  };
+
+  const handleMenuCancel = () => {
+    setShowMenuOverlay(false);
   };
 
   const endGame = (winnerName) => {

@@ -186,7 +186,15 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [incomingMatchData, setIncomingMatchData] = useState(null);
   
-  const [activeEditableField, setActiveEditableField] = useState(null); // 'p1-manual' | 'p2-manual'
+  const [activeEditableField, setActiveEditableField] = useState(null); // 'p1-manual' | 'p2-manual' | 'p1-search' | 'p2-search'
+  
+  // 3CSCORE Arama State'leri
+  const [p1SearchText, setP1SearchText] = useState("");
+  const [p2SearchText, setP2SearchText] = useState("");
+  const [p1SearchIndex, setP1SearchIndex] = useState(0); // Filtrelenmiş listede seçili index
+  const [p2SearchIndex, setP2SearchIndex] = useState(0);
+  const [searchFocusMode, setSearchFocusMode] = useState('keyboard'); // 'keyboard' | 'results' - SPACE ile geçiş yapılır
+  
   const activeEditableFieldRef = useRef(null);
   // activeEditableField değiştiğinde ref'i güncelle
   useEffect(() => {
@@ -205,7 +213,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const isVirtualKeyboardEnabled = deviceProfile?.enableVirtualKeyboard ?? false;
   const keyboardStatusText = {
     'p1-manual': '1. oyuncu – manuel isim girişi',
-    'p2-manual': '2. oyuncu – manuel isim girişi'
+    'p2-manual': '2. oyuncu – manuel isim girişi',
+    'p1-search': '1. oyuncu – 3CSCORE arama',
+    'p2-search': '2. oyuncu – 3CSCORE arama'
   };
 
   useEffect(() => {
@@ -387,13 +397,50 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   }, [deviceMode, localFocusIndex]);
 
   const normalizeSearchText = React.useCallback((text = "") => {
+    // Türkçe karakter normalizasyonu
+    // Tüm büyük/küçük ve Türkçe varyasyonları aynı karaktere dönüştürür
+    // İ, i, I, ı → hepsi "i" olur
     return text
       .toString()
       .toLocaleLowerCase('tr-TR')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/ı/g, 'i');
+      // Türkçe karakterleri ASCII karşılıklarına çevir
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/ı/g, 'i')  // ı → i (böylece İ/i/I/ı hepsi aynı olur)
+      .trim();
   }, []);
+
+  // 3CSCORE Arama: Filtrelenmiş oyuncu listesi (normalizeSearchText'ten sonra tanımlanmalı)
+  // Kelime bazlı arama: Her kelimenin başından eşleştirme yapar
+  // En az 2 karakter yazılmadan öneri gösterme
+  const p1FilteredSearchPlayers = React.useMemo(() => {
+    const trimmed = p1SearchText.trim();
+    // En az 2 karakter yazılmalı
+    if (trimmed.length < 2) return [];
+    const normalized = normalizeSearchText(trimmed);
+    return filteredPlayers.filter(p => {
+      const playerNorm = normalizeSearchText(p.fullName);
+      // Kelimelere ayır ve herhangi bir kelimenin başlangıcıyla eşleşip eşleşmediğini kontrol et
+      const words = playerNorm.split(/\s+/);
+      return words.some(word => word.startsWith(normalized));
+    });
+  }, [filteredPlayers, p1SearchText, normalizeSearchText]);
+  
+  const p2FilteredSearchPlayers = React.useMemo(() => {
+    const trimmed = p2SearchText.trim();
+    // En az 2 karakter yazılmalı
+    if (trimmed.length < 2) return [];
+    const normalized = normalizeSearchText(trimmed);
+    return filteredPlayers.filter(p => {
+      const playerNorm = normalizeSearchText(p.fullName);
+      // Kelimelere ayır ve herhangi bir kelimenin başlangıcıyla eşleşip eşleşmediğini kontrol et
+      const words = playerNorm.split(/\s+/);
+      return words.some(word => word.startsWith(normalized));
+    });
+  }, [filteredPlayers, p2SearchText, normalizeSearchText]);
 
 
   const showFieldWarning = React.useCallback((index) => {
@@ -424,17 +471,35 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     } else if (activeEditableField === 'p2-manual') {
       setActiveEditableField(null);
       setTimeout(() => p2InputRef.current?.blur(), 0);
+    } else if (activeEditableField === 'p1-search') {
+      setActiveEditableField(null);
+      setP1SearchText("");
+      setP1SearchIndex(0);
+      setSearchFocusMode('keyboard');
+    } else if (activeEditableField === 'p2-search') {
+      setActiveEditableField(null);
+      setP2SearchText("");
+      setP2SearchIndex(0);
+      setSearchFocusMode('keyboard');
     }
   }, [activeEditableField]);
 
 
   const handleVirtualKeyPress = React.useCallback((value) => {
+    // Harf girildiğinde keyboard moduna dön
+    setSearchFocusMode('keyboard');
     if (activeEditableField === 'p1-manual') {
       setManualPlayer1Name((prev) => `${prev}${value}`);
       setPlayer1Warning("");
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name((prev) => `${prev}${value}`);
       setPlayer2Warning("");
+    } else if (activeEditableField === 'p1-search') {
+      setP1SearchText((prev) => `${prev}${value}`);
+      setP1SearchIndex(0); // Arama değişince ilk sonuca dön
+    } else if (activeEditableField === 'p2-search') {
+      setP2SearchText((prev) => `${prev}${value}`);
+      setP2SearchIndex(0);
     }
   }, [activeEditableField]);
 
@@ -443,6 +508,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setManualPlayer1Name((prev) => prev.slice(0, -1));
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name((prev) => prev.slice(0, -1));
+    } else if (activeEditableField === 'p1-search') {
+      setP1SearchText((prev) => prev.slice(0, -1));
+    } else if (activeEditableField === 'p2-search') {
+      setP2SearchText((prev) => prev.slice(0, -1));
     }
   }, [activeEditableField]);
 
@@ -453,6 +522,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     } else if (activeEditableField === 'p2-manual') {
       setManualPlayer2Name("");
       setPlayer2Warning("");
+    } else if (activeEditableField === 'p1-search') {
+      setP1SearchText("");
+      setP1SearchIndex(0);
+    } else if (activeEditableField === 'p2-search') {
+      setP2SearchText("");
+      setP2SearchIndex(0);
     }
   }, [activeEditableField]);
 
@@ -467,16 +542,93 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       setActiveEditableField(null);
       setLocalFocusIndex(6);
       setTimeout(() => p2InputRef.current?.blur(), 0);
+    } else if (activeEditableField === 'p1-search') {
+      // Öneriler modundaysa veya öneri varsa seçim yap
+      if (searchFocusMode === 'results' || p1FilteredSearchPlayers.length > 0) {
+        if (p1FilteredSearchPlayers.length > 0) {
+          const selectedPlayer = p1FilteredSearchPlayers[p1SearchIndex];
+          if (selectedPlayer) {
+            setPlayer1(selectedPlayer.id);
+            setPlayer1Warning("");
+            console.log('✅ P1 Oyuncu seçildi:', selectedPlayer.fullName);
+          }
+        }
+        setActiveEditableField(null);
+        setP1SearchText("");
+        setP1SearchIndex(0);
+        setSearchFocusMode('keyboard');
+        setLocalFocusIndex(3); // Oyuncu 2 paneline geç
+      }
+    } else if (activeEditableField === 'p2-search') {
+      // Öneriler modundaysa veya öneri varsa seçim yap
+      if (searchFocusMode === 'results' || p2FilteredSearchPlayers.length > 0) {
+        if (p2FilteredSearchPlayers.length > 0) {
+          const selectedPlayer = p2FilteredSearchPlayers[p2SearchIndex];
+          if (selectedPlayer) {
+            setPlayer2(selectedPlayer.id);
+            setPlayer2Warning("");
+            console.log('✅ P2 Oyuncu seçildi:', selectedPlayer.fullName);
+          }
+        }
+        setActiveEditableField(null);
+        setP2SearchText("");
+        setP2SearchIndex(0);
+        setSearchFocusMode('keyboard');
+        setLocalFocusIndex(6); // Hedef sayı paneline geç
+      }
     }
-  }, [activeEditableField]);
+  }, [activeEditableField, searchFocusMode, p1FilteredSearchPlayers, p1SearchIndex, p2FilteredSearchPlayers, p2SearchIndex]);
 
   const handleVirtualExit = React.useCallback(() => {
     cancelActiveEditing();
   }, [cancelActiveEditing]);
 
+  // 3CSCORE Arama: SPACE tuşu ile klavye/öneriler arasında geçiş
+  const handleVirtualSpace = React.useCallback(() => {
+    // Sadece arama modunda (p1-search veya p2-search) özel davranış
+    if (activeEditableField === 'p1-search' || activeEditableField === 'p2-search') {
+      const hasResults = activeEditableField === 'p1-search' 
+        ? p1FilteredSearchPlayers.length > 0 
+        : p2FilteredSearchPlayers.length > 0;
+      
+      if (searchFocusMode === 'keyboard' && hasResults) {
+        setSearchFocusMode('results');
+      } else {
+        setSearchFocusMode('keyboard');
+      }
+    } else {
+      // Manuel mod (p1-manual, p2-manual) için boşluk karakteri ekle
+      if (activeEditableField === 'p1-manual') {
+        setManualPlayer1Name((prev) => `${prev} `);
+      } else if (activeEditableField === 'p2-manual') {
+        setManualPlayer2Name((prev) => `${prev} `);
+      }
+    }
+  }, [activeEditableField, searchFocusMode, p1FilteredSearchPlayers.length, p2FilteredSearchPlayers.length]);
+
+  // 3CSCORE Arama: Yukarı/Aşağı tuşları ile sonuçlar arasında gezinme
+  const handleSearchNavigate = React.useCallback((direction) => {
+    if (activeEditableField === 'p1-search') {
+      setP1SearchIndex((prev) => {
+        const maxIndex = p1FilteredSearchPlayers.length - 1;
+        if (direction === 'up') return prev > 0 ? prev - 1 : maxIndex;
+        if (direction === 'down') return prev < maxIndex ? prev + 1 : 0;
+        return prev;
+      });
+    } else if (activeEditableField === 'p2-search') {
+      setP2SearchIndex((prev) => {
+        const maxIndex = p2FilteredSearchPlayers.length - 1;
+        if (direction === 'up') return prev > 0 ? prev - 1 : maxIndex;
+        if (direction === 'down') return prev < maxIndex ? prev + 1 : 0;
+        return prev;
+      });
+    }
+  }, [activeEditableField, p1FilteredSearchPlayers.length, p2FilteredSearchPlayers.length]);
+
   const renderInlineKeyboard = (fieldKey) => {
     if (!isVirtualKeyboardEnabled || activeEditableField !== fieldKey) return null;
     const status = keyboardStatusText[fieldKey] || 'Sanal klavye';
+    
     return (
       <div className="virtual-keyboard-inline">
         <div className="virtual-keyboard-inline__status">{status}</div>
@@ -493,6 +645,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
           onClear={handleVirtualClear}
           onEnter={handleVirtualEnter}
           onExit={handleVirtualExit}
+          onSpace={handleVirtualSpace}
         />
       </div>
     );
@@ -884,8 +1037,25 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         
         if (currentActiveField) {
           if (e.key === 'Enter') {
-            e.preventDefault();
-            handleVirtualEnter();
+            // Öneriler modundayken ENTER: seçim yap ve tab geçişi
+            // Klavye modundayken ENTER: VirtualKeyboard'a bırak (harf bassın)
+            const isSearchMode = currentActiveField === 'p1-search' || currentActiveField === 'p2-search';
+            const isResultsMode = searchFocusMode === 'results';
+            
+            if (isSearchMode && isResultsMode) {
+              // Öneriler modunda: seçim yap
+              e.preventDefault();
+              e.stopPropagation();
+              handleVirtualEnter();
+              return;
+            } else if (!isSearchMode) {
+              // Manuel mod (p1-manual, p2-manual): klavyeyi kapat
+              e.preventDefault();
+              e.stopPropagation();
+              handleVirtualEnter();
+              return;
+            }
+            // Arama modunda klavye modundayken: event'i VirtualKeyboard'a bırak
             return;
           }
           if (['Escape', 'BrowserBack', 'GoBack'].includes(e.key)) {
@@ -899,12 +1069,48 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
               setManualPlayer1Name((prev) => prev.slice(0, -1));
             } else if (currentActiveField === 'p2-manual') {
               setManualPlayer2Name((prev) => prev.slice(0, -1));
+            } else if (currentActiveField === 'p1-search') {
+              setP1SearchText((prev) => prev.slice(0, -1));
+            } else if (currentActiveField === 'p2-search') {
+              setP2SearchText((prev) => prev.slice(0, -1));
             }
             return;
           }
-          if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          // 3CSCORE Arama modunda SPACE ile klavye/öneriler arasında geçiş
+          if (e.key === ' ' && (currentActiveField === 'p1-search' || currentActiveField === 'p2-search')) {
             e.preventDefault();
-            navHandlersRef.current.handleLocalNavAction(e);
+            e.stopPropagation();
+            const hasResults = currentActiveField === 'p1-search' 
+              ? p1FilteredSearchPlayers.length > 0 
+              : p2FilteredSearchPlayers.length > 0;
+            // Sadece öneri varsa geçiş yap
+            if (searchFocusMode === 'keyboard' && hasResults) {
+              setSearchFocusMode('results');
+            } else {
+              setSearchFocusMode('keyboard');
+            }
+            return;
+          }
+          // 3CSCORE Arama modunda yukarı/aşağı ile sonuçlar arasında gezin (sadece results modunda)
+          if (['ArrowDown', 'ArrowUp'].includes(e.key) && (currentActiveField === 'p1-search' || currentActiveField === 'p2-search')) {
+            // Results modundaysa sonuçlar arasında gezin
+            if (searchFocusMode === 'results') {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSearchNavigate(e.key === 'ArrowUp' ? 'up' : 'down');
+              return;
+            }
+            // Keyboard modunda: VirtualKeyboard'a bırak (harfler arasında gezsin)
+            return;
+          }
+          // Arama modunda yatay ok tuşları: VirtualKeyboard'a bırak
+          if (['ArrowLeft', 'ArrowRight'].includes(e.key) && (currentActiveField === 'p1-search' || currentActiveField === 'p2-search')) {
+            // Keyboard modunda: VirtualKeyboard'a bırak
+            return;
+          }
+          // Manuel mod için ok tuşları
+          if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            // Manuel modda da VirtualKeyboard'a bırak
             return;
           }
           return;
@@ -913,6 +1119,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
         // Form elemanındaysak ve ok tuşlarına basıldıysa, custom navigasyonu engelle (çakışmayı önle)
         // Ancak Enter ve Escape her zaman çalışmalı
         if (isFormElement && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Backspace'].includes(e.key)) {
+            // SELECT elementinde SPACE tuşu: 3CSCORE arama modunu aç (sanal klavye aktifse)
+            if (activeTag === 'SELECT' && e.key === ' ' && isVirtualKeyboardEnabled) {
+                e.preventDefault();
+                const selectId = document.activeElement.id;
+                if (selectId === 'p1-input' && !isManualPlayer1) {
+                  setActiveEditableField('p1-search');
+                } else if (selectId === 'p2-input' && !isManualPlayer2) {
+                  setActiveEditableField('p2-search');
+                }
+                return;
+            }
+            
             // SELECT ve CHECKBOX elementleri için özel durum: Custom navigasyon kullanılsın
             if (activeTag === 'SELECT' || (activeTag === 'INPUT' && document.activeElement.type === 'checkbox')) {
                 e.preventDefault();
@@ -934,8 +1152,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Capture phase kullanarak event'i VirtualKeyboard'dan ÖNCE yakala
+    // Bu sayede öneriler modundayken ENTER tuşunu işleyebiliriz
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [
     deviceMode, 
     localFocusIndex, 
@@ -952,7 +1172,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     hasPenalty,
     hasAso,
     handleVirtualExit,
-    handleVirtualEnter
+    handleVirtualEnter,
+    handleSearchNavigate,
+    isVirtualKeyboardEnabled,
+    searchFocusMode,
+    p1FilteredSearchPlayers,
+    p2FilteredSearchPlayers
   ]);
 
   // Mod seçim ekranında beklerken gelen maç komutlarını dinle
@@ -2123,32 +2348,83 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 <>
               {isReviewMode ? (
                 <div ref={reviewPanelRef} className="match-review-card" style={{
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    border: '2px solid #00f2fe',
-                    boxShadow: '0 0 30px rgba(0, 242, 254, 0.2), inset 0 0 20px rgba(0, 242, 254, 0.05)',
-                    borderRadius: '20px',
-                    padding: '40px 30px',
+                    background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%)',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6, #3b82f6, #10b981) 1',
+                    boxShadow: '0 0 40px rgba(139, 92, 246, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.05)',
+                    borderRadius: '24px',
+                    padding: '35px 40px',
                     marginBottom: '30px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '25px',
                     animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                    minHeight: '300px',
-                    justifyContent: 'center'
+                    minHeight: '320px',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    overflow: 'hidden'
                 }}>
-                    {/* Players */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%', justifyContent: 'center' }}>
-                        {/* Player 1 with Photo */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '10px' }}>
+                    {/* Gradient overlay */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '4px',
+                        background: 'linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6, #3b82f6, #10b981)',
+                        borderRadius: '24px 24px 0 0'
+                    }}></div>
+
+                    {/* Title */}
+                    <div style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '700', 
+                        color: '#94a3b8', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '3px',
+                        marginBottom: '-10px'
+                    }}>MAÇ ÖNİZLEME</div>
+
+                    {/* Players - Yatay hizalı */}
+                    <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '30px', 
+                        width: '100%', 
+                        justifyContent: 'center'
+                    }}>
+                        {/* Player 1 */}
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '15px',
+                            flex: 1,
+                            justifyContent: 'flex-end'
+                        }}>
+                            <div style={{ 
+                                textAlign: 'right',
+                                flex: 1
+                            }}>
+                                <div style={{ 
+                                    fontSize: '20px', 
+                                    fontWeight: 'bold', 
+                                    color: '#cbd5e1', 
+                                    textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                                    lineHeight: 1.2
+                                }}>
+                                    {isManualPlayer1 ? (manualPlayer1Name || "İsimsiz") : (names.find(u => u.id === player1)?.fullName || "Seçilmedi")}
+                                </div>
+                            </div>
                             <div style={{
-                                width: '80px',
-                                height: '80px',
+                                width: '70px',
+                                height: '70px',
                                 borderRadius: '50%',
                                 overflow: 'hidden',
-                                border: '3px solid #00f2fe',
-                                boxShadow: '0 0 20px rgba(0, 242, 254, 0.3)',
-                                background: 'rgba(0, 242, 254, 0.1)'
+                                border: '3px solid #f59e0b',
+                                boxShadow: '0 0 20px rgba(245, 158, 11, 0.4)',
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                flexShrink: 0
                             }}>
                                 <img 
                                     src={selectedPlayer1Photo || FALLBACK_AVATAR} 
@@ -2157,37 +2433,34 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                                     onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
                                 />
                             </div>
-                            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                                {isManualPlayer1 ? (manualPlayer1Name || "İsimsiz") : (names.find(u => u.id === player1)?.fullName || "Seçilmedi")}
-                            </div>
                         </div>
                         
-                        {/* VS Badge */}
+                        {/* VS */}
                         <div style={{ 
                             fontSize: '24px', 
                             fontWeight: '900', 
-                            color: '#00f2fe', 
-                            fontStyle: 'italic',
-                            background: 'rgba(0, 242, 254, 0.1)',
-                            width: '50px',
-                            height: '50px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 0 15px rgba(0, 242, 254, 0.2)'
+                            color: '#8b5cf6',
+                            textShadow: '0 0 20px rgba(139, 92, 246, 0.5)',
+                            flexShrink: 0
                         }}>VS</div>
                         
-                        {/* Player 2 with Photo */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '10px' }}>
+                        {/* Player 2 */}
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '15px',
+                            flex: 1,
+                            justifyContent: 'flex-start'
+                        }}>
                             <div style={{
-                                width: '80px',
-                                height: '80px',
+                                width: '70px',
+                                height: '70px',
                                 borderRadius: '50%',
                                 overflow: 'hidden',
-                                border: '3px solid #00f2fe',
-                                boxShadow: '0 0 20px rgba(0, 242, 254, 0.3)',
-                                background: 'rgba(0, 242, 254, 0.1)'
+                                border: '3px solid #3b82f6',
+                                boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                flexShrink: 0
                             }}>
                                 <img 
                                     src={selectedPlayer2Photo || FALLBACK_AVATAR} 
@@ -2196,44 +2469,72 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                                     onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
                                 />
                             </div>
-                            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-                                {isManualPlayer2 ? (manualPlayer2Name || "İsimsiz") : (names.find(u => u.id === player2)?.fullName || "Seçilmedi")}
+                            <div style={{ 
+                                textAlign: 'left',
+                                flex: 1
+                            }}>
+                                <div style={{ 
+                                    fontSize: '20px', 
+                                    fontWeight: 'bold', 
+                                    color: '#cbd5e1', 
+                                    textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                                    lineHeight: 1.2
+                                }}>
+                                    {isManualPlayer2 ? (manualPlayer2Name || "İsimsiz") : (names.find(u => u.id === player2)?.fullName || "Seçilmedi")}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ width: '80%', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.3), transparent)' }}></div>
+                    {/* Divider */}
+                    <div style={{ 
+                        width: '60%', 
+                        height: '1px', 
+                        background: 'linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent)' 
+                    }}></div>
 
                     {/* Targets */}
-                    <div style={{ display: 'flex', gap: '60px' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#94a3b8', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px', fontWeight: '600' }}>HEDEF SAYI</div>
-                            <div style={{ color: '#00f2fe', fontSize: '42px', fontWeight: '800', textShadow: '0 0 20px rgba(0, 242, 254, 0.4)', lineHeight: 1 }}>{targetScore}</div>
+                    <div style={{ display: 'flex', gap: '30px' }}>
+                        <div style={{ 
+                            textAlign: 'center',
+                            padding: '8px 16px',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(16, 185, 129, 0.3)'
+                        }}>
+                            <div style={{ color: '#10b981', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontWeight: '700' }}>HEDEF SAYI</div>
+                            <div style={{ color: '#10b981', fontSize: '22px', fontWeight: '800', textShadow: '0 0 15px rgba(16, 185, 129, 0.4)', lineHeight: 1 }}>{targetScore}</div>
                         </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#94a3b8', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px', fontWeight: '600' }}>HEDEF ISTAKA</div>
-                            <div style={{ color: '#00f2fe', fontSize: '42px', fontWeight: '800', textShadow: '0 0 20px rgba(0, 242, 254, 0.4)', lineHeight: 1 }}>{targetRack}</div>
+                        <div style={{ 
+                            textAlign: 'center',
+                            padding: '8px 16px',
+                            background: 'rgba(139, 92, 246, 0.1)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(139, 92, 246, 0.3)'
+                        }}>
+                            <div style={{ color: '#8b5cf6', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontWeight: '700' }}>HEDEF ISTAKA</div>
+                            <div style={{ color: '#8b5cf6', fontSize: '22px', fontWeight: '800', textShadow: '0 0 15px rgba(139, 92, 246, 0.4)', lineHeight: 1 }}>{targetRack}</div>
                         </div>
                     </div>
 
                     {/* Options */}
-                    <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
                         {hasPenalty ? (
-                            <div style={{ padding: '8px 20px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '30px', color: '#fca5a5', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ padding: '10px 22px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.5)', borderRadius: '30px', color: '#f87171', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 15px rgba(239, 68, 68, 0.2)' }}>
                               <span>⚠️</span> PENALTI
                             </div>
                         ) : (
-                            <div style={{ padding: '8px 20px', background: 'rgba(148, 163, 184, 0.1)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '30px', color: '#94a3b8', fontSize: '14px', fontWeight: '600', textDecoration: 'line-through' }}>
+                            <div style={{ padding: '10px 22px', background: 'rgba(71, 85, 105, 0.2)', border: '1px solid rgba(71, 85, 105, 0.3)', borderRadius: '30px', color: '#64748b', fontSize: '13px', fontWeight: '600', opacity: 0.6 }}>
                                 PENALTI YOK
                             </div>
                         )}
                         
                         {hasAso ? (
-                            <div style={{ padding: '8px 20px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: '30px', color: '#86efac', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ padding: '10px 22px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.5)', borderRadius: '30px', color: '#4ade80', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 15px rgba(34, 197, 94, 0.2)' }}>
                               <span>✅</span> ASO
                             </div>
                         ) : (
-                            <div style={{ padding: '8px 20px', background: 'rgba(148, 163, 184, 0.1)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '30px', color: '#94a3b8', fontSize: '14px', fontWeight: '600', textDecoration: 'line-through' }}>
+                            <div style={{ padding: '10px 22px', background: 'rgba(71, 85, 105, 0.2)', border: '1px solid rgba(71, 85, 105, 0.3)', borderRadius: '30px', color: '#64748b', fontSize: '13px', fontWeight: '600', opacity: 0.6 }}>
                                 ASO YOK
                             </div>
                         )}
@@ -2300,33 +2601,129 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
                   {!isManualPlayer1 ? (
                     <>
-                      <div className="input-header">3CSCORE OYUNCUSU</div>
-                      <div className="combo-wrapper">
-                        <select
-                          id="p1-input"
-                          className="player-input modern"
-                          value={player1}
-                          onChange={(e) => {
-                            setPlayer1(e.target.value);
-                            setPlayer1Warning("");
-                            // Oyuncu seçildiğinde Oyuncu 2 paneline geç
-                            if (e.target.value) {
-                              setTimeout(() => setLocalFocusIndex(3), 100);
-                            }
-                          }}
-                          style={{
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            transition: 'box-shadow 0.2s ease, border 0.2s ease',
-                            ...getFocusGlowStyle(2),
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="">Oyuncu seçin...</option>
-                          {filteredPlayers.map((player) => (
-                            <option key={player.id} value={player.id}>{player.fullName}</option>
-                          ))}
-                        </select>
-                      </div>
+                      <div className="input-header">{activeEditableField === 'p1-search' ? 'OYUNCU ARA' : '3CSCORE OYUNCUSU'} {isVirtualKeyboardEnabled && activeEditableField !== 'p1-search' && <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '8px' }}>(SPACE ile ara)</span>}</div>
+                      
+                      {/* Arama modu aktifken: Input + Dropdown (DİĞER modu ile aynı) */}
+                      {activeEditableField === 'p1-search' ? (
+                        <>
+                          <input
+                            id="p1-search-input"
+                            type="text"
+                            autoComplete="off"
+                            readOnly={true}
+                            value={p1SearchText}
+                            placeholder="İsim yazın..."
+                            className="player-input modern"
+                            style={{
+                              border: searchFocusMode === 'keyboard' ? '2px solid #3b82f6' : '2px solid #64748b',
+                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                              boxShadow: searchFocusMode === 'keyboard' ? '0 0 15px rgba(59, 130, 246, 0.4)' : 'none',
+                              cursor: 'text'
+                            }}
+                          />
+                          {/* Arama Sonuçları Dropdown */}
+                          <div style={{
+                            background: 'rgba(15, 23, 42, 0.98)',
+                            border: searchFocusMode === 'results' ? '2px solid #3b82f6' : '1px solid rgba(59, 130, 246, 0.4)',
+                            borderRadius: '8px',
+                            marginTop: '8px',
+                            maxHeight: '180px',
+                            overflowY: 'auto',
+                            boxShadow: searchFocusMode === 'results' ? '0 0 15px rgba(59, 130, 246, 0.4)' : 'none'
+                          }}>
+                            {p1FilteredSearchPlayers.length > 0 ? (
+                              <>
+                                {p1FilteredSearchPlayers.slice(0, 6).map((player, idx) => (
+                                  <div 
+                                    key={player.id}
+                                    style={{
+                                      padding: '10px 14px',
+                                      // İlk öneri her zaman vurgulanır (klavye modunda da)
+                                      background: idx === p1SearchIndex ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                                      borderLeft: idx === p1SearchIndex ? '3px solid #3b82f6' : '3px solid transparent',
+                                      color: idx === p1SearchIndex ? '#fff' : '#cbd5e1',
+                                      fontSize: '14px',
+                                      fontWeight: idx === p1SearchIndex ? '600' : '400',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                  >
+                                    {idx === p1SearchIndex && '▶ '}{player.fullName}
+                                  </div>
+                                ))}
+                                {p1FilteredSearchPlayers.length > 6 && (
+                                  <div style={{ color: '#64748b', fontSize: '11px', textAlign: 'center', padding: '6px' }}>
+                                    +{p1FilteredSearchPlayers.length - 6} daha...
+                                  </div>
+                                )}
+                                {/* Seçim uyarısı - öneri varken göster */}
+                                <div style={{ 
+                                  background: 'rgba(34, 197, 94, 0.15)', 
+                                  borderTop: '1px solid rgba(34, 197, 94, 0.3)',
+                                  color: '#4ade80', 
+                                  fontSize: '12px', 
+                                  fontWeight: '600',
+                                  textAlign: 'center', 
+                                  padding: '8px',
+                                  marginTop: '4px'
+                                }}>
+                                  {searchFocusMode === 'keyboard' 
+                                    ? '⎵ Seçmek için SPACE tuşuna basın'
+                                    : '↵ Seçmek için ENTER tuşuna basın'}
+                                </div>
+                              </>
+                            ) : p1SearchText.length >= 2 ? (
+                              <div style={{ color: '#f87171', fontSize: '13px', textAlign: 'center', padding: '12px' }}>
+                                "{p1SearchText}" bulunamadı
+                              </div>
+                            ) : (
+                              <div style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', padding: '12px' }}>
+                                En az 2 karakter yazın...
+                              </div>
+                            )}
+                          </div>
+                          {/* Mod göstergesi */}
+                          <div style={{ 
+                            color: '#64748b', 
+                            fontSize: '11px', 
+                            marginTop: '8px', 
+                            textAlign: 'center' 
+                          }}>
+                            {searchFocusMode === 'keyboard' 
+                              ? (p1FilteredSearchPlayers.length > 0 ? '📝 Klavye • SPACE → Önerilere git' : '📝 Klavye')
+                              : '📋 Öneriler • ↑↓ Gezin • ENTER Seç • SPACE → Klavyeye dön'}
+                          </div>
+                        </>
+                      ) : (
+                        /* Normal mod: Combobox */
+                        <div className="combo-wrapper">
+                          <select
+                            id="p1-input"
+                            className="player-input modern"
+                            value={player1}
+                            onChange={(e) => {
+                              setPlayer1(e.target.value);
+                              setPlayer1Warning("");
+                              // Oyuncu seçildiğinde Oyuncu 2 paneline geç
+                              if (e.target.value) {
+                                setTimeout(() => setLocalFocusIndex(3), 100);
+                              }
+                            }}
+                            style={{
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                              ...getFocusGlowStyle(2),
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="">Oyuncu seçin...</option>
+                            {filteredPlayers.map((player) => (
+                              <option key={player.id} value={player.id}>{player.fullName}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {renderInlineKeyboard('p1-search')}
                     </>
                   ) : (
                     <>
@@ -2426,38 +2823,134 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
                   {!isManualPlayer2 ? (
                     <>
-                      <div className="input-header">3CSCORE OYUNCUSU</div>
-                      <div className="combo-wrapper">
-                        <select
-                          id="p2-input"
-                          tabIndex={-1}
-                          className="player-input modern"
-                          value={player2}
-                          onChange={(e) => {
-                            setPlayer2(e.target.value);
-                            setPlayer2Warning("");
-                            // Oyuncu seçildiğinde Hedef Sayı paneline geç
-                            if (e.target.value) {
-                              // Focus'u manuel olarak kaldır ve sonraki alana geç
-                              if (document.activeElement) document.activeElement.blur();
-                              setTimeout(() => setLocalFocusIndex(6), 100);
-                            }
-                          }}
-                          style={{
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            transition: 'box-shadow 0.2s ease, border 0.2s ease',
-                            ...getFocusGlowStyle(5),
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="">Oyuncu seçin...</option>
-                          {filteredPlayers
-                            .filter((player) => player.id !== player1)
-                            .map((player) => (
-                              <option key={player.id} value={player.id}>{player.fullName}</option>
-                            ))}
-                        </select>
-                      </div>
+                      <div className="input-header">{activeEditableField === 'p2-search' ? 'OYUNCU ARA' : '3CSCORE OYUNCUSU'} {isVirtualKeyboardEnabled && activeEditableField !== 'p2-search' && <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '8px' }}>(SPACE ile ara)</span>}</div>
+                      
+                      {/* Arama modu aktifken: Input + Dropdown (DİĞER modu ile aynı) */}
+                      {activeEditableField === 'p2-search' ? (
+                        <>
+                          <input
+                            id="p2-search-input"
+                            type="text"
+                            autoComplete="off"
+                            readOnly={true}
+                            value={p2SearchText}
+                            placeholder="İsim yazın..."
+                            className="player-input modern"
+                            style={{
+                              border: searchFocusMode === 'keyboard' ? '2px solid #3b82f6' : '2px solid #64748b',
+                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                              boxShadow: searchFocusMode === 'keyboard' ? '0 0 15px rgba(59, 130, 246, 0.4)' : 'none',
+                              cursor: 'text'
+                            }}
+                          />
+                          {/* Arama Sonuçları Dropdown */}
+                          <div style={{
+                            background: 'rgba(15, 23, 42, 0.98)',
+                            border: searchFocusMode === 'results' ? '2px solid #3b82f6' : '1px solid rgba(59, 130, 246, 0.4)',
+                            borderRadius: '8px',
+                            marginTop: '8px',
+                            maxHeight: '180px',
+                            overflowY: 'auto',
+                            boxShadow: searchFocusMode === 'results' ? '0 0 15px rgba(59, 130, 246, 0.4)' : 'none'
+                          }}>
+                            {p2FilteredSearchPlayers.length > 0 ? (
+                              <>
+                                {p2FilteredSearchPlayers.slice(0, 6).map((player, idx) => (
+                                  <div 
+                                    key={player.id}
+                                    style={{
+                                      padding: '10px 14px',
+                                      // İlk öneri her zaman vurgulanır (klavye modunda da)
+                                      background: idx === p2SearchIndex ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                                      borderLeft: idx === p2SearchIndex ? '3px solid #3b82f6' : '3px solid transparent',
+                                      color: idx === p2SearchIndex ? '#fff' : '#cbd5e1',
+                                      fontSize: '14px',
+                                      fontWeight: idx === p2SearchIndex ? '600' : '400',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                  >
+                                    {idx === p2SearchIndex && '▶ '}{player.fullName}
+                                  </div>
+                                ))}
+                                {p2FilteredSearchPlayers.length > 6 && (
+                                  <div style={{ color: '#64748b', fontSize: '11px', textAlign: 'center', padding: '6px' }}>
+                                    +{p2FilteredSearchPlayers.length - 6} daha...
+                                  </div>
+                                )}
+                                {/* Seçim uyarısı - öneri varken göster */}
+                                <div style={{ 
+                                  background: 'rgba(34, 197, 94, 0.15)', 
+                                  borderTop: '1px solid rgba(34, 197, 94, 0.3)',
+                                  color: '#4ade80', 
+                                  fontSize: '12px', 
+                                  fontWeight: '600',
+                                  textAlign: 'center', 
+                                  padding: '8px',
+                                  marginTop: '4px'
+                                }}>
+                                  {searchFocusMode === 'keyboard' 
+                                    ? '⎵ Seçmek için SPACE tuşuna basın'
+                                    : '↵ Seçmek için ENTER tuşuna basın'}
+                                </div>
+                              </>
+                            ) : p2SearchText.length >= 2 ? (
+                              <div style={{ color: '#f87171', fontSize: '13px', textAlign: 'center', padding: '12px' }}>
+                                "{p2SearchText}" bulunamadı
+                              </div>
+                            ) : (
+                              <div style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', padding: '12px' }}>
+                                En az 2 karakter yazın...
+                              </div>
+                            )}
+                          </div>
+                          {/* Mod göstergesi */}
+                          <div style={{ 
+                            color: '#64748b', 
+                            fontSize: '11px', 
+                            marginTop: '8px', 
+                            textAlign: 'center' 
+                          }}>
+                            {searchFocusMode === 'keyboard' 
+                              ? (p2FilteredSearchPlayers.length > 0 ? '📝 Klavye • SPACE → Önerilere git' : '📝 Klavye')
+                              : '📋 Öneriler • ↑↓ Gezin • ENTER Seç • SPACE → Klavyeye dön'}
+                          </div>
+                        </>
+                      ) : (
+                        /* Normal mod: Combobox */
+                        <div className="combo-wrapper">
+                          <select
+                            id="p2-input"
+                            tabIndex={-1}
+                            className="player-input modern"
+                            value={player2}
+                            onChange={(e) => {
+                              setPlayer2(e.target.value);
+                              setPlayer2Warning("");
+                              // Oyuncu seçildiğinde Hedef Sayı paneline geç
+                              if (e.target.value) {
+                                // Focus'u manuel olarak kaldır ve sonraki alana geç
+                                if (document.activeElement) document.activeElement.blur();
+                                setTimeout(() => setLocalFocusIndex(6), 100);
+                              }
+                            }}
+                            style={{
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              transition: 'box-shadow 0.2s ease, border 0.2s ease',
+                              ...getFocusGlowStyle(5),
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="">Oyuncu seçin...</option>
+                            {filteredPlayers
+                              .filter((player) => player.id !== player1)
+                              .map((player) => (
+                                <option key={player.id} value={player.id}>{player.fullName}</option>
+                              ))}
+                          </select>
+                        </div>
+                      )}
+                      {renderInlineKeyboard('p2-search')}
                     </>
                   ) : (
                     <>
