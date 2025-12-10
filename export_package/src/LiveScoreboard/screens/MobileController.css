@@ -218,6 +218,28 @@
   background: rgba(239, 68, 68, 0.5);
 }
 
+/* Viewer Count */
+.viewer-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.viewer-icon {
+  font-size: 16px;
+}
+
+.viewer-number {
+  font-weight: bold;
+  min-width: 16px;
+  text-align: center;
+}
+
 .back-button-large {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;

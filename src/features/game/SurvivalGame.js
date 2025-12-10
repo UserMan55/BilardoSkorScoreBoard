@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TimerProgressBar from '../../components/TimerProgressBar';
-import { getUserProfiles } from '../../services/firebase';
+import { getUserProfiles, updateTableStatus, listenForMatchCommands } from '../../services/firebase';
 
 function SurvivalGame({
   players: initialPlayers, // Array of player names
@@ -10,7 +10,7 @@ function SurvivalGame({
 }) {
   // Game Constants
   const STARTING_SCORE = 10;
-  const HALF_DURATION = 20; // TEST: 20 seconds (Original: 45 * 60)
+  const HALF_DURATION = 25; // TEST: 25 seconds (Original: 45 * 60)
   
   // State
   const [players, setPlayers] = useState(
@@ -56,6 +56,14 @@ function SurvivalGame({
   // Negative Score Modal State
   const [showNegativeScoreModal, setShowNegativeScoreModal] = useState(false);
   const [negativeScorePlayerIndex, setNegativeScorePlayerIndex] = useState(null);
+  const [negativeModalSelectedBtn, setNegativeModalSelectedBtn] = useState(0); // 0: Devam Etsin, 1: Diskalifiye
+
+  // Exit Modal State (ESC tuşu ile çıkış)
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [exitModalSelectedBtn, setExitModalSelectedBtn] = useState(0); // 0: Vazgeç, 1: Maçtan Çık
+
+  // HalfTime Modal State
+  const [halfTimeModalSelectedBtn, setHalfTimeModalSelectedBtn] = useState(0); // 0: 2. Seti Başlat, 1: Maçı Bitir
 
   // Player Photos State
   const [playerPhotos, setPlayerPhotos] = useState({});
@@ -68,13 +76,23 @@ function SurvivalGame({
 
   const handlersRef = React.useRef({});
   const timerFinishRef = React.useRef(() => {});
+  const onExitRef = React.useRef(onExit);
+
+  // onExit ref'ini güncel tut
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
 
   useEffect(() => {
     handlersRef.current = {
       handlePlusRun,
       handleMinusRun,
       handleOk,
-      handleUndo
+      handleUndo,
+      handleContinue,
+      handleDisqualify,
+      startSecondHalf,
+      endMatchEarly
     };
   });
 
@@ -96,7 +114,10 @@ function SurvivalGame({
         const photosMap = {};
         
         playerNames.forEach(name => {
-          const profile = profiles.find(p => p.name === name);
+          // fullName ile case-insensitive karşılaştırma
+          const profile = profiles.find(p => 
+            p.fullName && p.fullName.trim().toLowerCase() === name.trim().toLowerCase()
+          );
           if (profile && profile.photoURL) {
             photosMap[name] = profile.photoURL;
           }
@@ -130,7 +151,95 @@ function SurvivalGame({
         e.preventDefault();
       }
 
-      if (gameEnded || showHalfTimeModal || showNegativeScoreModal) return;
+      // ESC tuşu - çıkış modalı aç/kapat
+      if (e.key === 'Escape') {
+        if (showExitModal) {
+          setShowExitModal(false);
+          setExitModalSelectedBtn(0);
+        } else if (!gameEnded) {
+          setShowExitModal(true);
+          setExitModalSelectedBtn(0);
+        }
+        return;
+      }
+
+      // Exit Modal açıkken navigasyon
+      if (showExitModal) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          setExitModalSelectedBtn(0); // Vazgeç
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          setExitModalSelectedBtn(1); // Maçtan Çık
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          if (exitModalSelectedBtn === 0) {
+            // VAZGEÇ
+            setShowExitModal(false);
+            setExitModalSelectedBtn(0);
+          } else {
+            // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            setShowExitModal(false);
+            setExitModalSelectedBtn(0);
+            // Kısa gecikme ile çık (event döngüsü tamamlansın)
+            setTimeout(() => {
+              if (onExitRef.current) onExitRef.current();
+            }, 50);
+          }
+        }
+        return;
+      }
+
+      // Negative Score Modal açıkken navigasyon
+      if (showNegativeScoreModal && negativeScorePlayerIndex !== null) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          setNegativeModalSelectedBtn(0); // Devam Etsin
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          setNegativeModalSelectedBtn(1); // Diskalifiye Edilsin
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (negativeModalSelectedBtn === 0) {
+            // DEVAM ETSİN
+            handlersRef.current.handleContinue?.();
+          } else {
+            // DİSKALİFİYE EDİLSİN
+            handlersRef.current.handleDisqualify?.();
+          }
+        }
+        return;
+      }
+
+      // HalfTime Modal açıkken klavye navigasyonu
+      if (showHalfTimeModal) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          setHalfTimeModalSelectedBtn(0);
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          setHalfTimeModalSelectedBtn(1);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (halfTimeModalSelectedBtn === 0) {
+            handlersRef.current.startSecondHalf?.();
+          } else {
+            handlersRef.current.endMatchEarly?.();
+          }
+        }
+        return;
+      }
+
+      // Game Over ekranında Enter/Space ile çıkış
+      if (gameEnded) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          setTimeout(() => {
+            onExitRef.current?.();
+          }, 50);
+        }
+        return;
+      }
 
       // Undo (Ctrl+Z)
       if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
@@ -154,7 +263,7 @@ function SurvivalGame({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameEnded, showHalfTimeModal, showNegativeScoreModal]);
+  }, [gameEnded, showHalfTimeModal, showNegativeScoreModal, showExitModal, exitModalSelectedBtn, negativeModalSelectedBtn, negativeScorePlayerIndex, halfTimeModalSelectedBtn]);
 
   // Game Clock Logic
   useEffect(() => {
@@ -201,6 +310,7 @@ function SurvivalGame({
     setGameHalf(2);
     setGameTimeLeft(HALF_DURATION);
     setShowHalfTimeModal(false);
+    setHalfTimeModalSelectedBtn(0); // Reset selection
     setIsGameClockRunning(true);
     
     // Add starting score to all players for the new set
@@ -210,6 +320,14 @@ function SurvivalGame({
     })));
 
     showNotification("2. Set Başladı!", "success");
+  };
+
+  // Maçı erken bitir (1. set sonunda)
+  const endMatchEarly = () => {
+    setShowHalfTimeModal(false);
+    setHalfTimeModalSelectedBtn(0); // Reset selection
+    endGame();
+    showNotification("Maç Sona Erdi!", "info");
   };
 
   const endGame = () => {
@@ -229,6 +347,71 @@ function SurvivalGame({
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Masa durumunu canlı olarak güncelle (Firebase Live Sync)
+  useEffect(() => {
+    // Aktif oyuncuların en yüksek run değerlerini hesapla
+    const calculatePlayerHR = (runs) => {
+      if (!runs || runs.length === 0) return 0;
+      return Math.max(...runs);
+    };
+
+    const liveStats = {
+      mode: 'survival',
+      players: players.map(p => p.name),
+      settings: {
+        playerCount: players.length,
+        halfDuration: HALF_DURATION,
+        startingScore: STARTING_SCORE
+      },
+      stats: {
+        // Tüm oyuncuların verileri
+        survivalPlayers: players.map((p, idx) => ({
+          name: p.name,
+          score: p.score,
+          hr: calculatePlayerHR(p.runs),
+          currentRun: p.currentRun,
+          isDisqualified: p.isDisqualified,
+          isActive: idx === currentTurn
+        })),
+        gameTimeLeft: gameTimeLeft,
+        gameTimeFormatted: formatTime(gameTimeLeft),
+        gameHalf: gameHalf,
+        inning: inning,
+        currentTurn: currentTurn,
+        currentPlayerName: players[currentTurn]?.name || '',
+        run: players[currentTurn]?.currentRun || 0,
+        isTimerRunning: isTimerRunning,
+        timerPhase: timerPhase,
+        timerResetTrigger: timerResetTrigger,
+        isTimerPaused: isTimerPaused,
+        isGameClockRunning: isGameClockRunning,
+        notification: notification,
+        gameEnded: gameEnded,
+        winner: winner,
+        showHalfTimeModal: showHalfTimeModal
+      }
+    };
+
+    updateTableStatus('table_1', 'BUSY', liveStats);
+  }, [
+    players,
+    currentTurn,
+    inning,
+    gameTimeLeft,
+    gameHalf,
+    isTimerRunning,
+    timerPhase,
+    timerResetTrigger,
+    isTimerPaused,
+    isGameClockRunning,
+    notification,
+    gameEnded,
+    winner,
+    showHalfTimeModal,
+    HALF_DURATION,
+    STARTING_SCORE
+  ]);
 
   // Timer reset on turn change
   useEffect(() => {
@@ -336,6 +519,7 @@ function SurvivalGame({
     
     setShowNegativeScoreModal(false);
     setNegativeScorePlayerIndex(null);
+    setNegativeModalSelectedBtn(0);
     
     // If current player was somehow disqualified (unlikely in this flow but possible), pass turn
     if (negativeScorePlayerIndex === currentTurn) {
@@ -346,6 +530,7 @@ function SurvivalGame({
   const handleContinue = () => {
     setShowNegativeScoreModal(false);
     setNegativeScorePlayerIndex(null);
+    setNegativeModalSelectedBtn(0);
     // Resume timer if needed, or let user resume
   };
 
@@ -494,6 +679,85 @@ function SurvivalGame({
         </div>
       )}
 
+      {/* Exit Modal Overlay (ESC tuşu ile) */}
+      {showExitModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1d2e 0%, #22283e 100%)',
+            padding: '40px 50px',
+            borderRadius: '20px',
+            textAlign: 'center',
+            border: '3px solid rgba(255, 107, 107, 0.5)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
+            maxWidth: '450px'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '20px' }}>⚠️</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '15px', color: '#FF6B6B' }}>
+              Maçtan Çıkmak İstiyor musunuz?
+            </div>
+            <div style={{ fontSize: '16px', color: '#888', marginBottom: '30px' }}>
+              Maç kaydedilmeyecek ve sonuçlar kaybolacaktır.
+            </div>
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  setExitModalSelectedBtn(0);
+                }}
+                style={{
+                  padding: '15px 35px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+                  color: 'white',
+                  border: exitModalSelectedBtn === 0 ? '4px solid #FFD700' : '4px solid transparent',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: exitModalSelectedBtn === 0 ? '0 0 20px rgba(255, 215, 0, 0.6), 0 4px 15px rgba(78, 205, 196, 0.4)' : '0 4px 15px rgba(78, 205, 196, 0.4)',
+                  transition: 'all 0.2s',
+                  transform: exitModalSelectedBtn === 0 ? 'scale(1.05)' : 'scale(1)'
+                }}
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  setExitModalSelectedBtn(0);
+                  onExit && onExit();
+                }}
+                style={{
+                  padding: '15px 35px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
+                  color: 'white',
+                  border: exitModalSelectedBtn === 1 ? '4px solid #FFD700' : '4px solid transparent',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: exitModalSelectedBtn === 1 ? '0 0 20px rgba(255, 215, 0, 0.6), 0 4px 15px rgba(255, 107, 107, 0.4)' : '0 4px 15px rgba(255, 107, 107, 0.4)',
+                  transition: 'all 0.2s',
+                  transform: exitModalSelectedBtn === 1 ? 'scale(1.05)' : 'scale(1)'
+                }}
+              >
+                Maçtan Çık
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header / Info Bar */}
       <div style={{
         padding: '15px 30px',
@@ -608,27 +872,50 @@ function SurvivalGame({
             SET BİTTİ
           </div>
           <div style={{ fontSize: '24px', color: '#fff', marginBottom: '40px' }}>
-            2. SETE GEÇİLECEKTİR
+            Devam etmek veya maçı bitirmek için seçim yapın
           </div>
-          <button
-            onClick={startSecondHalf}
-            style={{
-              padding: '20px 50px',
-              fontSize: '24px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '15px',
-              cursor: 'pointer',
-              boxShadow: '0 10px 30px rgba(78, 205, 196, 0.4)',
-              transition: 'transform 0.2s'
-            }}
-            onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
-            onMouseLeave={e => e.target.style.transform = 'scale(1)'}
-          >
-            2. SETİ BAŞLAT
-          </button>
+          <div style={{ display: 'flex', gap: '30px' }}>
+            <button
+              onClick={startSecondHalf}
+              style={{
+                padding: '20px 50px',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+                color: 'white',
+                border: halfTimeModalSelectedBtn === 0 ? '4px solid #FFD700' : '4px solid transparent',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                boxShadow: halfTimeModalSelectedBtn === 0 
+                  ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(78, 205, 196, 0.4)'
+                  : '0 10px 30px rgba(78, 205, 196, 0.4)',
+                transform: halfTimeModalSelectedBtn === 0 ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.2s'
+              }}
+            >
+              2. SETİ BAŞLAT
+            </button>
+            <button
+              onClick={endMatchEarly}
+              style={{
+                padding: '20px 50px',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
+                color: 'white',
+                border: halfTimeModalSelectedBtn === 1 ? '4px solid #FFD700' : '4px solid transparent',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                boxShadow: halfTimeModalSelectedBtn === 1 
+                  ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(255, 107, 107, 0.4)'
+                  : '0 10px 30px rgba(255, 107, 107, 0.4)',
+                transform: halfTimeModalSelectedBtn === 1 ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.2s'
+              }}
+            >
+              MAÇI BİTİR
+            </button>
+          </div>
         </div>
       )}
 
@@ -697,16 +984,18 @@ function SurvivalGame({
 
           <button
             onClick={onExit}
+            autoFocus
             style={{
               padding: '15px 40px',
               fontSize: '20px',
               fontWeight: 'bold',
               background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
               color: 'white',
-              border: 'none',
+              border: '4px solid #FFD700',
               borderRadius: '12px',
               cursor: 'pointer',
-              boxShadow: '0 10px 30px rgba(255, 107, 107, 0.4)'
+              boxShadow: '0 10px 30px rgba(255, 107, 107, 0.4), 0 0 20px rgba(255, 215, 0, 0.5)',
+              transform: 'scale(1.05)'
             }}
           >
             ÇIKIŞ
@@ -755,10 +1044,12 @@ function SurvivalGame({
                 fontWeight: 'bold',
                 background: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
                 color: 'white',
-                border: 'none',
+                border: negativeModalSelectedBtn === 0 ? '4px solid #FFD700' : '4px solid transparent',
                 borderRadius: '12px',
                 cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(78, 205, 196, 0.4)'
+                boxShadow: negativeModalSelectedBtn === 0 ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(78, 205, 196, 0.4)' : '0 10px 30px rgba(78, 205, 196, 0.4)',
+                transform: negativeModalSelectedBtn === 0 ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.2s'
               }}
             >
               DEVAM ETSİN
@@ -771,10 +1062,12 @@ function SurvivalGame({
                 fontWeight: 'bold',
                 background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
                 color: 'white',
-                border: 'none',
+                border: negativeModalSelectedBtn === 1 ? '4px solid #FFD700' : '4px solid transparent',
                 borderRadius: '12px',
                 cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(255, 107, 107, 0.4)'
+                boxShadow: negativeModalSelectedBtn === 1 ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(255, 107, 107, 0.4)' : '0 10px 30px rgba(255, 107, 107, 0.4)',
+                transform: negativeModalSelectedBtn === 1 ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.2s'
               }}
             >
               DİSKALİFİYE EDİLSİN

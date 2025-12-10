@@ -75,14 +75,12 @@ function App() {
     setGameSettings(settings);
     setScreen('standard');
     
-    // Masa durumunu BUSY yap (Serbest mod hariç)
-    if (!isFreeMode) {
-      updateTableStatus('table_1', 'BUSY', {
-        mode: '2vs2',
-        players: [p1, p2],
-        settings: { targetScore: tScore, isFreeMode }
-      });
-    }
+    // Masa durumunu BUSY yap (Serbest mod dahil tüm modlar için)
+    updateTableStatus('table_1', 'BUSY', {
+      mode: isFreeMode ? 'free' : '2vs2',
+      players: [p1, p2],
+      settings: { targetScore: tScore, isFreeMode }
+    });
   };
 
   const handleStartSurvival = (players, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {

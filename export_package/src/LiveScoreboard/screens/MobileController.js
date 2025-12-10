@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands } from '../services/firebase';
+import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands, registerViewer, unregisterViewer, updateViewerHeartbeat, listenToViewerCount } from '../services/firebase';
 import TimerProgressBar from '../components/TimerProgressBar';
 import './MobileController.css';
 
@@ -13,6 +13,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
   const [countdown, setCountdown] = useState(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewerCount, setViewerCount] = useState(0);
   const [matchStarting, setMatchStarting] = useState(false); // START komutu geldiğinde true
   const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
 
@@ -57,6 +58,32 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
 
     return () => unsubscribe();
   }, [tableId]);
+
+  // Viewer tracking - İzleyici olarak kaydol ve heartbeat gönder
+  useEffect(() => {
+    // Sadece maç varsa veya maç başlıyorsa izleyici olarak kaydol
+    if (!matchData && !matchStarting) return;
+
+    // İzleyici olarak kaydol
+    registerViewer(tableId);
+
+    // Heartbeat interval - her 30 saniyede bir
+    const heartbeatInterval = setInterval(() => {
+      updateViewerHeartbeat(tableId);
+    }, 30000);
+
+    // İzleyici sayısını dinle
+    const unsubscribeViewerCount = listenToViewerCount(tableId, (count) => {
+      setViewerCount(count);
+    });
+
+    // Cleanup - component unmount olduğunda izleyici kaydını sil
+    return () => {
+      clearInterval(heartbeatInterval);
+      unsubscribeViewerCount();
+      unregisterViewer(tableId);
+    };
+  }, [tableId, matchData, matchStarting]);
 
   // START komutunu dinle (live_matches collection) - Maç başlıyor ekranı için
   useEffect(() => {
@@ -438,6 +465,11 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
         <div className="live-indicator-small">
           <span className="live-dot"></span>
           CANLI MAÇ
+        </div>
+        {/* Viewer Count */}
+        <div className="viewer-count">
+          <span className="viewer-icon">👁️</span>
+          <span className="viewer-number">{viewerCount}</span>
         </div>
         {/* Çıkış Butonu - readOnly modunda da görünür */}
         <button 

@@ -13,7 +13,8 @@ function ScorePanel({
   hasAso,
   isFreeMode = false,
   tableName = null,
-  salonName = null
+  salonName = null,
+  viewerCount = 0
 }) {
   return (
     <div style={{
@@ -93,14 +94,32 @@ function ScorePanel({
           {tableName && (
             <div style={{ 
               textAlign: 'center', 
-              marginBottom: !isFreeMode && targetScore !== undefined ? '6px' : '0', 
-              paddingBottom: !isFreeMode && targetScore !== undefined ? '4px' : '0', 
-              borderBottom: !isFreeMode && targetScore !== undefined ? '1px solid rgba(102, 126, 234, 0.3)' : 'none',
+              marginBottom: '6px', 
+              paddingBottom: '4px', 
+              borderBottom: '1px solid rgba(102, 126, 234, 0.3)',
               color: '#4ECDC4',
               fontSize: '12px',
               fontWeight: '700'
             }}>
               📍 {tableName}
+            </div>
+          )}
+          {/* İzleyici Sayısı */}
+          {viewerCount > 0 && (
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: (!isFreeMode && targetScore !== undefined) ? '6px' : '0',
+              paddingBottom: (!isFreeMode && targetScore !== undefined) ? '4px' : '0',
+              borderBottom: (!isFreeMode && targetScore !== undefined) ? '1px solid rgba(102, 126, 234, 0.3)' : 'none',
+              color: '#FF6B6B',
+              fontSize: '12px',
+              fontWeight: '700'
+            }}>
+              <span style={{ fontSize: '14px' }}>👁️</span>
+              <span>{viewerCount} İzleyici</span>
             </div>
           )}
           {!isFreeMode && targetScore !== undefined && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands } from '../services/firebase';
+import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands, registerViewer, unregisterViewer, updateViewerHeartbeat, listenToViewerCount } from '../services/firebase';
 import TimerProgressBar from '../components/TimerProgressBar';
 import './MobileController.css';
 
@@ -13,6 +13,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
   const [countdown, setCountdown] = useState(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewerCount, setViewerCount] = useState(0);
   const [matchStarting, setMatchStarting] = useState(false); // START komutu geldiğinde true
   const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
 
@@ -57,6 +58,47 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
 
     return () => unsubscribe();
   }, [tableId]);
+
+  // Survival maçı bittiğinde veya masa IDLE olduğunda otomatik ana ekrana dön
+  useEffect(() => {
+    const isSurvivalMode = liveStats?.mode === 'survival' || matchData?.mode === 'survival';
+    
+    // Survival modunda maç bittiyse veya masa IDLE olduysa
+    if (isSurvivalMode && (liveStats?.gameEnded || matchEnded)) {
+      // Kısa bir gecikme ile ana ekrana dön (kullanıcının sonucu görmesi için)
+      const timer = setTimeout(() => {
+        handleBackToHome();
+      }, 3000); // 3 saniye bekle, sonra otomatik dön
+      
+      return () => clearTimeout(timer);
+    }
+  }, [liveStats?.gameEnded, liveStats?.mode, matchData?.mode, matchEnded]);
+
+  // Viewer tracking - İzleyici olarak kaydol ve heartbeat gönder
+  useEffect(() => {
+    // Sadece maç varsa veya maç başlıyorsa izleyici olarak kaydol
+    if (!matchData && !matchStarting) return;
+
+    // İzleyici olarak kaydol
+    registerViewer(tableId);
+
+    // Heartbeat interval - her 30 saniyede bir
+    const heartbeatInterval = setInterval(() => {
+      updateViewerHeartbeat(tableId);
+    }, 30000);
+
+    // İzleyici sayısını dinle
+    const unsubscribeViewerCount = listenToViewerCount(tableId, (count) => {
+      setViewerCount(count);
+    });
+
+    // Cleanup - component unmount olduğunda izleyici kaydını sil
+    return () => {
+      clearInterval(heartbeatInterval);
+      unsubscribeViewerCount();
+      unregisterViewer(tableId);
+    };
+  }, [tableId, matchData, matchStarting]);
 
   // START komutunu dinle (live_matches collection) - Maç başlıyor ekranı için
   useEffect(() => {
@@ -431,6 +473,205 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
     );
   }
 
+  // Survival Mode UI
+  const isSurvivalMode = liveStats?.mode === 'survival' || matchData?.mode === 'survival';
+  
+  if (isSurvivalMode && liveStats?.survivalPlayers) {
+    return (
+      <div className="mobile-controller-wrapper">
+        {/* Header */}
+        <div className="live-match-header">
+          <div className="live-indicator-small survival-mode">
+            <span className="live-dot"></span>
+            SURVIVAL
+          </div>
+          {/* Game Clock */}
+          <div className="survival-game-clock">
+            <span className="clock-icon">⏱️</span>
+            <span className="clock-time">{liveStats?.gameTimeFormatted || '00:00'}</span>
+            <span className="clock-half">SET {liveStats?.gameHalf || 1}</span>
+          </div>
+          {/* Viewer Count */}
+          <div className="viewer-count">
+            <span className="viewer-icon">👁️</span>
+            <span className="viewer-number">{viewerCount}</span>
+          </div>
+          {/* Çıkış Butonu */}
+          <button 
+            className="header-exit-btn"
+            onClick={handleBackToHome}
+            title="Çıkış"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Survival Stats Panel */}
+        <div className="survival-stats-panel">
+          {/* Inning Badge */}
+          <div className="survival-inning-badge">
+            <span className="inning-label">INNING</span>
+            <span className="inning-value">{liveStats?.inning ?? 0}</span>
+          </div>
+
+          {/* Players Grid */}
+          <div className="survival-players-grid">
+            {liveStats.survivalPlayers.map((player, idx) => (
+              <div 
+                key={idx} 
+                className={`survival-player-card ${player.isActive ? 'active' : ''} ${player.isDisqualified ? 'disqualified' : ''}`}
+              >
+                <div className="survival-player-photo">
+                  <img 
+                    src={playerPhotos[player.name] || FALLBACK_AVATAR} 
+                    alt={player.name} 
+                    onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} 
+                  />
+                  {player.isDisqualified && <div className="disqualified-overlay">✕</div>}
+                </div>
+                <div className="survival-player-info">
+                  <div className="survival-player-name">{player.name}</div>
+                  <div className="survival-player-score">{player.score}</div>
+                </div>
+                <div className="survival-player-stats">
+                  <div className="stat-item">
+                    <span className="stat-label">HR</span>
+                    <span className="stat-value">{player.hr || 0}</span>
+                  </div>
+                  {player.isActive && (
+                    <div className="stat-item run-stat">
+                      <span className="stat-label">RUN</span>
+                      <span className="stat-value">{player.currentRun || 0}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Timer Progress Bar */}
+          <div className="mobile-timer-container survival-timer">
+            <TimerProgressBar 
+              isTimerRunning={liveStats?.isTimerRunning || false}
+              currentTurn={liveStats?.currentTurn || 0}
+              timerPhase={liveStats?.timerPhase || 'idle'}
+              resetTrigger={liveStats?.timerResetTrigger || 0}
+              isTimerPaused={liveStats?.isTimerPaused || false}
+              activeColor="#4ECDC4"
+              duration={40}
+              height={22}
+            />
+          </div>
+        </div>
+
+        {/* Notification Overlay */}
+        {liveStats?.notification && (
+          <div className={`mobile-notification mobile-notification-${liveStats.notification.type}`}>
+            <div className="notification-content">
+              {liveStats.notification.message}
+            </div>
+          </div>
+        )}
+
+        {/* Game Ended Overlay - Sadece kısa bilgi, otomatik dönüş yapılacak */}
+        {liveStats?.gameEnded && (
+          <div className="survival-game-ended-overlay">
+            <div className="game-ended-content">
+              <div className="winner-trophy">🏆</div>
+              <div className="winner-title">KAZANAN</div>
+              <div className="winner-name">{liveStats?.winner}</div>
+              <div className="final-scores">
+                {liveStats.survivalPlayers
+                  .sort((a, b) => b.score - a.score)
+                  .map((p, idx) => (
+                    <div key={idx} className={`final-score-row ${idx === 0 ? 'winner' : ''}`}>
+                      <span className="rank">{idx + 1}.</span>
+                      <span className="name">{p.name}</span>
+                      <span className="score">{p.score}</span>
+                    </div>
+                  ))}
+              </div>
+              <div style={{
+                marginTop: '20px',
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.6)',
+                animation: 'pulse 1.5s infinite'
+              }}>
+                Ana ekrana yönlendiriliyorsunuz...
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Control Buttons (if not readOnly) */}
+        {!isReadOnly && !liveStats?.gameEnded && (
+          <div className="remote-control survival-remote">
+            {/* RUN Display */}
+            <div className="run-display">
+              <div className="run-label">RUN</div>
+              <div className="run-value survival-run">
+                {liveStats?.run || 0}
+              </div>
+            </div>
+
+            {/* Control Buttons */}
+            <div className="control-buttons">
+              <button 
+                className="control-btn control-left"
+                onClick={() => handleCommand('MINUS')}
+                title="Run -1"
+              >
+                ◀
+              </button>
+              <button 
+                className="control-btn control-center"
+                onClick={() => handleCommand('OK')}
+                title="Sayıyı Ekle / Sıra Geç"
+              >
+                OK
+              </button>
+              <button 
+                className="control-btn control-right"
+                onClick={() => handleCommand('PLUS')}
+                title="Run +1"
+              >
+                ▶
+              </button>
+            </div>
+
+            {/* Media Control Buttons */}
+            <div className="media-controls">
+              <button 
+                className="media-btn" 
+                onClick={() => handleCommand('UNDO')}
+                title="Geri Al (Undo)"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
+              </button>
+              <button 
+                className="media-btn media-btn-timer" 
+                onClick={() => handleCommand('TOGGLE_TIMER')}
+                title="Timer Başlat/Durdur"
+              >
+                {timerRunning ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-controller-wrapper">
       {/* Header */}
@@ -438,6 +679,11 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
         <div className="live-indicator-small">
           <span className="live-dot"></span>
           CANLI MAÇ
+        </div>
+        {/* Viewer Count */}
+        <div className="viewer-count">
+          <span className="viewer-icon">👁️</span>
+          <span className="viewer-number">{viewerCount}</span>
         </div>
         {/* Çıkış Butonu - readOnly modunda da görünür */}
         <button 

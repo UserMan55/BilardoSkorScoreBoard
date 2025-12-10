@@ -181,6 +181,14 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   const [survivalPlayer2, setSurvivalPlayer2] = useState("");
   const [survivalPlayer3, setSurvivalPlayer3] = useState("");
   const [survivalPlayer4, setSurvivalPlayer4] = useState("");
+  const [survivalFocusIndex, setSurvivalFocusIndex] = useState(0); // 0-3: Players, 4: Start Button
+  
+  // Survival select refs
+  const survivalSelect1Ref = useRef(null);
+  const survivalSelect2Ref = useRef(null);
+  const survivalSelect3Ref = useRef(null);
+  const survivalSelect4Ref = useRef(null);
+  const survivalStartBtnRef = useRef(null);
   
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -977,10 +985,84 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     }
   };
 
+  // Survival Tab Navigasyon Handler'ı
+  const handleSurvivalNavAction = (e) => {
+    playFeedbackSound();
+    // 0: Player1 Select, 1: Player2 Select, 2: Player3 Select, 3: Player4 Select, 4: Start Button
+    const maxIndex = 4;
+    
+    const survivalPlayerSetters = [setSurvivalPlayer1, setSurvivalPlayer2, setSurvivalPlayer3, setSurvivalPlayer4];
+    const survivalPlayerValues = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4];
+    
+    const cyclePlayer = (currentIndex, direction) => {
+      const currentPlayerId = survivalPlayerValues[currentIndex];
+      const available = getAvailableSurvivalPlayers(currentPlayerId);
+      
+      if (available.length === 0) return currentPlayerId;
+      
+      const currentPlayerIndex = available.findIndex(p => p.id === currentPlayerId);
+      let nextIndex;
+      
+      if (direction === 'next') {
+        if (currentPlayerIndex === -1) {
+          nextIndex = 0;
+        } else {
+          nextIndex = currentPlayerIndex + 1 >= available.length ? -1 : currentPlayerIndex + 1;
+        }
+      } else {
+        if (currentPlayerIndex === -1) {
+          nextIndex = available.length - 1;
+        } else {
+          nextIndex = currentPlayerIndex - 1 < 0 ? -1 : currentPlayerIndex - 1;
+        }
+      }
+      
+      return nextIndex === -1 ? "" : available[nextIndex].id;
+    };
+
+    if (e.key === 'ArrowRight') {
+      setSurvivalFocusIndex(survivalFocusIndex < maxIndex ? survivalFocusIndex + 1 : 0);
+    } else if (e.key === 'ArrowLeft') {
+      setSurvivalFocusIndex(survivalFocusIndex > 0 ? survivalFocusIndex - 1 : maxIndex);
+    } else if (e.key === 'ArrowUp') {
+      if (survivalFocusIndex >= 0 && survivalFocusIndex <= 3) {
+        // Oyuncu seçiminde yukarı = önceki oyuncu
+        const newValue = cyclePlayer(survivalFocusIndex, 'prev');
+        survivalPlayerSetters[survivalFocusIndex](newValue);
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (survivalFocusIndex >= 0 && survivalFocusIndex <= 3) {
+        // Oyuncu seçiminde aşağı = sonraki oyuncu
+        const newValue = cyclePlayer(survivalFocusIndex, 'next');
+        survivalPlayerSetters[survivalFocusIndex](newValue);
+      }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (survivalFocusIndex === 4) {
+        // Start Button
+        const selectedCount = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+          .filter(p => p !== "").length;
+        if (selectedCount >= 3 && !isTableBusy) {
+          handleSurvivalStart();
+        }
+      } else {
+        // Sıradaki alana geç
+        setSurvivalFocusIndex(survivalFocusIndex < maxIndex ? survivalFocusIndex + 1 : 0);
+      }
+    } else if (e.key === 'Backspace') {
+      if (survivalFocusIndex > 0) {
+        setSurvivalFocusIndex(survivalFocusIndex - 1);
+      }
+    } else if (e.key === 'Escape') {
+      setDeviceMode(null); // Back to Main Menu
+    }
+  };
+
   useEffect(() => {
     navHandlersRef.current = {
       handleNavAction,
-      handleLocalNavAction
+      handleLocalNavAction,
+      handleSurvivalNavAction
     };
   });
 
@@ -1148,7 +1230,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
             // Diğer form elemanları (Text Input vb.) kendi eventini yönetsin
             return;
         }
-        navHandlersRef.current.handleLocalNavAction(e);
+        
+        // Survival tab için ayrı handler kullan
+        if (activeTab === 'survival') {
+          navHandlersRef.current.handleSurvivalNavAction(e);
+        } else {
+          navHandlersRef.current.handleLocalNavAction(e);
+        }
       }
     };
 
@@ -1177,7 +1265,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
     isVirtualKeyboardEnabled,
     searchFocusMode,
     p1FilteredSearchPlayers,
-    p2FilteredSearchPlayers
+    p2FilteredSearchPlayers,
+    survivalFocusIndex,
+    survivalPlayer1,
+    survivalPlayer2,
+    survivalPlayer3,
+    survivalPlayer4
   ]);
 
   // Mod seçim ekranında beklerken gelen maç komutlarını dinle
@@ -2202,109 +2295,207 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                            {/* Alt Kısım: Canlı maç bilgisi (sadece masa doluysa) */}
                            {isBusy && liveMatchForTable && (
                              <>
-                               {/* Oyuncu bilgileri - yatay düzen */}
-                               <div style={{
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 justifyContent: 'center',
-                                 background: 'rgba(15, 23, 42, 0.03)',
-                                 borderRadius: '8px',
-                                 padding: '10px 12px',
-                                 marginBottom: '8px',
-                                 gap: '8px'
-                               }}>
-                                 {/* Oyuncu 1 */}
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                   <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                     {liveMatchForTable.players?.[0] || 'Oyuncu 1'}
-                                   </span>
-                                   <div style={{
-                                     width: '32px',
-                                     height: '32px',
-                                     borderRadius: '50%',
-                                     overflow: 'hidden',
-                                     border: '2px solid #3b82f6',
-                                     flexShrink: 0,
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     justifyContent: 'center',
-                                     background: '#1e293b'
-                                   }}>
-                                     <img 
-                                       src={player1Photo || FALLBACK_AVATAR} 
-                                       alt="" 
-                                       onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
-                                       style={{ 
-                                         width: '100%', 
-                                         height: '100%', 
-                                         objectFit: player1Photo ? 'cover' : 'contain',
-                                         padding: player1Photo ? '0' : '4px',
-                                         display: 'block' 
-                                       }}
-                                     />
-                                   </div>
-                                   <span style={{ 
-                                     fontSize: '18px', 
-                                     fontWeight: '800', 
-                                     color: '#0f172a',
-                                     minWidth: '24px',
-                                     textAlign: 'center'
-                                   }}>
-                                     {liveMatchForTable.stats?.score1 ?? 0}
-                                   </span>
-                                 </div>
-
-                                 {/* Tire işareti */}
+                               {/* SURVIVAL MODE - 3 veya 4 oyuncu */}
+                               {liveMatchForTable.mode === 'survival' && liveMatchForTable.stats?.survivalPlayers ? (
                                  <div style={{
-                                   fontSize: '18px',
-                                   fontWeight: '800',
-                                   color: '#64748b',
-                                   padding: '0 4px'
+                                   background: 'rgba(78, 205, 196, 0.05)',
+                                   borderRadius: '8px',
+                                   padding: '10px',
+                                   marginBottom: '8px'
                                  }}>
-                                   -
-                                 </div>
-
-                                 {/* Oyuncu 2 */}
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                   <span style={{ 
-                                     fontSize: '18px', 
-                                     fontWeight: '800', 
-                                     color: '#0f172a',
-                                     minWidth: '24px',
-                                     textAlign: 'center'
-                                   }}>
-                                     {liveMatchForTable.stats?.score2 ?? 0}
-                                   </span>
+                                   {/* Survival Badge */}
                                    <div style={{
-                                     width: '32px',
-                                     height: '32px',
-                                     borderRadius: '50%',
-                                     overflow: 'hidden',
-                                     border: '2px solid #f59e0b',
-                                     flexShrink: 0,
                                      display: 'flex',
                                      alignItems: 'center',
                                      justifyContent: 'center',
-                                     background: '#1e293b'
+                                     gap: '6px',
+                                     marginBottom: '8px'
                                    }}>
-                                     <img 
-                                       src={player2Photo || FALLBACK_AVATAR} 
-                                       alt="" 
-                                       onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
-                                       style={{ 
-                                         width: '100%', 
-                                         height: '100%', 
-                                         objectFit: player2Photo ? 'cover' : 'contain',
-                                         padding: player2Photo ? '0' : '4px',
-                                         display: 'block' 
-                                       }}
-                                     />
+                                     <span style={{
+                                       background: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+                                       color: '#fff',
+                                       padding: '2px 8px',
+                                       borderRadius: '10px',
+                                       fontSize: '9px',
+                                       fontWeight: '700'
+                                     }}>SURVIVAL</span>
+                                     <span style={{
+                                       fontSize: '10px',
+                                       color: '#64748b'
+                                     }}>SET {liveMatchForTable.stats?.gameHalf || 1}</span>
+                                     <span style={{
+                                       fontSize: '11px',
+                                       fontWeight: '700',
+                                       color: '#f59e0b',
+                                       fontFamily: 'monospace'
+                                     }}>{liveMatchForTable.stats?.gameTimeFormatted || '00:00'}</span>
                                    </div>
-                                   <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
-                                     {liveMatchForTable.players?.[1] || 'Oyuncu 2'}
-                                   </span>
+                                   
+                                   {/* Players Grid 2x2 */}
+                                   <div style={{
+                                     display: 'grid',
+                                     gridTemplateColumns: 'repeat(2, 1fr)',
+                                     gap: '6px'
+                                   }}>
+                                     {liveMatchForTable.stats.survivalPlayers.map((player, idx) => (
+                                       <div key={idx} style={{
+                                         display: 'flex',
+                                         alignItems: 'center',
+                                         gap: '6px',
+                                         padding: '5px 8px',
+                                         background: player.isActive ? 'rgba(78, 205, 196, 0.15)' : 'rgba(0, 0, 0, 0.03)',
+                                         borderRadius: '6px',
+                                         border: player.isActive ? '1px solid rgba(78, 205, 196, 0.4)' : '1px solid transparent',
+                                         opacity: player.isDisqualified ? 0.5 : 1
+                                       }}>
+                                         {/* Photo */}
+                                         <div style={{
+                                           width: '22px',
+                                           height: '22px',
+                                           borderRadius: '50%',
+                                           overflow: 'hidden',
+                                           border: player.isActive ? '2px solid #4ECDC4' : '1px solid #e2e8f0',
+                                           flexShrink: 0
+                                         }}>
+                                           <img 
+                                             src={getPlayerPhoto(player.name) || FALLBACK_AVATAR}
+                                             alt=""
+                                             onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
+                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                           />
+                                         </div>
+                                         {/* Name (shortened) */}
+                                         <span style={{
+                                           fontSize: '9px',
+                                           fontWeight: '600',
+                                           color: player.isDisqualified ? '#ef4444' : '#334155',
+                                           flex: 1,
+                                           overflow: 'hidden',
+                                           textOverflow: 'ellipsis',
+                                           whiteSpace: 'nowrap',
+                                           maxWidth: '45px',
+                                           textDecoration: player.isDisqualified ? 'line-through' : 'none'
+                                         }}>
+                                           {player.name.split(' ')[0]}
+                                         </span>
+                                         {/* Score */}
+                                         <span style={{
+                                           fontSize: '13px',
+                                           fontWeight: '800',
+                                           color: player.isDisqualified ? '#ef4444' : '#0f172a',
+                                           textDecoration: player.isDisqualified ? 'line-through' : 'none'
+                                         }}>
+                                           {player.score}
+                                         </span>
+                                       </div>
+                                     ))}
+                                   </div>
                                  </div>
-                               </div>
+                               ) : (
+                                 /* NORMAL MODE - 2 oyuncu */
+                                 <div style={{
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center',
+                                   background: 'rgba(15, 23, 42, 0.03)',
+                                   borderRadius: '8px',
+                                   padding: '10px 12px',
+                                   marginBottom: '8px',
+                                   gap: '8px'
+                                 }}>
+                                   {/* Oyuncu 1 */}
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                     <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                       {liveMatchForTable.players?.[0] || 'Oyuncu 1'}
+                                     </span>
+                                     <div style={{
+                                       width: '32px',
+                                       height: '32px',
+                                       borderRadius: '50%',
+                                       overflow: 'hidden',
+                                       border: '2px solid #3b82f6',
+                                       flexShrink: 0,
+                                       display: 'flex',
+                                       alignItems: 'center',
+                                       justifyContent: 'center',
+                                       background: '#1e293b'
+                                     }}>
+                                       <img 
+                                         src={player1Photo || FALLBACK_AVATAR} 
+                                         alt="" 
+                                         onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
+                                         style={{ 
+                                           width: '100%', 
+                                           height: '100%', 
+                                           objectFit: player1Photo ? 'cover' : 'contain',
+                                           padding: player1Photo ? '0' : '4px',
+                                           display: 'block' 
+                                         }}
+                                       />
+                                     </div>
+                                     <span style={{ 
+                                       fontSize: '18px', 
+                                       fontWeight: '800', 
+                                       color: '#0f172a',
+                                       minWidth: '24px',
+                                       textAlign: 'center'
+                                     }}>
+                                       {liveMatchForTable.stats?.score1 ?? 0}
+                                     </span>
+                                   </div>
+
+                                   {/* Tire işareti */}
+                                   <div style={{
+                                     fontSize: '18px',
+                                     fontWeight: '800',
+                                     color: '#64748b',
+                                     padding: '0 4px'
+                                   }}>
+                                     -
+                                   </div>
+
+                                   {/* Oyuncu 2 */}
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                     <span style={{ 
+                                       fontSize: '18px', 
+                                       fontWeight: '800', 
+                                       color: '#0f172a',
+                                       minWidth: '24px',
+                                       textAlign: 'center'
+                                     }}>
+                                       {liveMatchForTable.stats?.score2 ?? 0}
+                                     </span>
+                                     <div style={{
+                                       width: '32px',
+                                       height: '32px',
+                                       borderRadius: '50%',
+                                       overflow: 'hidden',
+                                       border: '2px solid #f59e0b',
+                                       flexShrink: 0,
+                                       display: 'flex',
+                                       alignItems: 'center',
+                                       justifyContent: 'center',
+                                       background: '#1e293b'
+                                     }}>
+                                       <img 
+                                         src={player2Photo || FALLBACK_AVATAR} 
+                                         alt="" 
+                                         onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
+                                         style={{ 
+                                           width: '100%', 
+                                           height: '100%', 
+                                           objectFit: player2Photo ? 'cover' : 'contain',
+                                           padding: player2Photo ? '0' : '4px',
+                                           display: 'block' 
+                                         }}
+                                       />
+                                     </div>
+                                     <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                                       {liveMatchForTable.players?.[1] || 'Oyuncu 2'}
+                                     </span>
+                                   </div>
+                                 </div>
+                               )}
 
                                {/* Canlı Takip Et Butonu */}
                                <button 
@@ -3185,12 +3376,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                 <div className="survival-content">
                   <div className="survival-players-grid">
                     {/* Player 1 */}
-                    <div className="survival-player-box">
+                    <div className={`survival-player-box ${deviceMode === 'local' && survivalFocusIndex === 0 ? 'focused' : ''}`}>
                       <label className="survival-player-label">1. Oyuncu</label>
                       <select 
+                        ref={survivalSelect1Ref}
                         value={survivalPlayer1} 
                         onChange={e => setSurvivalPlayer1(e.target.value)}
                         className="survival-player-select"
+                        style={deviceMode === 'local' && survivalFocusIndex === 0 ? {
+                          border: '3px solid #3b82f6',
+                          boxShadow: '0 0 15px rgba(59, 130, 246, 0.5)'
+                        } : {}}
                       >
                         <option value="">Seçiniz</option>
                         {getAvailableSurvivalPlayers(survivalPlayer1).map((user) => (
@@ -3202,12 +3398,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     </div>
 
                     {/* Player 2 */}
-                    <div className="survival-player-box">
+                    <div className={`survival-player-box ${deviceMode === 'local' && survivalFocusIndex === 1 ? 'focused' : ''}`}>
                       <label className="survival-player-label">2. Oyuncu</label>
                       <select 
+                        ref={survivalSelect2Ref}
                         value={survivalPlayer2} 
                         onChange={e => setSurvivalPlayer2(e.target.value)}
                         className="survival-player-select"
+                        style={deviceMode === 'local' && survivalFocusIndex === 1 ? {
+                          border: '3px solid #3b82f6',
+                          boxShadow: '0 0 15px rgba(59, 130, 246, 0.5)'
+                        } : {}}
                       >
                         <option value="">Seçiniz</option>
                         {getAvailableSurvivalPlayers(survivalPlayer2).map((user) => (
@@ -3219,12 +3420,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     </div>
 
                     {/* Player 3 */}
-                    <div className="survival-player-box">
+                    <div className={`survival-player-box ${deviceMode === 'local' && survivalFocusIndex === 2 ? 'focused' : ''}`}>
                       <label className="survival-player-label">3. Oyuncu</label>
                       <select 
+                        ref={survivalSelect3Ref}
                         value={survivalPlayer3} 
                         onChange={e => setSurvivalPlayer3(e.target.value)}
                         className="survival-player-select"
+                        style={deviceMode === 'local' && survivalFocusIndex === 2 ? {
+                          border: '3px solid #3b82f6',
+                          boxShadow: '0 0 15px rgba(59, 130, 246, 0.5)'
+                        } : {}}
                       >
                         <option value="">Seçiniz</option>
                         {getAvailableSurvivalPlayers(survivalPlayer3).map((user) => (
@@ -3236,12 +3442,17 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                     </div>
 
                     {/* Player 4 */}
-                    <div className="survival-player-box">
-                      <label className="survival-player-label">4. Oyuncu</label>
+                    <div className={`survival-player-box ${deviceMode === 'local' && survivalFocusIndex === 3 ? 'focused' : ''}`}>
+                      <label className="survival-player-label">4. Oyuncu (Opsiyonel)</label>
                       <select 
+                        ref={survivalSelect4Ref}
                         value={survivalPlayer4} 
                         onChange={e => setSurvivalPlayer4(e.target.value)}
                         className="survival-player-select"
+                        style={deviceMode === 'local' && survivalFocusIndex === 3 ? {
+                          border: '3px solid #3b82f6',
+                          boxShadow: '0 0 15px rgba(59, 130, 246, 0.5)'
+                        } : {}}
                       >
                         <option value="">Seçiniz (Opsiyonel)</option>
                         {getAvailableSurvivalPlayers(survivalPlayer4).map((user) => (
@@ -3266,12 +3477,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
                   <div className="action-buttons-container">
                     {showLocalButton && (
                       <button 
+                        ref={survivalStartBtnRef}
                         className={`start-button ${
                           [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
                             .filter(p => p !== "").length >= 3 
                             ? "active" 
                             : "disabled"
                         }`}
+                        style={deviceMode === 'local' && survivalFocusIndex === 4 ? {
+                          border: '3px solid #FFD700',
+                          boxShadow: '0 0 20px rgba(255, 215, 0, 0.6)',
+                          transform: 'scale(1.02)'
+                        } : {}}
                         onClick={handleSurvivalStart}
                         disabled={
                           [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]

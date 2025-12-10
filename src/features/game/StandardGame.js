@@ -3,7 +3,7 @@ import PlayerPanel from '../../components/PlayerPanel';
 import ScorePanel from '../../components/ScorePanel';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
-import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles } from '../../services/firebase';
+import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount } from '../../services/firebase';
 
 function StandardGame({
   player1Name,
@@ -28,6 +28,7 @@ function StandardGame({
   const [player1Runs, setPlayer1Runs] = useState([]); // Tüm run'ları tut
   const [player2Runs, setPlayer2Runs] = useState([]); // Tüm run'ları tut
   const [player1TimeoutLeft, setPlayer1TimeoutLeft] = useState(2); // Oyuncu 1'in timeout hakkı
+  const [viewerCount, setViewerCount] = useState(0); // İzleyici sayısı
   const [player2TimeoutLeft, setPlayer2TimeoutLeft] = useState(2); // Oyuncu 2'nin timeout hakkı
   const [timerPhase, setTimerPhase] = useState('idle'); // idle: başlatılmamış, running: çalışıyor, finished: bitti
   const [timerResetTrigger, setTimerResetTrigger] = useState(0); // Timer'ı reset etmek için
@@ -112,6 +113,14 @@ function StandardGame({
     
     fetchPhotos();
   }, [player1Name, player2Name]);
+
+  // İzleyici sayısını dinle
+  useEffect(() => {
+    const unsubscribe = listenToViewerCount('table_1', (count) => {
+      setViewerCount(count);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Uzaktan kumanda komutlarını dinle
   useEffect(() => {
@@ -235,11 +244,8 @@ function StandardGame({
     };
 
     // Her durumda güncelle (gameEnded sonrası da mobil tarafın yeni maç/aynı maç ekranını görebilmesi için)
-    if (isFreeMode) {
-      // Serbest modda masa durumunu güncelleme veya IDLE olarak tut
-    } else {
-      updateTableStatus('table_1', 'BUSY', liveStats);
-    }
+    // Serbest mod dahil tüm modlar için masa durumunu güncelle
+    updateTableStatus('table_1', 'BUSY', liveStats);
   }, [
     player1Score,
     player2Score,
@@ -1461,6 +1467,7 @@ function StandardGame({
             isFreeMode={isFreeMode}
             tableName={tableName}
             salonName={salonName}
+            viewerCount={viewerCount}
           />
         </div>
         <PlayerPanel

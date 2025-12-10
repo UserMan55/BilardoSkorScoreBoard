@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot, serverTimestamp, deleteDoc, updateDoc, increment } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDFqmZg4khPVJron56Cyj0nfsupvBjuTAA",
@@ -352,6 +352,80 @@ export function listenToNetworkInfo(tableId, onInfoChange) {
     } else {
       onInfoChange(null);
     }
+  });
+  return unsubscribe;
+}
+
+// --- VIEWER TRACKING FUNCTIONS ---
+
+// Benzersiz viewer ID oluştur (tarayıcı başına)
+function getViewerId() {
+  let viewerId = localStorage.getItem('viewer_id');
+  if (!viewerId) {
+    viewerId = 'viewer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('viewer_id', viewerId);
+  }
+  return viewerId;
+}
+
+// İzleyici olarak kaydol (mobil tarafı maç takip ekranına girdiğinde)
+export async function registerViewer(tableId = 'table_1') {
+  const viewerId = getViewerId();
+  try {
+    await setDoc(doc(db, "table_viewers", `${tableId}_${viewerId}`), {
+      tableId: tableId,
+      viewerId: viewerId,
+      joinedAt: serverTimestamp(),
+      lastSeen: serverTimestamp()
+    });
+    console.log(`👁️ İzleyici kaydedildi: ${viewerId}`);
+    return viewerId;
+  } catch (error) {
+    console.error("İzleyici kaydedilemedi:", error);
+    return null;
+  }
+}
+
+// İzleyici kaydını sil (mobil tarafı maç takip ekranından çıktığında)
+export async function unregisterViewer(tableId = 'table_1') {
+  const viewerId = getViewerId();
+  try {
+    await deleteDoc(doc(db, "table_viewers", `${tableId}_${viewerId}`));
+    console.log(`👁️ İzleyici silindi: ${viewerId}`);
+  } catch (error) {
+    console.error("İzleyici silinemedi:", error);
+  }
+}
+
+// İzleyici heartbeat gönder (aktif olduğunu bildir)
+export async function updateViewerHeartbeat(tableId = 'table_1') {
+  const viewerId = getViewerId();
+  try {
+    await setDoc(doc(db, "table_viewers", `${tableId}_${viewerId}`), {
+      lastSeen: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.error("Heartbeat gönderilemedi:", error);
+  }
+}
+
+// İzleyici sayısını dinle (table_viewers collection'ını dinle)
+export function listenToViewerCount(tableId, onCountChange) {
+  const unsubscribe = onSnapshot(collection(db, "table_viewers"), (snapshot) => {
+    // tableId'ye göre filtrele ve say
+    let count = 0;
+    const now = Date.now();
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.tableId === tableId) {
+        // Son 60 saniye içinde görülen izleyicileri say (timeout kontrolü)
+        const lastSeen = data.lastSeen?.seconds ? data.lastSeen.seconds * 1000 : 0;
+        if (now - lastSeen < 60000) {
+          count++;
+        }
+      }
+    });
+    onCountChange(count);
   });
   return unsubscribe;
 }

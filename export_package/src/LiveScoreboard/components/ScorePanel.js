@@ -11,7 +11,10 @@ function ScorePanel({
   targetRack,
   hasPenalty,
   hasAso,
-  isFreeMode = false
+  isFreeMode = false,
+  tableName = null,
+  salonName = null,
+  viewerCount = 0
 }) {
   return (
     <div style={{
@@ -61,8 +64,8 @@ function ScorePanel({
         </div>
       </div>
 
-      {/* Maç Bilgileri Paneli (Logo yerine) */}
-      {!isFreeMode && targetScore !== undefined && (
+      {/* Maç Bilgileri Paneli */}
+      {(salonName || tableName || (!isFreeMode && targetScore !== undefined)) && (
         <div style={{
           background: 'rgba(0, 0, 0, 0.5)',
           padding: '8px 12px',
@@ -74,22 +77,71 @@ function ScorePanel({
           width: '90%',
           boxSizing: 'border-box'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#888' }}>Hedef Sayı:</span>
-            <span style={{ color: '#FFD700' }}>{targetScore}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ color: '#888' }}>Hedef İstaka:</span>
-            <span style={{ color: '#FFD700' }}>{targetRack}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingTop: '4px', borderTop: '1px solid rgba(102, 126, 234, 0.3)' }}>
-            <span style={{ color: '#888' }}>Penaltı:</span>
-            <span style={{ color: hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>{hasPenalty ? '✓' : '✗'}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: '#888' }}>ASO:</span>
-            <span style={{ color: hasAso ? '#00FF00' : '#FF6B6B' }}>{hasAso ? '✓' : '✗'}</span>
-          </div>
+          {/* Salon Adı */}
+          {salonName && (
+            <div style={{ 
+              textAlign: 'center', 
+              marginBottom: '4px',
+              color: '#FFD700',
+              fontSize: '11px',
+              fontWeight: '700',
+              letterSpacing: '0.5px'
+            }}>
+              🏠 {salonName}
+            </div>
+          )}
+          {/* Masa Adı */}
+          {tableName && (
+            <div style={{ 
+              textAlign: 'center', 
+              marginBottom: '6px', 
+              paddingBottom: '4px', 
+              borderBottom: '1px solid rgba(102, 126, 234, 0.3)',
+              color: '#4ECDC4',
+              fontSize: '12px',
+              fontWeight: '700'
+            }}>
+              📍 {tableName}
+            </div>
+          )}
+          {/* İzleyici Sayısı */}
+          {viewerCount > 0 && (
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: (!isFreeMode && targetScore !== undefined) ? '6px' : '0',
+              paddingBottom: (!isFreeMode && targetScore !== undefined) ? '4px' : '0',
+              borderBottom: (!isFreeMode && targetScore !== undefined) ? '1px solid rgba(102, 126, 234, 0.3)' : 'none',
+              color: '#FF6B6B',
+              fontSize: '12px',
+              fontWeight: '700'
+            }}>
+              <span style={{ fontSize: '14px' }}>👁️</span>
+              <span>{viewerCount} İzleyici</span>
+            </div>
+          )}
+          {!isFreeMode && targetScore !== undefined && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: '#888' }}>Hedef Sayı:</span>
+                <span style={{ color: '#FFD700' }}>{targetScore}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: '#888' }}>Hedef İstaka:</span>
+                <span style={{ color: '#FFD700' }}>{targetRack}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingTop: '4px', borderTop: '1px solid rgba(102, 126, 234, 0.3)' }}>
+                <span style={{ color: '#888' }}>Penaltı:</span>
+                <span style={{ color: hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>{hasPenalty ? '✓' : '✗'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888' }}>ASO:</span>
+                <span style={{ color: hasAso ? '#00FF00' : '#FF6B6B' }}>{hasAso ? '✓' : '✗'}</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
