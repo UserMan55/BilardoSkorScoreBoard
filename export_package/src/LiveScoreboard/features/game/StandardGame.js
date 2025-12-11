@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PlayerPanel from '../../components/PlayerPanel';
 import ScorePanel from '../../components/ScorePanel';
-import GameController from './GameController';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
 import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount } from '../../services/firebase';
@@ -621,17 +620,6 @@ function StandardGame({
   // Sound Mute State
   const [isMuted, setIsMuted] = useState(false);
 
-  // Mobile Detection
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   // Reset modal focus when modal opens
   useEffect(() => {
     if (showSaveConfirm || gameEnded || showMenuOverlay) {
@@ -678,6 +666,7 @@ function StandardGame({
          } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
             setModalFocusIndex(0);
          } else if (e.key === 'Enter' || e.key === ' ') {
+            console.log('🔴 ENTER/SPACE pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
             if (gameEnded) {
               if (modalFocusIndex === 1) callHandler('handleNewMatch');
               else callHandler('handleRematch');
@@ -1505,28 +1494,6 @@ function StandardGame({
         isTimerPaused={isTimerPaused}
         activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
         duration={40}
-      />
-      </div>
-      {/* Digital Controller - Mobile Only */}
-      <div style={{ display: isMobile ? 'block' : 'none' }}>
-      <GameController 
-        onPlusRun={handlePlusRun}
-        onMinusRun={handleMinusRun}
-        onToggleTimer={handleToggleTimer}
-        onOk={handleOk}
-        onExit={handleExit}
-        onUndo={handleUndo}
-        isTimerRunning={isTimerRunning}
-        currentPlayerName={currentTurn === 0 ? player1Name : player2Name}
-        currentTurn={currentTurn}
-        isVisible={isMobile}
-        onToggleVisibility={() => {}}
-        gameEnded={gameEnded}
-        currentScore={currentTurn === 0 ? player1Score : player2Score}
-        runCount={runCount}
-        targetScore={targetScore}
-        canUndo={history.length > 0}
-        mode={isMobile ? 'fullscreen' : 'floating'}
       />
       </div>
       

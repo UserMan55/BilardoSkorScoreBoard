@@ -13,6 +13,7 @@ function App() {
   const [screen, setScreen] = useState(isReceiverMode ? 'receiver' : 'start'); // 'start', 'standard', 'survival', 'receiver'
   const [gameSettings, setGameSettings] = useState(null);
   const [survivalPlayers, setSurvivalPlayers] = useState([]);
+  const [gameKey, setGameKey] = useState(Date.now()); // Unique key to force component remount
 
   // Global Context Menu Prevention (Disable Right Click / Menu Key)
   React.useEffect(() => {
@@ -86,6 +87,7 @@ function App() {
   const handleStartSurvival = (players, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {
     setSurvivalPlayers(players);
     setGameSettings({ tableName, salonName });
+    setGameKey(Date.now()); // Force new component instance
     setScreen('survival');
     
     // Masa durumunu BUSY yap
@@ -148,7 +150,7 @@ function App() {
         />
       )}
       {screen === 'standard' && <StandardGame {...gameSettings} onExit={handleExitGame} />}
-      {screen === 'survival' && <SurvivalGame players={survivalPlayers} onExit={handleExitGame} tableName={gameSettings?.tableName || 'Masa 1'} salonName={gameSettings?.salonName || 'SALON 3CSCORE'} />}
+      {screen === 'survival' && <SurvivalGame key={gameKey} players={survivalPlayers} onExit={handleExitGame} tableName={gameSettings?.tableName || 'Masa 1'} salonName={gameSettings?.salonName || 'SALON 3CSCORE'} />}
     </>
   );
 }

@@ -12,6 +12,11 @@ Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak
 - [ ] **İsim Hatası:** Survival modunda oyuncu isimleri hala hatalı görünüyor (muhtemelen ID basıyor), düzeltilmeli.
 - [ ] **Zoom/Layout Hatası:** Chrome %100 zoom ayarında açılış ekranı ve oyun ekranı çok büyük ve hatalı görünüyor. CSS düzenlemeleri yapılmalı.
 - [ ] **Mekanizma Testleri:** Survival modu oyun mekanizması (skor hesaplama, sıra geçişi, timeout vb.) detaylı test edilecek.
+- [x] **Maç Başlangıcı:** Yeni maç başlatıldığında eski maç verilerinin sıfırlanması (gameKey ile çözüldü).
+- [x] **Istaka Sayısı:** Başlangıçta 0 olarak ayarlandı.
+- [x] **Oyuncu Fotoğrafları:** 2x büyütüldü ve isimler fotoğrafların altına alındı.
+- [x] **Skor Konumu:** Yukarı alındı.
+- [x] **RUN Paneli:** Küçültüldü.
 
 **2. Mobil Canlı Maç (Live Match) UI Düzenlemeleri:**
 - [x] **Açılış Görseli:** "Canlı Maç Başlat" denildiğinde ekrana gelen kumanda görseli/overlay kesinlikle kaldırılmalı.
@@ -23,12 +28,57 @@ Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak
 - [ ] **Fiziksel Kumanda Navigasyonu:** 3CSCORE modu açıldığında fiziksel kumanda ile elementler arasında gezinme (navigasyon) çalışmıyor. Yeniden ele alınmalı ve tam kontrol sağlanmalı.
 
 **4. Kumanda Senkronizasyonu (Fiziksel & Dijital):**
+- [x] **Tuş Atamaları Güncellendi (11 Aralık 2025):**
+  - Play/Pause (`MediaPlayPause`) → Timer başlat/durdur
+  - Backspace → Undo (geri al)
+  - Space tuşu → Sadece StartScreen aramada (oyunlarda kaldırıldı)
+  - ContextMenu → Menü aç/kapat
+  - AudioVolumeMute → Ses aç/kapa
 - [ ] **Fonksiyonel Eşitleme:** Mobil tarafta yeniden tasarlanacak dijital kumanda, fiziksel kumandanın tuş takımı ve işlevleriyle (Ana sayfa, Scoreboard, Seçim ekranları) birebir uyumlu olmalı. Her iki kumanda da aynı sayfalarda aynı işlevleri yerine getirmeli.
 
 ---
 
 **🔄 ŞU AN ÜZERİNDE ÇALIŞILAN GÖREV:**
-**Masa (Table) Entegrasyonu** - Masa kavramının sisteme dahil edilmesi, masa durumlarının (Dolu/Boş) yönetimi ve mobil/tabela taraflarının senkronizasyonu.
+**Multi-User Canlı Maç Erişimi** - 3CSCORE kayıtlı oyuncuların kendi maçlarını mobil cihazlarından takip ve kontrol edebilmeleri.
+
+---
+
+## 📱 MULTİ-USER CANLI MAÇ ERİŞİMİ (PLANLANMIŞ)
+**Durum:** 📋 Planlandı (11 Aralık 2025)
+**Açıklama:** Terminal veya mobil'den maç başlatıldığında, maçta oyuncu olarak eklenen 3CSCORE kullanıcılarının "Canlı Maç Takip ve Kontrol" ekranına erişebilmesi.
+
+### Faz 1: Maç Verisine Player ID Ekleme
+- [ ] `sendRemoteStartCommand` fonksiyonuna `playerIds[]` dizisi ekle
+- [ ] `updateTableStatus` fonksiyonuna `playerIds[]` dizisi ekle
+- [ ] `startedBy` alanı ekle (maçı başlatan kullanıcı)
+- [ ] `allowedControllers[]` listesi ekle
+
+### Faz 2: Kullanıcı Kimliği Sistemi
+- [ ] `loggedInUser` prop'unu aktif kullan
+- [ ] Kullanıcı ID'si yoksa Firebase Anonymous Auth ile geçici kimlik oluştur
+- [ ] localStorage ile oturum devam ettir
+- [ ] FCM token yönetimi (kullanıcı bazlı)
+
+### Faz 3: Erişim Kontrolü
+- [ ] MobileController'da `playerIds[]` veya `startedBy` kontrolü
+- [ ] Yetkisiz kullanıcılara `readOnly=true` zorla
+- [ ] Canlı Maçlar listesinde yetki bazlı buton gösterimi ("KONTROL ET" vs "İZLE")
+
+### Faz 4: Push Notification Sistemi (Opsiyonel)
+- [ ] Firebase Cloud Messaging (FCM) kurulumu
+- [ ] Service Worker (`firebase-messaging-sw.js`) oluştur
+- [ ] Cloud Function: Maç başladığında oyunculara bildirim gönder
+- [ ] Deep link desteği: `?liveMatch=table_1&control=true`
+- [ ] Bildirime tıklanınca doğru ekrana yönlendirme
+
+### Güvenlik
+- [ ] Firebase Security Rules güncelle
+- [ ] `live_matches` ve `match_commands` için kullanıcı bazlı yazma kısıtlamaları
+
+### Sorular (Karar Bekliyor)
+- [ ] Ana 3CSCORE uygulaması FCM kullanıyor mu?
+- [ ] Aynı anda birden fazla oyuncu kumanda kullanabilir mi? (Çakışma yönetimi)
+- [ ] iOS Safari desteği gerekli mi? (iOS 16.4+ gerekir)
 
 ---
 

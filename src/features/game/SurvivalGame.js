@@ -25,7 +25,7 @@ function SurvivalGame({
   );
   
   const [currentTurn, setCurrentTurn] = useState(0); // Index of current player
-  const [inning, setInning] = useState(0);
+  const [inning, setInning] = useState(0); // Start from inning 0
   
   // Shot Timer State
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -92,7 +92,8 @@ function SurvivalGame({
       handleContinue,
       handleDisqualify,
       startSecondHalf,
-      endMatchEarly
+      endMatchEarly,
+      handleToggleTimer
     };
   });
 
@@ -169,7 +170,7 @@ function SurvivalGame({
           setExitModalSelectedBtn(0); // Vazgeç
         } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           setExitModalSelectedBtn(1); // Maçtan Çık
-        } else if (e.key === 'Enter' || e.key === ' ') {
+        } else if (e.key === 'Enter') {
           if (exitModalSelectedBtn === 0) {
             // VAZGEÇ
             setShowExitModal(false);
@@ -196,7 +197,7 @@ function SurvivalGame({
           setNegativeModalSelectedBtn(0); // Devam Etsin
         } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           setNegativeModalSelectedBtn(1); // Diskalifiye Edilsin
-        } else if (e.key === 'Enter' || e.key === ' ') {
+        } else if (e.key === 'Enter') {
           e.preventDefault();
           if (negativeModalSelectedBtn === 0) {
             // DEVAM ETSİN
@@ -217,7 +218,7 @@ function SurvivalGame({
         } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault();
           setHalfTimeModalSelectedBtn(1);
-        } else if (e.key === 'Enter' || e.key === ' ') {
+        } else if (e.key === 'Enter') {
           e.preventDefault();
           if (halfTimeModalSelectedBtn === 0) {
             handlersRef.current.startSecondHalf?.();
@@ -228,9 +229,9 @@ function SurvivalGame({
         return;
       }
 
-      // Game Over ekranında Enter/Space ile çıkış
+      // Game Over ekranında Enter ile çıkış
       if (gameEnded) {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === 'Enter') {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
@@ -241,9 +242,15 @@ function SurvivalGame({
         return;
       }
 
-      // Undo (Ctrl+Z)
-      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+      // Undo (Backspace veya Ctrl+Z)
+      if (e.key === 'Backspace' || (e.ctrlKey && (e.key === 'z' || e.key === 'Z'))) {
         callHandler('handleUndo');
+        return;
+      }
+
+      // Play/Pause tuşu - Timer başlat/durdur
+      if (e.key === 'MediaPlayPause') {
+        callHandler('handleToggleTimer');
         return;
       }
 
@@ -256,7 +263,7 @@ function SurvivalGame({
         callHandler('handleMinusRun');
       }
       // OK / Next Turn
-      else if (e.key === 'Enter' || e.key === ' ') {
+      else if (e.key === 'Enter') {
         callHandler('handleOk');
       }
     };
@@ -1146,21 +1153,21 @@ function SurvivalGame({
             {/* Player Name with Photo */}
             <div style={{ 
               display: 'flex',
-              flexDirection: index === 0 ? 'row-reverse' : 'row',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '12px',
-              marginBottom: '10px'
+              gap: '15px',
+              marginBottom: '20px'
             }}>
               {/* Player Photo */}
               {playerPhotos[player.name] ? (
                 <div style={{
-                  width: 70,
-                  height: 70,
+                  width: 140,
+                  height: 140,
                   borderRadius: '50%',
                   overflow: 'hidden',
-                  border: `3px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                  border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
                   flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
                 }}>
                   <img 
                     src={playerPhotos[player.name]} 
@@ -1181,16 +1188,16 @@ function SurvivalGame({
                 </div>
               ) : (
                 <div style={{
-                  width: 70,
-                  height: 70,
+                  width: 140,
+                  height: 140,
                   borderRadius: '50%',
                   background: '#1e293b',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  border: `3px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
                   overflow: 'hidden'
                 }}>
                   <img 
@@ -1208,7 +1215,8 @@ function SurvivalGame({
               <span style={{ 
                 fontSize: '32px', 
                 fontWeight: 'bold', 
-                color: nameColor
+                color: nameColor,
+                textAlign: 'center'
               }}>
                 {player.name}
               </span>
@@ -1217,7 +1225,7 @@ function SurvivalGame({
             {/* Score */}
             <div style={{ 
               position: 'relative',
-              marginTop: '80px',
+              marginTop: '-10px',
               marginBottom: 'auto',
             }}>
               <div style={{ 
@@ -1276,16 +1284,16 @@ function SurvivalGame({
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
-              bottom: '200px',
+              bottom: '180px',
               background: statsBg,
-              padding: '10px 30px',
-              borderRadius: '15px',
+              padding: '8px 20px',
+              borderRadius: '12px',
               border: statsBigBorder,
               textAlign: 'center',
-              minWidth: '140px'
+              minWidth: '100px'
             }}>
-              <div style={{ fontSize: '18px', color: statsLabelColor, marginBottom: '4px' }}>RUN</div>
-              <div style={{ fontSize: '48px', fontWeight: 'bold', color: statsTextColor }}>
+              <div style={{ fontSize: '14px', color: statsLabelColor, marginBottom: '2px' }}>RUN</div>
+              <div style={{ fontSize: '36px', fontWeight: 'bold', color: statsTextColor }}>
                 {player.currentRun}
               </div>
             </div>

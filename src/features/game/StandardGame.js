@@ -659,14 +659,20 @@ function StandardGame({
          return;
       }
 
+      // Play/Pause tuşu - Timer başlat/durdur
+      if (e.key === 'MediaPlayPause') {
+         callHandler('handleToggleTimer');
+         return;
+      }
+
       // 1. Modal / Dialog Navigation (Maç sonu veya onay ekranları)
       if (showSaveConfirm || gameEnded || showPenalty || showMenuOverlay) {
          if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
             setModalFocusIndex(1);
          } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
             setModalFocusIndex(0);
-         } else if (e.key === 'Enter' || e.key === ' ') {
-            console.log('🔴 ENTER/SPACE pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
+         } else if (e.key === 'Enter') {
+            console.log('🔴 ENTER pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
             if (gameEnded) {
               if (modalFocusIndex === 1) callHandler('handleNewMatch');
               else callHandler('handleRematch');
@@ -711,7 +717,6 @@ function StandardGame({
           break;
         */
         case 'Enter': // OK (Sıra Geç)
-        case ' ':
           callHandler('handleOk');
           break;
         case 't': // Timer Başlat/Durdur (Yedek)
