@@ -17,15 +17,24 @@ const db = getFirestore(app);
 // --- REMOTE CONTROL FUNCTIONS ---
 
 // Maç başlatma komutunu gönderir (Mobil/Kumanda tarafı)
-export async function sendRemoteStartCommand(matchData, tableId = 'table_1') {
+// matchMeta: { playerIds, startedBy, salonId, salonCity } - Multi-user erişim için
+export async function sendRemoteStartCommand(matchData, tableId = 'table_1', matchMeta = {}) {
   try {
+    const { playerIds = [], startedBy = null, salonId = null, salonCity = null } = matchMeta;
+    
     // 'live_matches' koleksiyonunda belirtilen masa dökümanını güncelliyoruz
     await setDoc(doc(db, "live_matches", tableId), {
       ...matchData,
       status: 'START',
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
+      // Multi-user erişim bilgileri
+      playerIds,           // Oyuncu ID'leri (kontrol yetkisi)
+      startedBy,           // Maçı başlatan kullanıcı ID
+      allowedControllers: startedBy ? [startedBy, ...playerIds] : playerIds,
+      salonId,             // Salon ID (bildirim için)
+      salonCity            // Salon şehri (bildirim için)
     });
-    console.log(`Maç başlatma komutu gönderildi (${tableId}):`, matchData);
+    console.log(`Maç başlatma komutu gönderildi (${tableId}):`, matchData, 'Meta:', matchMeta);
     return true;
   } catch (error) {
     console.error("Komut gönderilemedi:", error);
@@ -74,9 +83,10 @@ let tableStatusDebounceTimer = null;
 let pendingTableStatus = null;
 
 // Masanın durumunu günceller (BUSY, IDLE) - Debounced (30ms - ultra hızlı)
-export async function updateTableStatus(tableId, status, matchData = null) {
+// matchMeta: { playerIds, startedBy, allowedControllers } - Multi-user erişim için
+export async function updateTableStatus(tableId, status, matchData = null, matchMeta = null) {
   // Pending durumu kaydet
-  pendingTableStatus = { tableId, status, matchData };
+  pendingTableStatus = { tableId, status, matchData, matchMeta };
   
   // Eğer zaten bir timer varsa temizle
   if (tableStatusDebounceTimer) {
@@ -87,16 +97,25 @@ export async function updateTableStatus(tableId, status, matchData = null) {
   tableStatusDebounceTimer = setTimeout(async () => {
     if (!pendingTableStatus) return;
     
-    const { tableId: id, status: st, matchData: md } = pendingTableStatus;
+    const { tableId: id, status: st, matchData: md, matchMeta: meta } = pendingTableStatus;
     pendingTableStatus = null;
     
     try {
       // Client timestamp kullanarak network round-trip azaltılıyor
-      await setDoc(doc(db, "table_status", id), {
+      const statusData = {
         status: st,
         currentMatch: md,
         lastUpdated: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
-      });
+      };
+      
+      // Multi-user bilgilerini ekle (varsa)
+      if (meta) {
+        statusData.playerIds = meta.playerIds || [];
+        statusData.startedBy = meta.startedBy || null;
+        statusData.allowedControllers = meta.allowedControllers || [];
+      }
+      
+      await setDoc(doc(db, "table_status", id), statusData);
     } catch (error) {
       console.error("Masa durumu güncellenemedi:", error);
     }

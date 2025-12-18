@@ -240,6 +240,35 @@
   text-align: center;
 }
 
+/* ReadOnly Badge - Sadece İzleme Modu */
+.readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 2px 8px rgba(238, 90, 90, 0.4);
+  animation: pulseReadonly 2s infinite;
+}
+
+.readonly-icon {
+  font-size: 14px;
+}
+
+.readonly-text {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes pulseReadonly {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
 .back-button-large {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;

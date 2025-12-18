@@ -806,6 +806,15 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.survival-player-box.focused {
+  transform: scale(1.02);
+}
+
+.survival-player-box.focused .survival-player-label {
+  color: #3b82f6;
 }
 
 .survival-player-label {

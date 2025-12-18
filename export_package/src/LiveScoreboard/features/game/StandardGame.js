@@ -28,8 +28,8 @@ function StandardGame({
   const [player1Runs, setPlayer1Runs] = useState([]); // Tüm run'ları tut
   const [player2Runs, setPlayer2Runs] = useState([]); // Tüm run'ları tut
   const [player1TimeoutLeft, setPlayer1TimeoutLeft] = useState(2); // Oyuncu 1'in timeout hakkı
-  const [player2TimeoutLeft, setPlayer2TimeoutLeft] = useState(2); // Oyuncu 2'nin timeout hakkı
   const [viewerCount, setViewerCount] = useState(0); // İzleyici sayısı
+  const [player2TimeoutLeft, setPlayer2TimeoutLeft] = useState(2); // Oyuncu 2'nin timeout hakkı
   const [timerPhase, setTimerPhase] = useState('idle'); // idle: başlatılmamış, running: çalışıyor, finished: bitti
   const [timerResetTrigger, setTimerResetTrigger] = useState(0); // Timer'ı reset etmek için
   const [isTimerPaused, setIsTimerPaused] = useState(false); // Timer pause durumu
@@ -659,14 +659,20 @@ function StandardGame({
          return;
       }
 
+      // Play/Pause tuşu - Timer başlat/durdur
+      if (e.key === 'MediaPlayPause') {
+         callHandler('handleToggleTimer');
+         return;
+      }
+
       // 1. Modal / Dialog Navigation (Maç sonu veya onay ekranları)
       if (showSaveConfirm || gameEnded || showPenalty || showMenuOverlay) {
          if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
             setModalFocusIndex(1);
          } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
             setModalFocusIndex(0);
-         } else if (e.key === 'Enter' || e.key === ' ') {
-            console.log('🔴 ENTER/SPACE pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
+         } else if (e.key === 'Enter') {
+            console.log('🔴 ENTER pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
             if (gameEnded) {
               if (modalFocusIndex === 1) callHandler('handleNewMatch');
               else callHandler('handleRematch');
@@ -711,7 +717,6 @@ function StandardGame({
           break;
         */
         case 'Enter': // OK (Sıra Geç)
-        case ' ':
           callHandler('handleOk');
           break;
         case 't': // Timer Başlat/Durdur (Yedek)

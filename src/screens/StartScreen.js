@@ -1130,14 +1130,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
               e.stopPropagation();
               handleVirtualEnter();
               return;
-            } else if (!isSearchMode) {
-              // Manuel mod (p1-manual, p2-manual): klavyeyi kapat
-              e.preventDefault();
-              e.stopPropagation();
-              handleVirtualEnter();
-              return;
             }
-            // Arama modunda klavye modundayken: event'i VirtualKeyboard'a bırak
+            // Hem arama hem manuel modda klavye modundayken: event'i VirtualKeyboard'a bırak (harf bassın)
+            // Klavyeyi kapatmak için EXIT tuşu veya Escape kullanılmalı
             return;
           }
           if (['Escape', 'BrowserBack', 'GoBack'].includes(e.key)) {
@@ -1157,6 +1152,26 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
               setP2SearchText((prev) => prev.slice(0, -1));
             }
             return;
+          }
+          // Fiziksel klavyeden harf yazma desteği (tek karakter ve harf/rakam ise)
+          if (e.key.length === 1 && /^[a-zA-ZğüşöçıİĞÜŞÖÇ0-9 ]$/.test(e.key)) {
+            // Space tuşu arama modunda özel işlem görüyor, diğer durumlarda harf olarak yaz
+            if (e.key === ' ' && (currentActiveField === 'p1-search' || currentActiveField === 'p2-search')) {
+              // Arama modunda space tuşu klavye/öneriler geçişi için kullanılıyor, aşağıda işlenecek
+            } else {
+              e.preventDefault();
+              const char = e.key.toUpperCase();
+              if (currentActiveField === 'p1-manual') {
+                setManualPlayer1Name((prev) => prev + char);
+              } else if (currentActiveField === 'p2-manual') {
+                setManualPlayer2Name((prev) => prev + char);
+              } else if (currentActiveField === 'p1-search') {
+                setP1SearchText((prev) => prev + char);
+              } else if (currentActiveField === 'p2-search') {
+                setP2SearchText((prev) => prev + char);
+              }
+              return;
+            }
           }
           // 3CSCORE Arama modunda SPACE ile klavye/öneriler arasında geçiş
           if (e.key === ' ' && (currentActiveField === 'p1-search' || currentActiveField === 'p2-search')) {

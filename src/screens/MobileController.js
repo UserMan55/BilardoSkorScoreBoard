@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { listenToTableStatus, sendMatchCommand, getUserProfiles, listenForMatchCommands, registerViewer, unregisterViewer, updateViewerHeartbeat, listenToViewerCount } from '../services/firebase';
 import TimerProgressBar from '../components/TimerProgressBar';
 import './MobileController.css';
 
 const FALLBACK_AVATAR = '/logo.png';
 
-function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
+// loggedInUser: { id, fullName, city, ... } - 3CSCORE'dan gelen kullanıcı bilgisi
+function MobileController({ onBack, tableId = 'table_1', readOnly = false, loggedInUser = null }) {
   const [matchData, setMatchData] = useState(null);
   const [liveStats, setLiveStats] = useState(null);
   const [matchEnded, setMatchEnded] = useState(false);
@@ -16,8 +17,24 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
   const [viewerCount, setViewerCount] = useState(0);
   const [matchStarting, setMatchStarting] = useState(false); // START komutu geldiğinde true
   const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
+  const [allowedControllers, setAllowedControllers] = useState([]); // Kontrol yetkisi olan kullanıcılar
 
-  const isReadOnly = !!readOnly;
+  // Erişim kontrolü: Kullanıcı kontrol yetkisine sahip mi?
+  const canControl = useMemo(() => {
+    // Eğer readOnly prop'u true ise, kesinlikle kontrol yok
+    if (readOnly) return false;
+    
+    // Eğer allowedControllers listesi boşsa, herkes kontrol edebilir (eski davranış)
+    if (!allowedControllers || allowedControllers.length === 0) return true;
+    
+    // Eğer kullanıcı giriş yapmamışsa, kontrol yok
+    if (!loggedInUser?.id) return false;
+    
+    // Kullanıcı allowedControllers listesinde mi?
+    return allowedControllers.includes(loggedInUser.id);
+  }, [readOnly, allowedControllers, loggedInUser]);
+
+  const isReadOnly = !canControl;
 
   // Navigasyon komutları için (ok tuşları gibi) - throttle yok, anında tepki
   const handleNavCommand = (action) => {
@@ -32,6 +49,11 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
       setIsLoading(false); // İlk veri geldi
       if (data && data.status === 'BUSY' && data.currentMatch) {
         setMatchData(data.currentMatch);
+        
+        // Multi-user erişim kontrolü bilgilerini al
+        if (data.allowedControllers) {
+          setAllowedControllers(data.allowedControllers);
+        }
         
         // matchData geldiğinde matchStarting durumunu sıfırla (geri sayım ekranını kapat)
         setMatchStarting(false);
@@ -53,6 +75,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
         setMatchEnded(true);
         setMatchStarting(false); // Maç başlatma durumunu sıfırla
         setStartingMatchData(null);
+        setAllowedControllers([]); // Erişim listesini sıfırla
       }
     });
 
@@ -680,6 +703,13 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false }) {
           <span className="live-dot"></span>
           CANLI MAÇ
         </div>
+        {/* Sadece İzleme Modu Göstergesi */}
+        {isReadOnly && (
+          <div className="readonly-badge">
+            <span className="readonly-icon">👁️</span>
+            <span className="readonly-text">İZLEME MODU</span>
+          </div>
+        )}
         {/* Viewer Count */}
         <div className="viewer-count">
           <span className="viewer-icon">👁️</span>

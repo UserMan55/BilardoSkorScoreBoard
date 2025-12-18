@@ -240,6 +240,35 @@
   text-align: center;
 }
 
+/* ReadOnly Badge - Sadece İzleme Modu */
+.readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 2px 8px rgba(238, 90, 90, 0.4);
+  animation: pulseReadonly 2s infinite;
+}
+
+.readonly-icon {
+  font-size: 14px;
+}
+
+.readonly-text {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes pulseReadonly {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
 .back-button-large {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
@@ -1130,4 +1159,281 @@
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+}
+
+/* ========================================
+   SURVIVAL MODE STYLES
+   ======================================== */
+
+.live-indicator-small.survival-mode {
+  background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+}
+
+.survival-game-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.clock-icon {
+  font-size: 16px;
+}
+
+.clock-time {
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  color: #FFD700;
+}
+
+.clock-half {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.survival-stats-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.survival-inning-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.survival-inning-badge .inning-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 2px;
+}
+
+.survival-inning-badge .inning-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.survival-players-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.survival-player-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.survival-player-card.active {
+  background: rgba(78, 205, 196, 0.2);
+  border-color: #4ECDC4;
+  box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+}
+
+.survival-player-card.disqualified {
+  opacity: 0.5;
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.survival-player-photo {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 8px;
+  position: relative;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.survival-player-card.active .survival-player-photo {
+  border-color: #4ECDC4;
+}
+
+.survival-player-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.disqualified-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+}
+
+.survival-player-info {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.survival-player-name {
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.survival-player-score {
+  font-size: 24px;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.survival-player-card.disqualified .survival-player-score {
+  color: #FF6B6B;
+  text-decoration: line-through;
+}
+
+.survival-player-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #fff;
+}
+
+.stat-item.run-stat {
+  background: rgba(78, 205, 196, 0.3);
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.stat-item.run-stat .stat-value {
+  color: #4ECDC4;
+}
+
+.survival-timer {
+  margin-top: 15px;
+}
+
+.survival-remote {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.run-value.survival-run {
+  color: #4ECDC4;
+}
+
+/* Survival Game Ended Overlay */
+.survival-game-ended-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.game-ended-content {
+  text-align: center;
+  max-width: 350px;
+  width: 100%;
+}
+
+.winner-trophy {
+  font-size: 64px;
+  margin-bottom: 10px;
+  animation: trophy-bounce 1s ease-in-out infinite;
+}
+
+@keyframes trophy-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.winner-title {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 3px;
+  margin-bottom: 5px;
+}
+
+.winner-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 25px;
+}
+
+.final-scores {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.final-score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.final-score-row:last-child {
+  border-bottom: none;
+}
+
+.final-score-row.winner {
+  color: #FFD700;
+  font-weight: bold;
+}
+
+.final-score-row .rank {
+  width: 30px;
+  text-align: left;
+}
+
+.final-score-row .name {
+  flex: 1;
+  text-align: left;
+}
+
+.final-score-row .score {
+  width: 50px;
+  text-align: right;
+  font-weight: bold;
 }
