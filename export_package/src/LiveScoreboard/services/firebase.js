@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot, serverTimestamp, deleteDoc, updateDoc, increment } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot, serverTimestamp, deleteDoc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDFqmZg4khPVJron56Cyj0nfsupvBjuTAA",
@@ -20,21 +21,50 @@ const db = getFirestore(app);
 // matchMeta: { playerIds, startedBy, salonId, salonCity } - Multi-user erişim için
 export async function sendRemoteStartCommand(matchData, tableId = 'table_1', matchMeta = {}) {
   try {
-    const { playerIds = [], startedBy = null, salonId = null, salonCity = null } = matchMeta;
+    const { playerIds = [], startedBy = null, allowedControllers = [], salonId = null, salonCity = null } = matchMeta;
+    
+    const matchId = `${tableId}_${Date.now()}`;
     
     // 'live_matches' koleksiyonunda belirtilen masa dökümanını güncelliyoruz
     await setDoc(doc(db, "live_matches", tableId), {
       ...matchData,
+      matchId,
       status: 'START',
       timestamp: serverTimestamp(),
       // Multi-user erişim bilgileri
       playerIds,           // Oyuncu ID'leri (kontrol yetkisi)
       startedBy,           // Maçı başlatan kullanıcı ID
-      allowedControllers: startedBy ? [startedBy, ...playerIds] : playerIds,
+      allowedControllers: allowedControllers.length > 0 ? allowedControllers : (startedBy ? [startedBy, ...playerIds] : playerIds),
       salonId,             // Salon ID (bildirim için)
       salonCity            // Salon şehri (bildirim için)
     });
     console.log(`Maç başlatma komutu gönderildi (${tableId}):`, matchData, 'Meta:', matchMeta);
+    
+    // Bildirim gönderilecek oyuncuları belirle
+    // startedBy hariç tüm playerIds'e bildirim gönder
+    const notifyPlayerIds = playerIds.filter(id => id && id !== startedBy);
+    
+    if (notifyPlayerIds.length > 0) {
+      // Bildirim kuyruğuna ekle (Cloud Function tarafından işlenecek)
+      await setDoc(doc(db, "notification_queue", matchId), {
+        type: 'MATCH_STARTED',
+        tableId,
+        matchId,
+        notifyPlayerIds,    // Bildirim gönderilecek oyuncular (startedBy hariç)
+        startedBy,          // Maçı başlatan (bildirim gönderilMEyecek)
+        matchInfo: {
+          mode: matchData.mode,
+          players: matchData.players,
+          playerPhotos: matchData.playerPhotos || {}
+        },
+        salonId,
+        salonCity,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      console.log('📤 Bildirim kuyruğuna eklendi:', matchId, 'Alıcılar:', notifyPlayerIds);
+    }
+    
     return true;
   } catch (error) {
     console.error("Komut gönderilemedi:", error);
@@ -447,6 +477,115 @@ export function listenToViewerCount(tableId, onCountChange) {
     onCountChange(count);
   });
   return unsubscribe;
+}
+
+// --- FCM (Firebase Cloud Messaging) FUNCTIONS ---
+
+// FCM VAPID Key (Firebase Console > Project Settings > Cloud Messaging > Web Push certificates)
+const VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; // TODO: Firebase Console'dan alınacak
+
+let messaging = null;
+
+// Messaging instance'ı güvenli şekilde al (tarayıcı desteği kontrolü)
+function getMessagingInstance() {
+  if (messaging) return messaging;
+  
+  try {
+    // Service Worker ve Notification API desteği kontrolü
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window) {
+      messaging = getMessaging(app);
+      return messaging;
+    }
+  } catch (error) {
+    console.warn('FCM desteklenmiyor:', error);
+  }
+  return null;
+}
+
+// Kullanıcının FCM token'ını al ve Firestore'a kaydet
+export async function registerFCMToken(userId) {
+  const msgInstance = getMessagingInstance();
+  if (!msgInstance) {
+    console.warn('FCM bu cihazda desteklenmiyor');
+    return null;
+  }
+
+  try {
+    // Bildirim izni iste
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('Bildirim izni verilmedi');
+      return null;
+    }
+
+    // FCM token al
+    const token = await getToken(msgInstance, { vapidKey: VAPID_KEY });
+    if (!token) {
+      console.warn('FCM token alınamadı');
+      return null;
+    }
+
+    // Token'ı kullanıcının profiliyle ilişkilendir
+    await setDoc(doc(db, "user_fcm_tokens", userId), {
+      token,
+      updatedAt: serverTimestamp(),
+      platform: 'web'
+    }, { merge: true });
+
+    console.log('✅ FCM token kaydedildi:', token.substring(0, 20) + '...');
+    return token;
+  } catch (error) {
+    console.error('FCM token kaydedilemedi:', error);
+    return null;
+  }
+}
+
+// Kullanıcının FCM token'ını getir
+export async function getUserFCMToken(userId) {
+  try {
+    const docSnap = await getDoc(doc(db, "user_fcm_tokens", userId));
+    if (docSnap.exists()) {
+      return docSnap.data().token;
+    }
+    return null;
+  } catch (error) {
+    console.error('FCM token alınamadı:', error);
+    return null;
+  }
+}
+
+// Foreground'da bildirim dinle
+export function listenToFCMMessages(onMessageReceived) {
+  const msgInstance = getMessagingInstance();
+  if (!msgInstance) return () => {};
+
+  return onMessage(msgInstance, (payload) => {
+    console.log('📩 FCM Mesajı alındı:', payload);
+    onMessageReceived(payload);
+  });
+}
+
+// Maç başladığında bildirim gönder (Cloud Function tetikleyecek)
+// Bu fonksiyon client tarafında çağrılmaz, sadece referans için
+// Gerçek bildirim gönderimi Firebase Cloud Functions tarafında yapılacak
+export async function triggerMatchNotification(matchId, tableId, playerIds, startedBy, matchInfo) {
+  // Cloud Function'ı tetiklemek için notification_queue'ya yazıyoruz
+  try {
+    await setDoc(doc(db, "notification_queue", matchId), {
+      type: 'MATCH_STARTED',
+      tableId,
+      playerIds,        // Bildirim gönderilecek oyuncular
+      startedBy,        // Maçı başlatan (bildirim gönderilMEyecek)
+      matchInfo,        // Maç bilgileri (oyuncu isimleri, mod, vb.)
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    console.log('📤 Bildirim kuyruğuna eklendi:', matchId);
+    return true;
+  } catch (error) {
+    console.error('Bildirim kuyruğuna eklenemedi:', error);
+    return false;
+  }
 }
 
 export { db, app };
