@@ -1399,6 +1399,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       return user?.photoURL || null;
     };
 
+    // Oyuncu ID'sini çözümle (3CSCORE kullanıcısı ise id, manual ise null)
+    const resolvePlayerId = (idOrName, isManual) => {
+      if (isManual) return null;
+      const user = names.find(u => u.id === idOrName);
+      return user?.id || null;
+    };
+
     if (activeTab === "2vs2") {
       let finalPlayer1 = isManualPlayer1 ? manualPlayer1Name.trim() : resolveName(player1);
       let finalPlayer2 = isManualPlayer2 ? manualPlayer2Name.trim() : resolveName(player2);
@@ -1407,9 +1414,19 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       const photo1 = isManualPlayer1 ? null : resolvePhoto(player1);
       const photo2 = isManualPlayer2 ? null : resolvePhoto(player2);
       
+      // Oyuncu ID'lerini al (sadece 3CSCORE oyuncuları için)
+      const player1Id = resolvePlayerId(player1, isManualPlayer1);
+      const player2Id = resolvePlayerId(player2, isManualPlayer2);
+      const playerIds = [player1Id, player2Id].filter(Boolean);
+      
+      // Kontrol yetkisi olan kullanıcılar: oyuncular + maçı başlatan
+      const startedBy = currentUser?.id || null;
+      const allowedControllers = [...new Set([...playerIds, startedBy].filter(Boolean))];
+      
       console.log("📷 handleRemoteSend - player1 ID:", player1, "-> name:", finalPlayer1, "-> photo:", photo1);
       console.log("📷 handleRemoteSend - player2 ID:", player2, "-> name:", finalPlayer2, "-> photo:", photo2);
       console.log("📷 names array sample:", names.slice(0, 3).map(n => ({ id: n.id, name: n.fullName, photo: n.photoURL ? 'VAR' : 'YOK' })));
+      console.log("🔐 matchMeta - playerIds:", playerIds, "startedBy:", startedBy, "allowedControllers:", allowedControllers);
       
       // İsim girilmemişse varsayılan isimleri ata
       if (!finalPlayer1) finalPlayer1 = "OYUNCU 1";
@@ -1417,12 +1434,21 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
       if (finalPlayer1 && finalPlayer2 && finalPlayer1 !== finalPlayer2) {
         try {
+          // matchMeta bilgilerini hazırla
+          const matchMeta = {
+            playerIds,
+            startedBy,
+            allowedControllers,
+            salonId: SALON_INFO?.name || null,
+            salonCity: SALON_INFO?.city || null
+          };
+          
           await sendRemoteStartCommand({
             mode: "2vs2",
             players: [finalPlayer1, finalPlayer2],
             playerPhotos: { [finalPlayer1]: photo1, [finalPlayer2]: photo2 },
             settings: { targetScore, targetRack, hasPenalty, hasAso }
-          }, selectedTableId);
+          }, selectedTableId, matchMeta);
           setErrorMessage("📡 Komut Başarıyla Gönderildi!");
           setTimeout(() => {
             setErrorMessage(null);
@@ -1438,17 +1464,38 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       }
     } else if (activeTab === "survival") {
       // Survival oyuncularını çözümle
-      const selectedPlayers = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
-        .filter(p => p !== "")
-        .map(id => resolveName(id));
+      const selectedPlayerIds = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
+        .filter(p => p !== "");
+      
+      const selectedPlayers = selectedPlayerIds.map(id => resolveName(id));
+
+      // Survival modunda tüm oyuncu ID'lerini al
+      const playerIds = selectedPlayerIds.map(id => {
+        const user = names.find(u => u.id === id);
+        return user?.id || null;
+      }).filter(Boolean);
+      
+      const startedBy = currentUser?.id || null;
+      const allowedControllers = [...new Set([...playerIds, startedBy].filter(Boolean))];
 
       if (selectedPlayers.length >= 3) {
         try {
+          // matchMeta bilgilerini hazırla
+          const matchMeta = {
+            playerIds,
+            startedBy,
+            allowedControllers,
+            salonId: SALON_INFO?.name || null,
+            salonCity: SALON_INFO?.city || null
+          };
+          
+          console.log("🔐 Survival matchMeta - playerIds:", playerIds, "startedBy:", startedBy, "allowedControllers:", allowedControllers);
+          
           await sendRemoteStartCommand({
             mode: "survival",
             players: selectedPlayers,
             settings: {}
-          }, SALON_INFO.tables[0].id);
+          }, SALON_INFO.tables[0].id, matchMeta);
           setErrorMessage("📡 Komut Başarıyla Gönderildi!");
           setTimeout(() => setErrorMessage(null), 3000);
         } catch (error) {
