@@ -5,6 +5,14 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 **🚨 SONRAKİ OTURUM İÇİN ÖNCELİKLİ GÖREVLER (CRITICAL FOR NEXT SESSION)**
 Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak ele alınacaktır.
 
+- [ ] **🔴 FCM VAPID Key Aktivasyonu:** Firebase Console'dan VAPID key al ve push notification sistemini aktifleştir:
+  1. Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
+  2. "Generate key pair" tıkla
+  3. VAPID key'i `src/services/firebase.js` dosyasındaki `VAPID_KEY` yerine yaz
+  4. `export_package/.../firebase.js` dosyasına da aynı key'i ekle
+  5. Cloud Functions deploy et: `cd functions && npm install && firebase deploy --only functions`
+  6. Kullanıcı girişinde `registerFCMToken(userId)` çağrısı ekle (StartScreen veya App.js)
+  
 - [ ] **Sanal Klavye Devamı:** Inline klavye davranışlarını finalize et (tuş dizilimi, fokus, ekstra kısayollar).
 - [ ] **QR Hatırlatması:** Her oturum başında `npm run generate-qr -- --host <IP> --port <PORT>` komutunu çalıştırarak güncel yerel IP/port için `public/qr-current.png` dosyasını yenile.
 
@@ -39,46 +47,45 @@ Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak
 ---
 
 **🔄 ŞU AN ÜZERİNDE ÇALIŞILAN GÖREV:**
-**Multi-User Canlı Maç Erişimi** - 3CSCORE kayıtlı oyuncuların kendi maçlarını mobil cihazlarından takip ve kontrol edebilmeleri.
+**Multi-User Canlı Maç Erişimi** - Push Notification sistemi hazır, VAPID key aktivasyonu bekleniyor.
 
 ---
 
-## 📱 MULTİ-USER CANLI MAÇ ERİŞİMİ (PLANLANMIŞ)
-**Durum:** 📋 Planlandı (11 Aralık 2025)
+## 📱 MULTİ-USER CANLI MAÇ ERİŞİMİ (AKTİF GELİŞTİRME)
+**Durum:** 🚧 Geliştiriliyor (18 Aralık 2025)
 **Açıklama:** Terminal veya mobil'den maç başlatıldığında, maçta oyuncu olarak eklenen 3CSCORE kullanıcılarının "Canlı Maç Takip ve Kontrol" ekranına erişebilmesi.
 
-### Faz 1: Maç Verisine Player ID Ekleme
-- [ ] `sendRemoteStartCommand` fonksiyonuna `playerIds[]` dizisi ekle
-- [ ] `updateTableStatus` fonksiyonuna `playerIds[]` dizisi ekle
-- [ ] `startedBy` alanı ekle (maçı başlatan kullanıcı)
-- [ ] `allowedControllers[]` listesi ekle
+### Faz 1: Maç Verisine Player ID Ekleme ✅
+- [x] `sendRemoteStartCommand` fonksiyonuna `playerIds[]` dizisi ekle
+- [x] `updateTableStatus` fonksiyonuna `matchMeta` parametresi ekle
+- [x] `startedBy` alanı ekle (maçı başlatan kullanıcı)
+- [x] `allowedControllers[]` listesi ekle
 
-### Faz 2: Kullanıcı Kimliği Sistemi
-- [ ] `loggedInUser` prop'unu aktif kullan
-- [ ] Kullanıcı ID'si yoksa Firebase Anonymous Auth ile geçici kimlik oluştur
+### Faz 2: Kullanıcı Kimliği Sistemi (Kısmi ✅)
+- [x] `loggedInUser` prop'unu aktif kullan (MobileController)
+- [x] `currentUser` state kullanımı (StartScreen)
+- [ ] Firebase Anonymous Auth ile geçici kimlik oluştur (opsiyonel)
 - [ ] localStorage ile oturum devam ettir
-- [ ] FCM token yönetimi (kullanıcı bazlı)
 
-### Faz 3: Erişim Kontrolü
-- [ ] MobileController'da `playerIds[]` veya `startedBy` kontrolü
-- [ ] Yetkisiz kullanıcılara `readOnly=true` zorla
-- [ ] Canlı Maçlar listesinde yetki bazlı buton gösterimi ("KONTROL ET" vs "İZLE")
+### Faz 3: Erişim Kontrolü ✅
+- [x] MobileController'da `allowedControllers[]` kontrolü
+- [x] Yetkisiz kullanıcılara `readonly` badge gösterimi
+- [x] `canControl` useMemo ile yetki hesaplama
 
-### Faz 4: Push Notification Sistemi (Opsiyonel)
-- [ ] Firebase Cloud Messaging (FCM) kurulumu
-- [ ] Service Worker (`firebase-messaging-sw.js`) oluştur
-- [ ] Cloud Function: Maç başladığında oyunculara bildirim gönder
-- [ ] Deep link desteği: `?liveMatch=table_1&control=true`
-- [ ] Bildirime tıklanınca doğru ekrana yönlendirme
+### Faz 4: Push Notification Sistemi (VAPID KEY BEKLİYOR ⏳)
+- [x] Firebase Cloud Messaging (FCM) fonksiyonları (`firebase.js`)
+- [x] Service Worker (`public/firebase-messaging-sw.js`) oluşturuldu
+- [x] Cloud Function (`functions/index.js`) oluşturuldu - `notification_queue` dinler
+- [x] `sendRemoteStartCommand` notification_queue'ya otomatik yazar
+- [x] startedBy hariç diğer oyunculara bildirim gönderme mantığı
+- [ ] **⏳ VAPID Key alma ve ekleme (Firebase Console)**
+- [ ] **⏳ Cloud Functions deploy (`firebase deploy --only functions`)**
+- [ ] **⏳ `registerFCMToken(userId)` çağrısı ekleme**
+- [ ] Deep link desteği: `/?mode=controller&table=table_1`
 
 ### Güvenlik
 - [ ] Firebase Security Rules güncelle
-- [ ] `live_matches` ve `match_commands` için kullanıcı bazlı yazma kısıtlamaları
-
-### Sorular (Karar Bekliyor)
-- [ ] Ana 3CSCORE uygulaması FCM kullanıyor mu?
-- [ ] Aynı anda birden fazla oyuncu kumanda kullanabilir mi? (Çakışma yönetimi)
-- [ ] iOS Safari desteği gerekli mi? (iOS 16.4+ gerekir)
+- [ ] `live_matches` ve `notification_queue` için yazma kısıtlamaları
 
 ---
 
