@@ -482,7 +482,7 @@ export function listenToViewerCount(tableId, onCountChange) {
 // --- FCM (Firebase Cloud Messaging) FUNCTIONS ---
 
 // FCM VAPID Key (Firebase Console > Project Settings > Cloud Messaging > Web Push certificates)
-const VAPID_KEY = 'YOUR_VAPID_KEY_HERE'; // TODO: Firebase Console'dan alınacak
+const VAPID_KEY = 'BN9RixtgBJhaA2AZ5D5VjSUsq1wo-XSCVjq0PG07PYnWbcTlbweUGlvAt2696k6dS2WNboRU7OHoQ3Hg3wqwTvo';
 
 let messaging = null;
 

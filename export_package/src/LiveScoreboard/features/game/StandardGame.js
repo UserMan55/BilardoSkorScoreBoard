@@ -213,7 +213,15 @@ function StandardGame({
   const player1Stats = useMemo(() => calculateHRStats(player1Runs), [player1Runs]);
   const player2Stats = useMemo(() => calculateHRStats(player2Runs), [player2Runs]);
   const player1AVG = useMemo(() => calculateAVG(player1Score, inning), [player1Score, inning]);
-  const player2AVG = useMemo(() => calculateAVG(player2Score, inning), [player2Score, inning]);
+  
+  // 2. oyuncu için istaka hesaplaması:
+  // 2. oyuncunun gerçek istaka sayısı = kaç kez run eklediği
+  // player2Runs dizisinin uzunluğu bize 2. oyuncunun kaç istaka oynadığını verir
+  const player2Inning = useMemo(() => {
+    return player2Runs.length;
+  }, [player2Runs.length]);
+  
+  const player2AVG = useMemo(() => calculateAVG(player2Score, player2Inning), [player2Score, player2Inning]);
 
   // Masa durumunu canlı olarak güncelle (Live Sync)
   useEffect(() => {
@@ -351,10 +359,10 @@ function StandardGame({
     
     if (result.success) {
       console.log("✅ Maç başarıyla kaydedildi! ID:", result.id);
-      showNotification("✅ Maç sonucu kaydedildi!", 'success', 3000);
+      showNotification("✅ Maç verileri kaydedildi!", 'success', 3000);
     } else {
       console.error("❌ Maç kaydedilemedi:", result.error);
-      showNotification("❌ Maç kaydedilemedi!", 'warning', 3000);
+      showNotification("❌ Maç verileri kaydedilemedi!", 'warning', 3000);
     }
   };
 
@@ -673,12 +681,13 @@ function StandardGame({
             setModalFocusIndex(0);
          } else if (e.key === 'Enter') {
             console.log('🔴 ENTER pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
-            if (gameEnded) {
-              if (modalFocusIndex === 1) callHandler('handleNewMatch');
-              else callHandler('handleRematch');
-            } else if (showSaveConfirm) {
+            // showSaveConfirm önce kontrol edilmeli çünkü zIndex'te daha üstte
+            if (showSaveConfirm) {
               if (modalFocusIndex === 1) callHandler('handleConfirmSave');
               else callHandler('handleCancelSave');
+            } else if (gameEnded) {
+              if (modalFocusIndex === 1) callHandler('handleNewMatch');
+              else callHandler('handleRematch');
             } else if (showMenuOverlay) {
                if (modalFocusIndex === 1) {
                   // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
@@ -739,20 +748,37 @@ function StandardGame({
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex]);
 
-  const handleConfirmSave = () => {
+  const handleConfirmSave = (e) => {
+    console.log('🟢 handleConfirmSave called');
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (pendingSaveData) {
       saveMatchResult(pendingSaveData.matchWinner, pendingSaveData.penaltyWinner);
     }
     setShowSaveConfirm(false);
     setPendingSaveData(null);
+    console.log('🟢 showSaveConfirm set to false');
+    // Maç sonu ekranı gameEnded=true ile zaten görünecek
   };
 
-  const handleCancelSave = () => {
-    if (showSaveConfirm) {
-      showNotification("ℹ️ Maç sonucu kaydedilmedi.", 'info', 3000);
+  const handleCancelSave = (e) => {
+    // Sadece modal gerçekten açıksa çalış
+    if (!showSaveConfirm) {
+      console.log('🔴 handleCancelSave ignored - modal not open');
+      return;
+    }
+    console.log('🔴 handleCancelSave called');
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
     }
     setShowSaveConfirm(false);
     setPendingSaveData(null);
+    console.log('🔴 showSaveConfirm set to false');
+    showNotification("ℹ️ Maç verileri kaydedilmedi.", 'info', 3000);
+    // Maç sonu ekranı gameEnded=true ile zaten görünecek
   };
 
   const handleMenuConfirm = () => {
@@ -869,13 +895,16 @@ function StandardGame({
     let newPlayer1Score = player1Score;
     let newPlayer2Score = player2Score;
     
-    if (runCount > 0) {
-      if (currentTurn === 0) {
-        setPlayer1Runs([...player1Runs, runCount]);
+    // Run'ı her zaman kaydet (0 dahil) - AVG hesaplaması için gerekli
+    if (currentTurn === 0) {
+      setPlayer1Runs([...player1Runs, runCount]);
+      if (runCount > 0) {
         newPlayer1Score = player1Score + runCount;
         setPlayer1Score(newPlayer1Score);
-      } else {
-        setPlayer2Runs([...player2Runs, runCount]);
+      }
+    } else {
+      setPlayer2Runs([...player2Runs, runCount]);
+      if (runCount > 0) {
         newPlayer2Score = player2Score + runCount;
         setPlayer2Score(newPlayer2Score);
       }
@@ -1032,23 +1061,27 @@ function StandardGame({
 
       {/* Save Confirmation Overlay */}
       {showSaveConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(5px)',
-          zIndex: 10001, // Higher than game ended overlay (1000)
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-            padding: '40px',
-            borderRadius: '20px',
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 10001, // Higher than game ended overlay (1000)
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              padding: '40px',
+              borderRadius: '20px',
             border: '2px solid #3b82f6',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
             textAlign: 'center',
@@ -1129,8 +1162,8 @@ function StandardGame({
         />
       )}
 
-      {/* Oyun Sonu Overlay */}
-      {gameEnded && (
+      {/* Oyun Sonu Overlay - Kaydetme dialogu açıkken gizle */}
+      {gameEnded && !showSaveConfirm && (
         <div style={{
           position: 'fixed',
           top: 0,
