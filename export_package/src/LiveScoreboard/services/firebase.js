@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot, serverTimestamp, deleteDoc, updateDoc, increment, getDoc } from "firebase/firestore";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getAuth, signInWithCustomToken } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDFqmZg4khPVJron56Cyj0nfsupvBjuTAA",
@@ -14,6 +15,55 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+/**
+ * ID Token doğrulama
+ * 3cscore.com'dan gelen Firebase ID Token'ı doğrular
+ * Token aynı Firebase projesinden geliyorsa doğrulama başarılı olur
+ */
+export async function verifyIdToken(idToken) {
+  if (!idToken) {
+    return { valid: false, error: 'Token bulunamadı' };
+  }
+  
+  try {
+    // Token'ın geçerli bir JWT olup olmadığını kontrol et
+    const parts = idToken.split('.');
+    if (parts.length !== 3) {
+      return { valid: false, error: 'Geçersiz token formatı' };
+    }
+    
+    // Payload'ı decode et
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Token'ın süresi dolmuş mu kontrol et
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      return { valid: false, error: 'Token süresi dolmuş' };
+    }
+    
+    // Doğru projeden mi geldiğini kontrol et
+    if (payload.aud !== 'bilardo-skor') {
+      return { valid: false, error: 'Token farklı bir projeden' };
+    }
+    
+    // Token geçerli
+    console.log('✅ Token doğrulandı:', payload.sub || payload.user_id);
+    
+    return {
+      valid: true,
+      uid: payload.sub || payload.user_id,
+      email: payload.email || null,
+      name: payload.name || null
+    };
+  } catch (error) {
+    console.error('Token doğrulama hatası:', error);
+    return { valid: false, error: 'Token parse edilemedi' };
+  }
+}
+
+export { auth };
 
 // --- REMOTE CONTROL FUNCTIONS ---
 

@@ -59,10 +59,38 @@ const filterPlayersByCity = (players = [], city) => {
   return filtered.length > 0 ? filtered : players;
 };
 
-function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
+// URL'den kullanıcı bilgilerini oku (live.3cscore.com → bilardo-skor.web.app yönlendirmesi için)
+const getUserFromURLParams = () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId');
+    const name = params.get('name');
+    
+    // En az userId veya name varsa URL'den kullanıcı var demektir
+    if (userId || name) {
+      console.log('🌐 URL parametrelerinden kullanıcı bilgisi okundu');
+      return {
+        id: userId || `url_user_${Date.now()}`,
+        fullName: name ? decodeURIComponent(name) : 'Misafir Kullanıcı',
+        city: params.get('city') ? decodeURIComponent(params.get('city')) : null,
+        salon: params.get('salon') ? decodeURIComponent(params.get('salon')) : null,
+        fromURL: true // URL'den geldiğini işaretle
+      };
+    }
+  } catch (error) {
+    console.warn('URL parametreleri okunamadı:', error);
+  }
+  return null;
+};
+
+function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = false, onShowController }) {
   const [activeTab, setActiveTab] = useState("2vs2");
   const [names, setNames] = useState([]);
-  const [deviceMode, setDeviceMode] = useState(null);
+  // isMobileOnly prop'u varsa direkt controller modunda başla
+  // DEBUG: Mobil modda başlangıç kontrolü
+  console.log('🔧 StartScreen INIT - isMobileOnly:', isMobileOnly);
+  const [deviceMode, setDeviceMode] = useState(isMobileOnly ? 'controller' : null);
+  console.log('🔧 StartScreen INIT - deviceMode:', isMobileOnly ? 'controller' : null);
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
   const [showMobileController, setShowMobileController] = useState(false);
   const [controllerReadOnly, setControllerReadOnly] = useState(false);
@@ -676,13 +704,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
 
     console.log("🔍 Kullanıcı Arama Başladı. Toplam Oyuncu:", names.length);
 
+    // 1. Öncelik: Parent component'ten gelen loggedInUser (prop)
     if (loggedInUser) {
-      console.log("✅ Giriş Yapan Kullanıcı:", loggedInUser);
+      console.log("✅ Giriş Yapan Kullanıcı (prop):", loggedInUser);
       setCurrentUser(loggedInUser);
       setFilteredPlayers(filterPlayersByCity(names, loggedInUser.city));
       return;
     }
 
+    // 2. Öncelik: URL parametrelerinden gelen kullanıcı (live.3cscore.com yönlendirmesi)
+    const urlUser = getUserFromURLParams();
+    if (urlUser) {
+      console.log("✅ URL'den Gelen Kullanıcı:", urlUser);
+      setCurrentUser(urlUser);
+      if (urlUser.city) {
+        setFilteredPlayers(filterPlayersByCity(names, urlUser.city));
+      } else {
+        setFilteredPlayers(names);
+      }
+      return;
+    }
+
+    // 3. Fallback: Varsayılan kullanıcı
     const normalizedDefaultName = normalizeSearchText(DEFAULT_USER_PROFILE.fullName);
     const fallbackUser = names.find((user) => normalizeSearchText(user.fullName) === normalizedDefaultName);
 
@@ -744,7 +787,14 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
   }, []);
 
   // Cihaz tipini algıla - Mobil/Masaüstü otomatik algılama
+  // NOT: isMobileOnly prop'u true ise bu algılama atlanır (zaten mobil mod zorlanmış)
   useEffect(() => {
+    // isMobileOnly prop'u varsa otomatik algılama yapma, zaten controller modunda
+    if (isMobileOnly) {
+      console.log('📱 StartScreen: isMobileOnly=true, algılama atlanıyor');
+      return;
+    }
+    
     const userAgent = navigator.userAgent;
     const screenWidth = window.innerWidth;
     const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -777,7 +827,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser }) {
       // Bu sayede önceki oturumdan kalan 'BUSY' durumu temizlenir.
       updateTableStatus(SALON_INFO.tables[0].id, 'IDLE');
     }
-  }, []);
+  }, [isMobileOnly]);
 
   // Masa durumunu dinle (Mobil/Controller modu için)
   useEffect(() => {

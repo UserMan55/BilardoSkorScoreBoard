@@ -1437,3 +1437,120 @@
   text-align: right;
   font-weight: bold;
 }
+
+/* Exit Confirm Modal */
+.exit-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.exit-confirm-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid rgba(255, 193, 7, 0.5);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 193, 7, 0.2);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.exit-confirm-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.exit-confirm-title {
+  font-size: 22px;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.exit-confirm-message {
+  font-size: 16px;
+  color: #ffffff;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.exit-confirm-warning {
+  font-size: 13px;
+  color: #ff6b6b;
+  margin-bottom: 25px;
+  padding: 8px;
+  background: rgba(255, 107, 107, 0.15);
+  border-radius: 8px;
+}
+
+.exit-confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.exit-confirm-btn {
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.exit-confirm-btn.cancel {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  color: #ffffff;
+}
+
+.exit-confirm-btn.cancel:hover {
+  background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
+  transform: scale(1.02);
+}
+
+.exit-confirm-btn.confirm {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(229, 62, 62, 0.4);
+}
+
+.exit-confirm-btn.confirm:hover {
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(229, 62, 62, 0.5);
+}
+
+.exit-confirm-btn:active {
+  transform: scale(0.98);
+}

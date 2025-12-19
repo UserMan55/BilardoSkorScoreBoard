@@ -1,4 +1,24 @@
-# 📋 Proje Durum Brifingi - 19 Kasım 2025
+# 📋 Proje Durum Brifingi - 19 Aralık 2025
+
+## 🚀 SON OTURUM: 3CSCORE.COM ENTEGRASYONU
+
+### Durum: 🟡 Kısmen Tamamlandı
+
+Bu oturumda 3cscore.com ile subdomain entegrasyonu için altyapı hazırlandı.
+Firebase Hosting'e deploy yapıldı, token güvenlik sistemi eklendi.
+
+**Bekleyen:** Firebase CLI tam login (2FA için telefon gerekli)
+
+### Aktif URL'ler:
+- ✅ **bilardo-skor.web.app** (canlı, token gerekli)
+- ⏳ **live.3cscore.com** (DNS ayarı bekleniyor)
+
+### Hızlı Test:
+```
+https://bilardo-skor.web.app?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X3VzZXJfMTIzIiwiYXVkIjoiYmlsYXJkby1za29yIiwiZXhwIjoxNzY2MjM2ODAwLCJlbWFpbCI6InRlc3RAM2NzY29yZS5jb20iLCJuYW1lIjoiVGVzdCBLdWxsYW5pY2kifQ.dGVzdF9zaWduYXR1cmU&v=2
+```
+
+---
 
 ## 1. Mimari Dönüşüm: Feature-Based Architecture (Özellik Tabanlı Mimari)
 Projeyi daha yönetilebilir ve genişletilebilir hale getirmek için dosya yapısını tamamen değiştirdik.

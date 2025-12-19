@@ -2,8 +2,145 @@
 
 Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında ilgili madde işaretlenmelidir.
 
-**🚨 SONRAKİ OTURUM İÇİN ÖNCELİKLİ GÖREVLER (CRITICAL FOR NEXT SESSION)**
-Bu maddeler bir sonraki çalışma oturumunda (cihaz fark etmeksizin) ilk olarak ele alınacaktır.
+---
+## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
+**Tarih:** 19 Aralık 2025 - Oturum Sonu
+
+### ✅ BU OTURUMDA TAMAMLANANLAR:
+1. ✅ Firebase CLI kuruldu (v15.1.0) ve Service Account ile çalışıyor
+2. ✅ Mobil build ayrıştırması yapıldı (`npm run build:mobile`)
+3. ✅ Firebase Hosting'e deploy edildi (bilardo-skor.web.app)
+4. ✅ Token tabanlı güvenlik sistemi eklendi (3cscore.com'dan authentication)
+5. ✅ StartScreen'de `isMobileOnly` prop desteği eklendi
+6. ✅ Masaüstü algılama useEffect'i mobil build'de devre dışı bırakıldı
+7. ✅ Entegrasyon talimatları dosyası güncellendi (v3.0)
+8. ✅ MobileController'da çıkış onay modalı eklendi
+
+### ⏳ YAPILAMAYAN / BEKLEYEN GÖREVLER:
+1. ⏳ **Firebase CLI Tam Login (2FA)** - Telefon gerekli
+2. ⏳ **Cloud Functions Deploy** - Service Account izinleri yetersiz, tam login gerekli
+3. ⏳ **VAPID Key Aktivasyonu** - Firebase Console erişimi için login gerekli
+4. ⏳ **Firebase Custom Domain (live.3cscore.com)** - Console erişimi gerekli
+
+### 🔴 SONRAKİ OTURUMDA İLK YAPILACAKLAR:
+
+- [ ] **1. Firebase Tam Login (TELEFON GELİNCE):**
+  ```powershell
+  firebase login
+  # 2FA kodu gir
+  ```
+
+- [ ] **2. Cloud Functions Deploy:**
+  ```powershell
+  cd functions
+  npm install
+  firebase deploy --only functions
+  ```
+
+- [ ] **3. Firebase Custom Domain Ayarı:**
+  - Firebase Console > Hosting > Add custom domain
+  - `live.3cscore.com` ekle
+  - DNS doğrulamasını bekle
+
+- [ ] **4. VAPID Key Aktivasyonu:**
+  - Firebase Console > Project Settings > Cloud Messaging
+  - Web Push certificates > Generate key pair
+  - Key'i `src/services/firebase.js` içine yapıştır
+
+- [ ] **5. Token Sistemini Test Et:**
+  - 3cscore.com'dan gerçek Firebase token ile test
+  - Şu an yapay test token kullanılıyor
+
+---
+
+## 📋 BU OTURUMUN ÖZETİ (19 Aralık 2025)
+
+### 🎯 HEDEF:
+3cscore.com sitesi ile entegrasyon için subdomain (live.3cscore.com) üzerinden
+skorboard uygulamasına güvenli erişim sağlamak.
+
+### 🏗️ MİMARİ KARARLAR:
+
+1. **Subdomain Yaklaşımı:** 
+   - 3cscore.com → live.3cscore.com yönlendirmesi
+   - Firebase Hosting: bilardo-skor.web.app
+   - DNS CNAME: live → bilardo-skor.web.app
+
+2. **İki Ayrı Build:**
+   - `npm run build:mobile` → Firebase'e deploy (mobil kullanıcılar için)
+   - `npm run build:pi` → Raspberry Pi'de localhost'ta çalışır
+
+3. **Token Güvenliği:**
+   - 3cscore.com'dan Firebase ID Token alınır
+   - Token URL parametresi olarak gönderilir
+   - Skorboard uygulaması token'ı doğrular
+   - Token olmadan erişim ENGELLENİR
+
+### 🔧 TEKNİK DEĞİŞİKLİKLER:
+
+| Dosya | Değişiklik |
+|-------|------------|
+| `App.js` | `isPiMode` kontrolü, token doğrulama, `AccessDenied` ve `AuthLoading` componentleri |
+| `StartScreen.js` | `isMobileOnly` prop, cihaz algılama bypass |
+| `firebase.js` | `verifyIdToken()` fonksiyonu eklendi |
+| `package.json` | `build:mobile`, `build:pi`, `deploy:mobile` scriptleri |
+| `firebase.json` | `functions` bölümü eklendi |
+| `functions/index.js` | `verifyToken`, `verifyTokenHttp` Cloud Functions (deploy bekleniyor) |
+| `3CSCORE_ENTEGRASYON_TALIMATI.txt` | v3.0 - Token zorunluluğu, kod örnekleri |
+
+### 🧪 TEST BİLGİLERİ:
+
+**Test Token (20 Aralık 2025'e kadar geçerli):**
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X3VzZXJfMTIzIiwiYXVkIjoiYmlsYXJkby1za29yIiwiZXhwIjoxNzY2MjM2ODAwLCJlbWFpbCI6InRlc3RAM2NzY29yZS5jb20iLCJuYW1lIjoiVGVzdCBLdWxsYW5pY2kifQ.dGVzdF9zaWduYXR1cmU
+```
+
+**Test URL:**
+```
+https://bilardo-skor.web.app?token=<yukarıdaki_token>&v=2
+```
+
+### 🐛 ÇÖZÜLEN SORUNLAR:
+
+1. **LISTENING ekranı görünüyordu** → `isMobileOnly` prop ile çözüldü
+2. **useEffect deviceMode sıfırlıyordu** → `isMobileOnly` kontrolü eklendi
+3. **MobileController açılıyordu** → `getInitialScreen()` düzeltildi
+
+### 📁 ARKADAŞA GÖNDERİLECEK DOSYA:
+`3CSCORE_ENTEGRASYON_TALIMATI.txt` - DNS ayarı ve token entegrasyonu talimatları
+
+---
+
+### 🔥 FIREBASE CLI LOGIN & VAPID KEY İŞLEMLERİ (19 Aralık 2025)
+**Durum:** ⏳ Telefon gelince tamamlanacak
+
+Firebase CLI kuruldu (v15.1.0) ve Service Account ile geçici olarak çalışıyor.
+Ancak **tam login** için telefon (2FA) gerekiyor. Telefon geldiğinde:
+
+```powershell
+# 1. Firebase CLI'a giriş yap
+firebase login
+
+# 2. Giriş başarılı olduktan sonra VAPID Key al:
+#    Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
+#    "Generate key pair" tıkla ve key'i kopyala
+
+# 3. VAPID key'i koda ekle:
+#    - src/services/firebase.js → VAPID_KEY değişkenine yapıştır
+#    - export_package/src/LiveScoreboard/services/firebase.js → aynı key
+
+# 4. Cloud Functions deploy et:
+cd functions
+npm install
+firebase deploy --only functions
+
+# 5. Test et - Push notification çalışıyor mu?
+```
+
+**NOT:** Service Account ile `firebase deploy --only hosting` çalışıyor.
+Ancak `firebase deploy --only functions` için tam login gerekebilir.
+
+---
 
 - [ ] **🔴 FCM VAPID Key Aktivasyonu:** Firebase Console'dan VAPID key al ve push notification sistemini aktifleştir:
   1. Firebase Console > Project Settings > Cloud Messaging > Web Push certificates

@@ -29,11 +29,11 @@
 }
 
 .timer-display-text {
-  font-size: 40px;
+  font-size: 16px;
   color: #000000;
   font-weight: 800;
   font-family: 'Courier New', monospace;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   position: absolute;
   top: 50%;
   left: 50%;

@@ -15,7 +15,12 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:mobile": "set REACT_APP_BUILD_TARGET=mobile&& react-scripts start",
+    "start:pi": "set REACT_APP_BUILD_TARGET=pi&& react-scripts start",
     "build": "react-scripts build",
+    "build:mobile": "set REACT_APP_BUILD_TARGET=mobile&& react-scripts build",
+    "build:pi": "set REACT_APP_BUILD_TARGET=pi&& react-scripts build",
+    "deploy:mobile": "npm run build:mobile && firebase deploy --only hosting",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "sync-export": "powershell -ExecutionPolicy Bypass -File ./sync-to-export.ps1",

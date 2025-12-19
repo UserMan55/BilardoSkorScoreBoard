@@ -1,0 +1,195 @@
+================================================================================
+               LIVE.3CSCORE.COM ENTEGRASYON TALİMATLARI
+                    19 Aralık 2025 (v3.0 - Subdomain Entegrasyonu)
+================================================================================
+
+Merhaba!
+
+Bu belge, 3cscore.com sitesine Canlı Skorboard özelliğinin eklenmesi için
+yapılması gereken adımları içermektedir.
+
+================================================================================
+🎯 ENTEGRASYON YAKLAŞIMI
+================================================================================
+
+Skorboard uygulaması bir SUBDOMAIN üzerinden çalışacak:
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                                                                 │
+    │   3cscore.com  ─────────>  live.3cscore.com                     │
+    │   (Ana Site)      token     (Skorboard)                         │
+    │                   + user                                        │
+    │                   bilgileri                                     │
+    │                                                                 │
+    └─────────────────────────────────────────────────────────────────┘
+
+• Kullanıcılar 3cscore.com'da GİRİŞ YAPAR
+• "Canlı Skorboard" butonuna tıklayınca live.3cscore.com'a YÖNLENDİRİLİR
+• 3cscore.com'dan gelen Firebase token ile KİMLİK DOĞRULANIR
+• Token olmadan doğrudan live.3cscore.com'a erişim ENGELLENİR
+
+================================================================================
+⚠️  GÜVENLİK
+================================================================================
+
+live.3cscore.com adresine SADECE 3cscore.com üzerinden erişilebilir!
+
+Doğrudan erişim denendiğinde:
+┌─────────────────────────────────────────┐
+│                  🚫                      │
+│         Erişim Engellendi               │
+│                                          │
+│  Bu uygulamaya erişim için              │
+│  3cscore.com üzerinden giriş            │
+│  yapmanız gerekmektedir.                │
+│                                          │
+│      [ 3cscore.com'a Git ]              │
+└─────────────────────────────────────────┘
+
+================================================================================
+ADIM 1: DNS AYARI (Senin Tarafın)
+================================================================================
+
+Domain yönetim panelinde (Cloudflare, GoDaddy, Namecheap vb.) 
+şu CNAME kaydını ekle:
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  Type   : CNAME                                          │
+    │  Host   : live                                           │
+    │  Target : bilardo-skor.web.app                           │
+    │  TTL    : 3600 (veya Auto)                               │
+    └──────────────────────────────────────────────────────────┘
+
+DNS yayılması 5-30 dakika sürebilir.
+
+================================================================================
+ADIM 2: YÖNLENDİRME BUTONU (Senin Tarafın)
+================================================================================
+
+3cscore.com'da kullanıcıları skorboard'a yönlendirecek buton ekle.
+Token zorunlu - olmadan çalışmaz!
+
+REACT ÖRNEK KOD (Firebase v9+):
+-------------------------------
+
+import { getAuth } from 'firebase/auth';
+
+function LiveScoreboardButton({ user }) {
+  const handleClick = async () => {
+    try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        alert('Lütfen önce giriş yapın');
+        return;
+      }
+      
+      // ⚠️ ZORUNLU: Firebase ID Token al
+      const idToken = await currentUser.getIdToken(true);
+      
+      // URL parametrelerini hazırla
+      const params = new URLSearchParams({
+        token: idToken,           // ⚠️ ZORUNLU
+        userId: currentUser.uid,
+        name: user?.fullName || currentUser.displayName || '',
+        city: user?.city || '',
+        salon: user?.salon || ''
+      });
+      
+      // Yönlendir
+      window.location.href = `https://live.3cscore.com?${params.toString()}`;
+      
+    } catch (error) {
+      console.error('Token alınamadı:', error);
+      alert('Bir hata oluştu');
+    }
+  };
+
+  return (
+    <button onClick={handleClick}>
+      🎱 Canlı Skorboard
+    </button>
+  );
+}
+
+================================================================================
+URL PARAMETRELERİ
+================================================================================
+
+ZORUNLU:
+    token   : Firebase ID Token (getIdToken() ile alınır)
+
+OPSİYONEL:
+    userId  : Kullanıcı ID
+    name    : Kullanıcı adı (URL encoded)
+    city    : Şehir
+    salon   : Salon adı
+
+ÖRNEK URL:
+https://live.3cscore.com?token=eyJhbGciOi...&name=Ahmet%20YILMAZ&city=Samsun
+
+⚠️  TOKEN OLMADAN ÇALIŞMAZ:
+https://live.3cscore.com?name=Ahmet  ← ERİŞİM ENGELLENİR
+
+================================================================================
+TOKEN BİLGİLERİ
+================================================================================
+
+• Firebase ID Token'lar 1 saat geçerlidir
+• Her tıklamada getIdToken(true) ile TAZE token al
+• Token'ı localStorage'da SAKLAMA
+• Token URL'de HTTPS ile şifrelenir
+
+================================================================================
+TEST ADIMLARI
+================================================================================
+
+1. ✅ DOĞRU YÖNTEM:
+   - 3cscore.com'da giriş yap
+   - "Canlı Skorboard" butonuna tıkla
+   - live.3cscore.com açılmalı → Skorboard ekranı ✓
+
+2. ❌ GÜVENLİK TESTİ:
+   - Tarayıcıya doğrudan live.3cscore.com yaz
+   - "Erişim Engellendi" ekranı görmeli ✓
+
+================================================================================
+YAPILACAKLAR ÖZETİ
+================================================================================
+
+SENİN YAPACAKLARIN:
+┌─────────────────────────────────────────────────────────────────┐
+│ [ ] DNS'e CNAME ekle: live → bilardo-skor.web.app               │
+│ [ ] Butona getIdToken() ile token alma ekle                     │
+│ [ ] Token'ı URL'e ekleyerek yönlendir                           │
+│ [ ] Test et                                                     │
+└─────────────────────────────────────────────────────────────────┘
+
+BİZİM YAPACAKLARIMIZ:
+┌─────────────────────────────────────────────────────────────────┐
+│ [✓] Mobil build deploy (bilardo-skor.web.app)                   │
+│ [✓] Token doğrulama sistemi                                     │
+│ [✓] Erişim engelleme ekranı                                     │
+│ [ ] Firebase custom domain (live.3cscore.com) - DNS sonrası     │
+│ [ ] SSL sertifikası (otomatik gelecek)                          │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================
+ŞU AN AKTİF ADRESLER
+================================================================================
+
+PROD   : https://bilardo-skor.web.app  (aktif, token gerekli)
+HEDEF  : https://live.3cscore.com      (DNS ayarı bekleniyor)
+
+================================================================================
+İLETİŞİM
+================================================================================
+
+Sorularınız için bize ulaşın.
+
+================================================================================
+
+Sorularınız için bize ulaşın.
+
+================================================================================

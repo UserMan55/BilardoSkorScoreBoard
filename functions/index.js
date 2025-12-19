@@ -170,3 +170,72 @@ exports.cleanupOldNotifications = functions.pubsub
     console.log(`🧹 ${oldNotifications.size} eski bildirim silindi`);
     return null;
   });
+
+/**
+ * Firebase ID Token Doğrulama
+ * 3cscore.com'dan gelen kullanıcıların token'ını doğrular
+ */
+exports.verifyToken = functions.https.onCall(async (data, context) => {
+  const { idToken } = data;
+  
+  if (!idToken) {
+    throw new functions.https.HttpsError('invalid-argument', 'Token gerekli');
+  }
+  
+  try {
+    // Token'ı doğrula
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    
+    console.log('✅ Token doğrulandı:', decodedToken.uid);
+    
+    return {
+      valid: true,
+      uid: decodedToken.uid,
+      email: decodedToken.email || null,
+      name: decodedToken.name || null
+    };
+  } catch (error) {
+    console.error('❌ Token doğrulama hatası:', error.message);
+    throw new functions.https.HttpsError('unauthenticated', 'Geçersiz token');
+  }
+});
+
+/**
+ * HTTP endpoint - CORS destekli token doğrulama
+ * Frontend'den doğrudan çağrılabilir
+ */
+exports.verifyTokenHttp = functions.https.onRequest(async (req, res) => {
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  
+  const idToken = req.body?.idToken || req.query?.idToken;
+  
+  if (!idToken) {
+    res.status(400).json({ valid: false, error: 'Token gerekli' });
+    return;
+  }
+  
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    
+    console.log('✅ Token doğrulandı:', decodedToken.uid);
+    
+    res.json({
+      valid: true,
+      uid: decodedToken.uid,
+      email: decodedToken.email || null,
+      name: decodedToken.name || null
+    });
+  } catch (error) {
+    console.error('❌ Token doğrulama hatası:', error.message);
+    res.status(401).json({ valid: false, error: 'Geçersiz token' });
+  }
+});

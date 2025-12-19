@@ -18,6 +18,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
   const [matchStarting, setMatchStarting] = useState(false); // START komutu geldiğinde true
   const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
   const [allowedControllers, setAllowedControllers] = useState([]); // Kontrol yetkisi olan kullanıcılar
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Maçtan çıkış onay dialogu
 
   // Erişim kontrolü: Kullanıcı kontrol yetkisine sahip mi?
   const canControl = useMemo(() => {
@@ -223,7 +224,25 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     setMatchEnded(false);
     setMatchStarting(false);
     setStartingMatchData(null);
+    setShowExitConfirm(false);
     if (onBack) onBack();
+  };
+
+  // X butonuna tıklandığında onay dialogu göster
+  const handleExitRequest = () => {
+    setShowExitConfirm(true);
+  };
+
+  // Maçtan çıkış onaylandığında
+  const handleConfirmExit = () => {
+    // Maçı sonlandır komutu gönder
+    sendMatchCommand('END_MATCH', { reason: 'user_exit' }, tableId);
+    handleBackToHome();
+  };
+
+  // Çıkış iptal edildiğinde
+  const handleCancelExit = () => {
+    setShowExitConfirm(false);
   };
 
   const handleCommand = (command) => {
@@ -522,12 +541,28 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
           {/* Çıkış Butonu */}
           <button 
             className="header-exit-btn"
-            onClick={handleBackToHome}
+            onClick={handleExitRequest}
             title="Çıkış"
           >
             ✕
           </button>
         </div>
+
+        {/* Exit Confirm Modal */}
+        {showExitConfirm && (
+          <div className="exit-confirm-overlay">
+            <div className="exit-confirm-modal">
+              <div className="exit-confirm-icon">⚠️</div>
+              <div className="exit-confirm-title">Maçtan Çıkış</div>
+              <div className="exit-confirm-message">Maçtan çıkmak istediğinize emin misiniz?</div>
+              <div className="exit-confirm-warning">Bu işlem maçı sonlandıracaktır.</div>
+              <div className="exit-confirm-buttons">
+                <button className="exit-confirm-btn cancel" onClick={handleCancelExit}>Hayır</button>
+                <button className="exit-confirm-btn confirm" onClick={handleConfirmExit}>Evet, Çık</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Survival Stats Panel */}
         <div className="survival-stats-panel">
@@ -718,12 +753,28 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
         {/* Çıkış Butonu - readOnly modunda da görünür */}
         <button 
           className="header-exit-btn"
-          onClick={handleBackToHome}
+          onClick={handleExitRequest}
           title="Çıkış"
         >
           ✕
         </button>
       </div>
+
+      {/* Exit Confirm Modal */}
+      {showExitConfirm && (
+        <div className="exit-confirm-overlay">
+          <div className="exit-confirm-modal">
+            <div className="exit-confirm-icon">⚠️</div>
+            <div className="exit-confirm-title">Maçtan Çıkış</div>
+            <div className="exit-confirm-message">Maçtan çıkmak istediğinize emin misiniz?</div>
+            <div className="exit-confirm-warning">Bu işlem maçı sonlandıracaktır.</div>
+            <div className="exit-confirm-buttons">
+              <button className="exit-confirm-btn cancel" onClick={handleCancelExit}>Hayır</button>
+              <button className="exit-confirm-btn confirm" onClick={handleConfirmExit}>Evet, Çık</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Match Stats */}
       <div className="match-stats-panel">

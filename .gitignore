@@ -2,3 +2,6 @@
 build/
 .env
 .DS_Store
+
+# Firebase Service Account (secret)
+bilardo-skor-firebase-adminsdk-*.json

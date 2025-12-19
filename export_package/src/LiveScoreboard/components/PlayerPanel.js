@@ -6,19 +6,28 @@ function PlayerPanel({
   playerIndex = 0,
   isActive = false,
   borderColor = 'transparent',
-  timeoutLeft = 2
+  timeoutLeft = 2,
+  photoURL = null
 }) {
   const formattedAvg = Number(avg).toFixed(3);
+  
+  // Aktif oyuncu için fotoğraf boyutu büyük
+  const photoSize = isActive ? 100 : 70;
+  const photoBorder = isActive ? `4px solid ${borderColor}` : '3px solid #333';
+  const photoShadow = isActive 
+    ? `0 0 20px ${borderColor}, 0 4px 15px rgba(0,0,0,0.4)` 
+    : '0 2px 8px rgba(0,0,0,0.3)';
 
   return (
     <div style={{
       flex: 1,
       minWidth: 320,
       maxWidth: 500,
-      background: "#22283e", // Her iki panel için sabit koyu arka plan
+      background: "#22283e",
       color: 'white',
       margin: '0 0',
       padding: '15px',
+      paddingTop: '25px',
       borderRadius: 28,
       display: 'flex',
       flexDirection: 'column',
@@ -27,22 +36,82 @@ function PlayerPanel({
       border: isActive ? `4px solid ${borderColor}` : '4px solid transparent',
       fontFamily: "Arial, sans-serif",
       position: 'relative',
-      transition: 'all 0.3s ease'
+      transition: 'all 0.3s ease',
+      overflow: 'visible'
     }}>
+      {/* Oyuncu Fotoğrafı - Panelin köşesinde, dışarı taşacak şekilde */}
+      <div style={{
+        position: 'absolute',
+        top: isActive ? -30 : -15,
+        right: playerIndex === 0 ? (isActive ? -20 : -10) : 'auto',
+        left: playerIndex === 1 ? (isActive ? -20 : -10) : 'auto',
+        width: photoSize,
+        height: photoSize,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        border: photoBorder,
+        flexShrink: 0,
+        boxShadow: photoShadow,
+        background: '#1e293b',
+        zIndex: 10,
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {photoURL ? (
+          <img 
+            src={photoURL} 
+            alt={name}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/logo.png';
+              e.target.style.objectFit = 'contain';
+              e.target.style.padding = '10%';
+              e.target.style.background = '#1e293b';
+            }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+        ) : (
+          <img 
+            src="/logo.png" 
+            alt="3CScore"
+            style={{
+              width: '80%',
+              height: '80%',
+              objectFit: 'contain'
+            }}
+          />
+        )}
+      </div>
+
       {/* Oyuncu Adı Kutusu */}
       <div style={{
-        fontFamily: "Arial, sans-serif",
-        fontSize: 24,
-        fontWeight: 800,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: '10px',
-        background: '#fff', // Her iki panel için sabit beyaz arka plan
-        color: '#222', // Her iki panel için sabit koyu yazı
+        background: playerIndex === 0 ? '#FFFFFF' : '#FFD700',
         borderRadius: 12,
-        padding: '8px 0',
+        padding: '8px 16px',
         width: '96%',
-        textAlign: 'center'
+        boxSizing: 'border-box'
       }}>
-        {name}
+        <div style={{
+          fontFamily: "Arial, sans-serif",
+          fontSize: 24,
+          fontWeight: 800,
+          color: '#222',
+          textAlign: 'center',
+          flex: 1
+        }}>
+          {name}
+        </div>
       </div>
       {/* Skor Kutusu ve Timeout */}
       <div style={{
@@ -60,7 +129,7 @@ function PlayerPanel({
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
-        color: '#fff' // Her iki panel için sabit beyaz skor
+        color: playerIndex === 0 ? '#fff' : '#FFD700'
       }}>
         {score}
         {/* Timeout göstergeleri - sol alt */}
@@ -150,7 +219,7 @@ function PlayerPanel({
       <div style={{
         fontFamily: "Arial, sans-serif",
         width: '96%',
-        background: '#fff', // Her iki panel için sabit beyaz arka plan
+        background: playerIndex === 0 ? '#FFFFFF' : '#FFD700',
         borderRadius: 12,
         padding: '14px 0 8px 0',
         fontWeight: 'bold',
