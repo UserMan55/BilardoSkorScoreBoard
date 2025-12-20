@@ -4,37 +4,36 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ---
 ## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
-**Tarih:** 19 Aralık 2025 - Oturum Sonu
+**Tarih:** 20 Aralık 2025 - Oturum Güncellemesi
 
-### ✅ BU OTURUMDA TAMAMLANANLAR:
-1. ✅ Firebase CLI kuruldu (v15.1.0) ve Service Account ile çalışıyor
-2. ✅ Mobil build ayrıştırması yapıldı (`npm run build:mobile`)
-3. ✅ Firebase Hosting'e deploy edildi (bilardo-skor.web.app)
-4. ✅ Token tabanlı güvenlik sistemi eklendi (3cscore.com'dan authentication)
-5. ✅ StartScreen'de `isMobileOnly` prop desteği eklendi
-6. ✅ Masaüstü algılama useEffect'i mobil build'de devre dışı bırakıldı
-7. ✅ Entegrasyon talimatları dosyası güncellendi (v3.0)
-8. ✅ MobileController'da çıkış onay modalı eklendi
+### ✅ BU OTURUMDA TAMAMLANANLAR (20 Aralık 2025):
+1. ✅ Firebase CLI tam login yapıldı (ilhamiilhan55@gmail.com)
+2. ✅ Blaze planına yükseltildi (45 TRY bütçe limiti)
+3. ✅ Cloud Functions Node.js 20'ye güncellendi (18 decommissioned idi)
+4. ✅ Firebase Functions v2 API'ye geçildi
+5. ✅ **Cloud Functions BAŞARIYLA DEPLOY EDİLDİ:**
+   - `verifyToken` - ACTIVE ✅
+   - `verifyTokenHttp` - ACTIVE ✅ (https://verifytokenhttp-qm6vy6vlwa-uc.a.run.app)
+   - `cleanupOldNotifications` - ACTIVE ✅ (scheduled)
+   - `sendMatchNotification` - Firestore trigger
 
 ### ⏳ YAPILAMAYAN / BEKLEYEN GÖREVLER:
-1. ⏳ **Firebase CLI Tam Login (2FA)** - Telefon gerekli
-2. ⏳ **Cloud Functions Deploy** - Service Account izinleri yetersiz, tam login gerekli
-3. ⏳ **VAPID Key Aktivasyonu** - Firebase Console erişimi için login gerekli
-4. ⏳ **Firebase Custom Domain (live.3cscore.com)** - Console erişimi gerekli
+1. ⏳ **Firebase Custom Domain (live.3cscore.com)** - Console erişimi gerekli
+2. ⏳ **VAPID Key Aktivasyonu** - Firebase Console'dan generate edilmeli
+3. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
 
 ### 🔴 SONRAKİ OTURUMDA İLK YAPILACAKLAR:
 
-- [ ] **1. Firebase Tam Login (TELEFON GELİNCE):**
-  ```powershell
-  firebase login
-  # 2FA kodu gir
+- [x] **1. Firebase Tam Login:** ✅ TAMAMLANDI
+  ```
+  firebase login yapıldı - ilhamiilhan55@gmail.com
   ```
 
-- [ ] **2. Cloud Functions Deploy:**
-  ```powershell
-  cd functions
-  npm install
-  firebase deploy --only functions
+- [x] **2. Cloud Functions Deploy:** ✅ TAMAMLANDI
+  ```
+  - Node.js 20 + Firebase Functions v2 API
+  - verifyToken, verifyTokenHttp, cleanupOldNotifications aktif
+  - sendMatchNotification (Firestore trigger)
   ```
 
 - [ ] **3. Firebase Custom Domain Ayarı:**
@@ -49,7 +48,7 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 - [ ] **5. Token Sistemini Test Et:**
   - 3cscore.com'dan gerçek Firebase token ile test
-  - Şu an yapay test token kullanılıyor
+  - verifyTokenHttp: https://verifytokenhttp-qm6vy6vlwa-uc.a.run.app
 
 ---
 
