@@ -3,24 +3,36 @@
  * 
  * Bu dosya notification_queue koleksiyonunu dinler ve
  * maç başladığında oyunculara push notification gönderir.
+ * 
+ * Firebase Functions v2 API kullanılıyor
  */
 
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
+const { getMessaging } = require('firebase-admin/messaging');
 
-admin.initializeApp();
+initializeApp();
 
-const db = admin.firestore();
+const db = getFirestore();
+const auth = getAuth();
+const messaging = getMessaging();
 
 /**
  * notification_queue koleksiyonuna yeni döküman eklendiğinde tetiklenir
  * Maç başlangıç bildirimi gönderir
  */
-exports.sendMatchNotification = functions.firestore
-  .document('notification_queue/{notificationId}')
-  .onCreate(async (snap, context) => {
+exports.sendMatchNotification = onDocumentCreated(
+  'notification_queue/{notificationId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    
     const data = snap.data();
-    const notificationId = context.params.notificationId;
+    const notificationId = event.params.notificationId;
     
     console.log('📩 Bildirim işleniyor:', notificationId, data);
     
@@ -116,7 +128,7 @@ exports.sendMatchNotification = functions.firestore
           }
         };
         
-        const response = await admin.messaging().send(message);
+        const response = await messaging.send(message);
         console.log(`✅ Bildirim gönderildi (${playerId}):`, response);
         return { playerId, success: true, response };
       } catch (error) {
@@ -133,7 +145,7 @@ exports.sendMatchNotification = functions.firestore
     
     await snap.ref.update({
       status: 'completed',
-      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      processedAt: FieldValue.serverTimestamp(),
       results: {
         total: tokens.length,
         success: successCount,
@@ -150,10 +162,13 @@ exports.sendMatchNotification = functions.firestore
  * Eski bildirimleri temizle (7 günden eski)
  * Her gün saat 03:00'te çalışır
  */
-exports.cleanupOldNotifications = functions.pubsub
-  .schedule('0 3 * * *')
-  .timeZone('Europe/Istanbul')
-  .onRun(async (context) => {
+exports.cleanupOldNotifications = onSchedule(
+  {
+    schedule: '0 3 * * *',
+    timeZone: 'Europe/Istanbul',
+    region: 'us-central1'
+  },
+  async (event) => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 7);
     
@@ -175,16 +190,16 @@ exports.cleanupOldNotifications = functions.pubsub
  * Firebase ID Token Doğrulama
  * 3cscore.com'dan gelen kullanıcıların token'ını doğrular
  */
-exports.verifyToken = functions.https.onCall(async (data, context) => {
-  const { idToken } = data;
+exports.verifyToken = onCall(async (request) => {
+  const { idToken } = request.data;
   
   if (!idToken) {
-    throw new functions.https.HttpsError('invalid-argument', 'Token gerekli');
+    throw new HttpsError('invalid-argument', 'Token gerekli');
   }
   
   try {
     // Token'ı doğrula
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     
     console.log('✅ Token doğrulandı:', decodedToken.uid);
     
@@ -196,7 +211,7 @@ exports.verifyToken = functions.https.onCall(async (data, context) => {
     };
   } catch (error) {
     console.error('❌ Token doğrulama hatası:', error.message);
-    throw new functions.https.HttpsError('unauthenticated', 'Geçersiz token');
+    throw new HttpsError('unauthenticated', 'Geçersiz token');
   }
 });
 
@@ -204,17 +219,10 @@ exports.verifyToken = functions.https.onCall(async (data, context) => {
  * HTTP endpoint - CORS destekli token doğrulama
  * Frontend'den doğrudan çağrılabilir
  */
-exports.verifyTokenHttp = functions.https.onRequest(async (req, res) => {
-  // CORS headers
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // OPTIONS preflight
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
+exports.verifyTokenHttp = onRequest(
+  { cors: true },
+  async (req, res) => {
+  // OPTIONS preflight handled by cors option
   
   const idToken = req.body?.idToken || req.query?.idToken;
   
@@ -224,7 +232,7 @@ exports.verifyTokenHttp = functions.https.onRequest(async (req, res) => {
   }
   
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     
     console.log('✅ Token doğrulandı:', decodedToken.uid);
     
