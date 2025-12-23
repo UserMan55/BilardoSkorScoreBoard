@@ -1757,11 +1757,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     const player1Obj = names.find(p => p.fullName === voiceMatchData.player1);
     const player2Obj = names.find(p => p.fullName === voiceMatchData.player2);
 
-    // Mobil modda veya remote modda Firebase'e komut gönder
-    const isMobileDevice = deviceProfile.isMobile || window.innerWidth < 768;
+    // isMobileOnly prop'u ile kontrol (build hedefine göre belirleniyor)
+    // isMobileOnly = true ise mobil build, Firebase'e komut gönder
+    // isMobileOnly = false ise Pi build, direkt maç başlat
     
-    if (isMobileDevice) {
-      // Firebase'e maç başlatma komutu gönder
+    if (isMobileOnly) {
+      // Mobil build: Firebase'e maç başlatma komutu gönder
       try {
         setVoiceMatchError('Maç başlatılıyor...');
         
