@@ -84,6 +84,20 @@ const getUserFromURLParams = () => {
   return null;
 };
 
+// URL'den masa ve sesli komut parametrelerini oku
+const getTableFromURLParams = () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      tableId: params.get('table') || null,
+      openVoice: params.get('voice') === 'true'
+    };
+  } catch (error) {
+    console.warn('URL table parametresi okunamadı:', error);
+    return { tableId: null, openVoice: false };
+  }
+};
+
 function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = false, onShowController }) {
   const [activeTab, setActiveTab] = useState("2vs2");
   const [names, setNames] = useState([]);
@@ -236,7 +250,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [isStartMatchOpen, setIsStartMatchOpen] = useState(true); // Accordion state for Start Match
   const [winnerOverlayData, setWinnerOverlayData] = useState(null); // Kazanan ekranı verisi
 
-  const [selectedTableId, setSelectedTableId] = useState(SALON_INFO.tables[0].id);
+  // URL parametrelerinden masa ID ve voice flag'i oku
+  const urlTableParams = getTableFromURLParams();
+  const [selectedTableId, setSelectedTableId] = useState(urlTableParams.tableId || SALON_INFO.tables[0].id);
+  const [shouldOpenVoiceModal, setShouldOpenVoiceModal] = useState(urlTableParams.openVoice);
 
   // 2vs2 states
   const [player1, setPlayer1] = useState("");
@@ -1726,6 +1743,19 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     setTimeout(() => startVoiceRecognition(), 500);
   };
 
+  // URL'den voice=true parametresi geldiyse otomatik sesli komut modalını aç
+  useEffect(() => {
+    if (shouldOpenVoiceModal && isMobileOnly && names.length > 0) {
+      console.log('🎤 URL parametresi ile sesli komut modalı açılıyor...');
+      // Biraz gecikme ile aç (sayfa yüklenmesi için)
+      const timer = setTimeout(() => {
+        openVoiceMatchMode();
+        setShouldOpenVoiceModal(false); // Bir kere aç
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldOpenVoiceModal, isMobileOnly, names.length]);
+
   // Sesli maç modunu kapat
   const closeVoiceMatchMode = () => {
     setVoiceMatchMode(false);
@@ -1785,9 +1815,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
           salonCity: SALON_INFO.city
         };
 
-        await sendRemoteStartCommand(matchData, 'table_1', matchMeta);
+        await sendRemoteStartCommand(matchData, selectedTableId, matchMeta);
         
-        console.log('✅ Firebase\'e maç komutu gönderildi:', matchData);
+        console.log('✅ Firebase\'e maç komutu gönderildi (Masa: ' + selectedTableId + '):', matchData);
         closeVoiceMatchMode();
         
         // Başarı mesajı göster
