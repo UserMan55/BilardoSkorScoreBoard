@@ -1547,12 +1547,41 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   };
 
   // Ses tanıma başlat
-  const startVoiceRecognition = () => {
+  const startVoiceRecognition = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
       setVoiceMatchError('Tarayıcınız ses tanımayı desteklemiyor!');
       return;
+    }
+
+    // HTTP üzerinde mediaDevices olmayabilir, direkt speech recognition dene
+    const isSecureContext = window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+    
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // Güvenli bağlam - önce mikrofon izni iste
+      try {
+        console.log('🎤 Mikrofon izni isteniyor...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('✅ Mikrofon izni alındı');
+        stream.getTracks().forEach(track => track.stop());
+      } catch (micError) {
+        console.error('❌ Mikrofon izni hatası:', micError);
+        if (micError.name === 'NotAllowedError' || micError.name === 'PermissionDeniedError') {
+          setVoiceMatchError('Mikrofon izni reddedildi! Lütfen tarayıcı ayarlarından izin verin.');
+        } else if (micError.name === 'NotFoundError') {
+          setVoiceMatchError('Mikrofon bulunamadı!');
+        } else {
+          setVoiceMatchError(`Mikrofon hatası: ${micError.message}`);
+        }
+        return;
+      }
+    } else {
+      // HTTP üzerinde - SpeechRecognition kendi izin popup'ını gösterecek
+      console.log('⚠️ mediaDevices yok, SpeechRecognition direkt denenecek');
+      if (!isSecureContext) {
+        console.warn('⚠️ HTTP bağlantısı - ses tanıma çalışmayabilir');
+      }
     }
 
     const recognition = new SpeechRecognition();
@@ -1576,7 +1605,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       if (event.error === 'no-speech') {
         setVoiceMatchError('Ses algılanamadı. Tekrar deneyin.');
       } else if (event.error === 'not-allowed') {
-        setVoiceMatchError('Mikrofon izni verilmedi!');
+        setVoiceMatchError('Mikrofon izni verilmedi! Tarayıcı ayarlarını kontrol edin.');
       } else {
         setVoiceMatchError(`Hata: ${event.error}`);
       }
@@ -1714,7 +1743,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   };
 
   // Sesli komutla maçı başlat
-  const startVoiceMatch = () => {
+  const startVoiceMatch = async () => {
     if (!voiceMatchData.player1 || !voiceMatchData.player2 || 
         !voiceMatchData.targetScore || !voiceMatchData.targetRack) {
       setVoiceMatchError('Tüm alanlar doldurulmalı!');
@@ -1724,18 +1753,62 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     const score = parseInt(voiceMatchData.targetScore);
     const rack = parseInt(voiceMatchData.targetRack);
 
-    // Maç başlat
-    onStart(
-      voiceMatchData.player1,
-      voiceMatchData.player2,
-      score,
-      rack,
-      false, // hasPenalty
-      true,  // hasAso
-      false  // isRemote
-    );
+    // Oyuncu ID'lerini bul
+    const player1Obj = names.find(p => p.fullName === voiceMatchData.player1);
+    const player2Obj = names.find(p => p.fullName === voiceMatchData.player2);
 
-    closeVoiceMatchMode();
+    // Mobil modda veya remote modda Firebase'e komut gönder
+    const isMobileDevice = deviceProfile.isMobile || window.innerWidth < 768;
+    
+    if (isMobileDevice) {
+      // Firebase'e maç başlatma komutu gönder
+      try {
+        setVoiceMatchError('Maç başlatılıyor...');
+        
+        // executeGameStart'ın beklediği format
+        const matchData = {
+          mode: 'standard',
+          players: [voiceMatchData.player1, voiceMatchData.player2],
+          settings: {
+            targetScore: score,
+            targetRack: rack,
+            hasPenalty: false,
+            hasAso: true
+          }
+        };
+
+        const matchMeta = {
+          playerIds: [player1Obj?.id, player2Obj?.id].filter(Boolean),
+          startedBy: currentUser?.id || null,
+          salonId: SALON_INFO.name,
+          salonCity: SALON_INFO.city
+        };
+
+        await sendRemoteStartCommand(matchData, 'table_1', matchMeta);
+        
+        console.log('✅ Firebase\'e maç komutu gönderildi:', matchData);
+        closeVoiceMatchMode();
+        
+        // Başarı mesajı göster
+        alert('✅ Maç komutu gönderildi!\nScoreboard tarafında maç başlayacak.');
+        
+      } catch (error) {
+        console.error('❌ Maç komutu gönderilemedi:', error);
+        setVoiceMatchError('Maç komutu gönderilemedi: ' + error.message);
+      }
+    } else {
+      // Masaüstünde direkt başlat
+      onStart(
+        voiceMatchData.player1,
+        voiceMatchData.player2,
+        score,
+        rack,
+        false, // hasPenalty
+        true,  // hasAso
+        false  // isRemote
+      );
+      closeVoiceMatchMode();
+    }
   };
 
   // Belirli adımı tekrar et

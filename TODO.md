@@ -64,6 +64,16 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 ## 🧪 TEST SENARYOLARI (23 Aralık 2025)
 **Durum:** ⏳ Test Edilecek
 
+### 🚀 DEPLOY SONRASI TEST PLANI (HTTPS Gerekli)
+| # | Test | Adımlar | Beklenen Sonuç | Durum |
+|---|------|---------|----------------|-------|
+| D.1 | Mobil Mikrofon İzni | live.3cscore.com → Sesli Komut → İzin popup | İzin ver popup gösterilmeli | ⬜ |
+| D.2 | Ses Tanıma Çalışıyor | İzin verdikten sonra konuş | Konuşma metne dönüşmeli | ⬜ |
+| D.3 | Firebase'e Komut Gönder | Mobilde maç bilgilerini doldur → MAÇI BAŞLAT | "Maç komutu gönderildi" alert | ⬜ |
+| D.4 | Scoreboard Dinliyor | Bilgisayarda Scoreboard modunda bekle | Overlay gösterilmeli, countdown başlamalı | ⬜ |
+| D.5 | Maç Başlıyor | Countdown bitince | Scoreboard'da maç başlamalı | ⬜ |
+| D.6 | Türkçe Fuzzy Match | "ibrahim topyıldız" → "İbrahim TOPYILDIZ" | Benzer isim eşleşmeli (%70+) | ⬜ |
+
 ### 🎤 TEST 1: Sesli Komut Özellikleri
 | # | Test Senaryosu | Beklenen Sonuç | Durum |
 |---|----------------|----------------|-------|
