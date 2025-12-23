@@ -348,6 +348,7 @@ function App() {
           onSurvivalStart={isPiMode ? handleStartSurvival : undefined}
           onShowController={handleShowController}
           isMobileOnly={!isPiMode}
+          loggedInUser={!isPiMode ? authState.user : null}
         />
       )}
       

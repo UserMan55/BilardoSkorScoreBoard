@@ -4,9 +4,17 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ---
 ## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
-**Tarih:** 20 Aralık 2025 - Oturum Güncellemesi
+**Tarih:** 23 Aralık 2025 - Oturum Güncellemesi
 
-### ✅ BU OTURUMDA TAMAMLANANLAR (20 Aralık 2025):
+### ✅ BU OTURUMDA TAMAMLANANLAR (23 Aralık 2025):
+1. ✅ **Firebase Custom Domain Kurulumu TAMAMLANDI:**
+   - cPanel'de `live.3cscore.com` subdomain oluşturuldu
+   - CNAME kaydı eklendi: `live.3cscore.com` → `bilardo-skor.web.app`
+   - A kaydı silindi (Firebase doğrulaması için)
+   - Firebase Console'da custom domain onaylandı
+   - **🌐 https://live.3cscore.com artık AKTİF!**
+
+### ✅ ÖNCEKİ OTURUMDA TAMAMLANANLAR (20 Aralık 2025):
 1. ✅ Firebase CLI tam login yapıldı (ilhamiilhan55@gmail.com)
 2. ✅ Blaze planına yükseltildi (45 TRY bütçe limiti)
 3. ✅ Cloud Functions Node.js 20'ye güncellendi (18 decommissioned idi)
@@ -17,10 +25,9 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
    - `cleanupOldNotifications` - ACTIVE ✅ (scheduled)
    - `sendMatchNotification` - Firestore trigger
 
-### ⏳ YAPILAMAYAN / BEKLEYEN GÖREVLER:
-1. ⏳ **Firebase Custom Domain (live.3cscore.com)** - Console erişimi gerekli
-2. ⏳ **VAPID Key Aktivasyonu** - Firebase Console'dan generate edilmeli
-3. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
+### ⏳ BEKLEYEN GÖREVLER:
+1. ⏳ **VAPID Key Aktivasyonu** - Firebase Console'dan generate edilmeli
+2. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
 
 ### 🔴 SONRAKİ OTURUMDA İLK YAPILACAKLAR:
 
@@ -36,10 +43,13 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
   - sendMatchNotification (Firestore trigger)
   ```
 
-- [ ] **3. Firebase Custom Domain Ayarı:**
-  - Firebase Console > Hosting > Add custom domain
-  - `live.3cscore.com` ekle
-  - DNS doğrulamasını bekle
+- [x] **3. Firebase Custom Domain Ayarı:** ✅ TAMAMLANDI (23 Aralık 2025)
+  ```
+  - cPanel: live.3cscore.com subdomain oluşturuldu
+  - DNS: CNAME live → bilardo-skor.web.app
+  - Firebase Console: Custom domain onaylandı
+  - URL: https://live.3cscore.com ✅
+  ```
 
 - [ ] **4. VAPID Key Aktivasyonu:**
   - Firebase Console > Project Settings > Cloud Messaging

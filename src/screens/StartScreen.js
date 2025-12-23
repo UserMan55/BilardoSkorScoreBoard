@@ -4,7 +4,8 @@ import {
   sendRemoteStartCommand, 
   listenToTableStatus, 
   updateTableStatus,
-  listenForMatchCommands
+  listenForMatchCommands,
+  getUserById
 } from "../services/firebase";
 import ScoreboardReceiver from "./ScoreboardReceiver";
 import MobileController from "./MobileController";
@@ -94,9 +95,58 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
   const [showMobileController, setShowMobileController] = useState(false);
   const [controllerReadOnly, setControllerReadOnly] = useState(false);
+  
+  // Kullanıcı Profili State (mobil mod için)
+  const [userProfile, setUserProfile] = useState(null);
+  const [userProfileLoading, setUserProfileLoading] = useState(isMobileOnly);
+  
   // Navigation State
   const [focusedIndex, setFocusedIndex] = useState(1);
   const focusedIndexRef = React.useRef(1);
+
+  // Kullanıcı profilini Firebase'den çek (mobil mod)
+  useEffect(() => {
+    if (!isMobileOnly) return;
+    
+    const fetchUserProfile = async () => {
+      setUserProfileLoading(true);
+      
+      // URL'den userId al
+      const urlParams = new URLSearchParams(window.location.search);
+      const userId = urlParams.get('userId');
+      
+      if (userId) {
+        console.log('🔍 Kullanıcı profili çekiliyor:', userId);
+        const profile = await getUserById(userId);
+        if (profile) {
+          setUserProfile(profile);
+          console.log('✅ Kullanıcı profili yüklendi:', profile.fullName);
+        } else {
+          // Profil bulunamazsa loggedInUser'dan al
+          if (loggedInUser) {
+            setUserProfile({
+              id: loggedInUser.uid,
+              fullName: loggedInUser.name || loggedInUser.email || 'Kullanıcı',
+              email: loggedInUser.email,
+              photoURL: null
+            });
+          }
+        }
+      } else if (loggedInUser) {
+        // userId yoksa loggedInUser'ı kullan
+        setUserProfile({
+          id: loggedInUser.uid,
+          fullName: loggedInUser.name || loggedInUser.email || 'Kullanıcı',
+          email: loggedInUser.email,
+          photoURL: null
+        });
+      }
+      
+      setUserProfileLoading(false);
+    };
+    
+    fetchUserProfile();
+  }, [isMobileOnly, loggedInUser]);
 
   useEffect(() => {
     focusedIndexRef.current = focusedIndex;
@@ -2188,6 +2238,111 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       )}
 
       <div className={`start-screen-panel ${deviceMode === 'local' ? 'focus-mode' : ''}`} style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
+        
+        {/* KULLANICI PROFİL HEADER - Mobil mod için */}
+        {deviceMode === 'controller' && userProfile && (
+          <div className="user-profile-header" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            marginBottom: '12px',
+            boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            border: '1px solid rgba(255,255,255,0.2)'
+          }}>
+            {/* Kullanıcı Fotoğrafı */}
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+              border: '3px solid rgba(255,255,255,0.5)',
+              overflow: 'hidden',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {userProfile.photoURL ? (
+                <img 
+                  src={userProfile.photoURL} 
+                  alt={userProfile.fullName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { 
+                    e.target.onerror = null; 
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = '<span style="font-size: 24px; color: white;">👤</span>';
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: '24px', color: 'white' }}>👤</span>
+              )}
+            </div>
+            
+            {/* Kullanıcı Bilgileri */}
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div style={{ 
+                color: '#fff', 
+                fontWeight: '700', 
+                fontSize: '18px', 
+                letterSpacing: '0.3px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+              }}>
+                {userProfile.fullName}
+              </div>
+              <div style={{ 
+                color: 'rgba(255,255,255,0.8)', 
+                fontSize: '12px', 
+                fontWeight: '500',
+                marginTop: '4px',
+                display: 'flex',
+                gap: '10px',
+                flexWrap: 'wrap'
+              }}>
+                {userProfile.city && <span>📍 {userProfile.city}</span>}
+                {userProfile.salon && <span>🎱 {userProfile.salon}</span>}
+              </div>
+            </div>
+            
+            {/* 3CScore'a Dön Butonu */}
+            <button
+              onClick={() => {
+                window.location.href = 'https://3cscore.com';
+              }}
+              className="back-to-3cscore-btn"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+                transition: 'all 0.3s ease',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)';
+                e.target.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.4)';
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>🏠</span>
+              <span style={{ letterSpacing: '0.5px' }}>3CSCORE</span>
+            </button>
+          </div>
+        )}
         
         {/* SALON INFO HEADER */}
         {deviceMode === 'controller' && (
