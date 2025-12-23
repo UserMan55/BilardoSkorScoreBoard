@@ -4,9 +4,23 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ---
 ## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
-**Tarih:** 23 Aralık 2025 - Oturum Güncellemesi
+**Tarih:** 23 Aralık 2025 - Oturum Güncellemesi #2
 
-### ✅ BU OTURUMDA TAMAMLANANLAR (23 Aralık 2025):
+### ✅ BU OTURUMDA TAMAMLANANLAR (23 Aralık 2025 - İkinci Güncelleme):
+1. ✅ **Sesli Komut ile Maç Başlatma Özelliği:**
+   - Local mode'da "SESLİ KOMUT İLE MAÇ BAŞLAT" butonu eklendi
+   - Web Speech API ile Türkçe ses tanıma (`tr-TR`)
+   - Fuzzy matching ile oyuncu ismi eşleştirme (Türkçe karakter desteği)
+   - 4 adımlı akış: Oyuncu 1 → Oyuncu 2 → Hedef Sayı → Hedef Istaka
+   - Görsel feedback (ses dalgaları animasyonu)
+   - Oyuncu öneri sistemi (veritabanından eşleşen isimler)
+   - [StartScreen.js](src/screens/StartScreen.js) ve [StartScreen.css](src/screens/StartScreen.css) güncellendi
+
+2. ✅ **Çoklu Port Geliştirme Ortamı:**
+   - Port 3000: Ana uygulama (Scoreboard + Local Mode)
+   - Port 3001: Mobil build (REACT_APP_MOBILE_ONLY=true)
+
+### ✅ BU OTURUMDA TAMAMLANANLAR (23 Aralık 2025 - İlk Güncelleme):
 1. ✅ **Firebase Custom Domain Kurulumu TAMAMLANDI:**
    - cPanel'de `live.3cscore.com` subdomain oluşturuldu
    - CNAME kaydı eklendi: `live.3cscore.com` → `bilardo-skor.web.app`
@@ -44,6 +58,68 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 1. ⏳ **Firebase Deploy** - Login gerekli, yeni özellikler deploy edilmeli
 2. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
 3. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
+
+---
+
+## 🧪 TEST SENARYOLARI (23 Aralık 2025)
+**Durum:** ⏳ Test Edilecek
+
+### 🎤 TEST 1: Sesli Komut Özellikleri
+| # | Test Senaryosu | Beklenen Sonuç | Durum |
+|---|----------------|----------------|-------|
+| 1.1 | Local mode'da "SESLİ KOMUT İLE MAÇ BAŞLAT" butonuna tıkla | Modal açılmalı, mikrofon izni istenmeli | ⬜ |
+| 1.2 | Türkçe oyuncu ismi söyle (örn: "İbrahim Topyıldız") | İsim tanınmalı, veritabanında eşleşmeli | ⬜ |
+| 1.3 | Veritabanında olmayan isim söyle | Manuel isim olarak kabul edilmeli | ⬜ |
+| 1.4 | Hedef sayı söyle (örn: "otuz") | 30 olarak algılanmalı | ⬜ |
+| 1.5 | Hedef ıstaka söyle (örn: "otuz") | 30 olarak algılanmalı | ⬜ |
+| 1.6 | "MAÇI BAŞLAT" butonuna tıkla | Maç başlamalı, doğru değerlerle | ⬜ |
+| 1.7 | "İptal" butonuna tıkla | Modal kapanmalı, hiçbir şey başlamamalı | ⬜ |
+| 1.8 | "Tekrar Söyle" butonuna tıkla | Aynı adım tekrar dinlenmeli | ⬜ |
+| 1.9 | Öneri listesinden oyuncu seç | Seçilen oyuncu atanmalı | ⬜ |
+| 1.10 | Mikrofon izni reddedildiğinde | Hata mesajı gösterilmeli | ⬜ |
+
+### 🔔 TEST 2: Push Notifications
+| # | Test Senaryosu | Beklenen Sonuç | Durum |
+|---|----------------|----------------|-------|
+| 2.1 | Notification izni iste | Tarayıcı izin popup'ı açılmalı | ⬜ |
+| 2.2 | Notification izni ver | FCM token alınmalı ve Firebase'e kaydedilmeli | ⬜ |
+| 2.3 | Uzaktan maç başlat (başka kullanıcı) | Bildirim gelmeli | ⬜ |
+| 2.4 | Bildirime tıkla | Uygulama açılmalı, ilgili maça yönlendirilmeli | ⬜ |
+| 2.5 | Background'da bildirim | Service worker bildirimi göstermeli | ⬜ |
+| 2.6 | Notification izni reddet | Graceful degradation, hata gösterilmemeli | ⬜ |
+
+### 🔐 TEST 3: 3cscore.com → live.3cscore.com Authentication
+| # | Test Senaryosu | Beklenen Sonuç | Durum |
+|---|----------------|----------------|-------|
+| 3.1 | 3cscore.com'da giriş yap | Firebase Auth token alınmalı | ⬜ |
+| 3.2 | "Canlı Skor" butonuna tıkla | live.3cscore.com'a yönlendirilmeli (token ile) | ⬜ |
+| 3.3 | live.3cscore.com token doğrulama | Token geçerli ise giriş yapılmalı | ⬜ |
+| 3.4 | Kullanıcı profil bilgisi gösterimi | Fotoğraf, isim, şehir, salon görünmeli | ⬜ |
+| 3.5 | Geçersiz token ile erişim | "Erişim Engellendi" ekranı gösterilmeli | ⬜ |
+| 3.6 | Token olmadan erişim | "Erişim Engellendi" ekranı gösterilmeli | ⬜ |
+| 3.7 | Süresi dolmuş token | "Erişim Engellendi" + yeniden giriş mesajı | ⬜ |
+| 3.8 | "3cscore'a Dön" butonuna tıkla | 3cscore.com'a yönlendirilmeli | ⬜ |
+| 3.9 | userId ile profil çekme | getUserById doğru profil döndürmeli | ⬜ |
+| 3.10 | verifyTokenHttp Cloud Function | Token doğrulama başarılı response | ⬜ |
+
+### 📱 TEST 4: Mobil Controller (MobileController.js)
+| # | Test Senaryosu | Beklenen Sonuç | Durum |
+|---|----------------|----------------|-------|
+| 4.1 | Mobil modda uygulama açılışı | Direkt controller ekranı açılmalı | ⬜ |
+| 4.2 | Aktif maç varken controller | Maç bilgileri görünmeli, kontroller aktif | ⬜ |
+| 4.3 | Aktif maç yokken controller | "Aktif maç yok" mesajı görünmeli | ⬜ |
+| 4.4 | Yetkili kullanıcı (allowedControllers) | Tüm kontroller aktif olmalı | ⬜ |
+| 4.5 | Yetkisiz kullanıcı | readonly badge görünmeli, kontroller pasif | ⬜ |
+
+### ✅ TEST SONUÇLARI:
+```
+Toplam Test: 31
+Başarılı: 0
+Başarısız: 0
+Test Edilmedi: 31
+```
+
+---
 
 ### 🔴 SONRAKİ OTURUMDA İLK YAPILACAKLAR:
 

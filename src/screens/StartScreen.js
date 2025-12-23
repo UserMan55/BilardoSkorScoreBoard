@@ -316,6 +316,20 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [matchStartCountdown, setMatchStartCountdown] = useState(5);
   const [showLiveWatch, setShowLiveWatch] = useState(false);
 
+  // SESLİ KOMUT İLE MAÇ BAŞLATMA STATE'LERİ
+  const [voiceMatchMode, setVoiceMatchMode] = useState(false);
+  const [voiceMatchStep, setVoiceMatchStep] = useState(0); // 0: idle, 1: player1, 2: player2, 3: targetScore, 4: targetRack
+  const [voiceMatchData, setVoiceMatchData] = useState({
+    player1: '',
+    player2: '',
+    targetScore: '',
+    targetRack: ''
+  });
+  const [voiceRecognizedText, setVoiceRecognizedText] = useState('');
+  const [voiceMatchError, setVoiceMatchError] = useState('');
+  const [voicePlayerSuggestions, setVoicePlayerSuggestions] = useState([]);
+  const voiceRecognitionRef = useRef(null);
+
   // Masa boşaldığında canlı izleme modunu kapat
   useEffect(() => {
     if (!tableStatus || tableStatus.status !== 'BUSY') {
@@ -1473,6 +1487,280 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       if (timer) clearInterval(timer);
     };
   }, [showMatchStartOverlay, incomingMatchData, executeGameStart]);
+
+  // ===============================================
+  // SESLİ KOMUT İLE MAÇ BAŞLATMA FONKSİYONLARI
+  // ===============================================
+  
+  // Türkçe karakter normalizasyonu (fuzzy matching için)
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text
+      .toLowerCase()
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/İ/g, 'i')
+      .replace(/Ğ/g, 'g')
+      .replace(/Ü/g, 'u')
+      .replace(/Ş/g, 's')
+      .replace(/Ö/g, 'o')
+      .replace(/Ç/g, 'c')
+      .trim();
+  };
+
+  // İsim benzerlik skoru hesapla (fuzzy matching)
+  const calculateSimilarity = (str1, str2) => {
+    const s1 = normalizeText(str1);
+    const s2 = normalizeText(str2);
+    
+    if (s1 === s2) return 1;
+    if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+    
+    // Levenshtein distance hesapla
+    const m = s1.length;
+    const n = s2.length;
+    if (m === 0) return n === 0 ? 1 : 0;
+    if (n === 0) return 0;
+    
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        );
+      }
+    }
+    
+    const distance = dp[m][n];
+    const maxLen = Math.max(m, n);
+    return 1 - distance / maxLen;
+  };
+
+  // Ses tanıma başlat
+  const startVoiceRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setVoiceMatchError('Tarayıcınız ses tanımayı desteklemiyor!');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'tr-TR';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
+
+    recognition.onresult = (event) => {
+      const result = event.results[event.results.length - 1];
+      const transcript = result[0].transcript.trim();
+      setVoiceRecognizedText(transcript);
+      
+      if (result.isFinal) {
+        processVoiceInput(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Ses tanıma hatası:', event.error);
+      if (event.error === 'no-speech') {
+        setVoiceMatchError('Ses algılanamadı. Tekrar deneyin.');
+      } else if (event.error === 'not-allowed') {
+        setVoiceMatchError('Mikrofon izni verilmedi!');
+      } else {
+        setVoiceMatchError(`Hata: ${event.error}`);
+      }
+    };
+
+    recognition.onend = () => {
+      // Eğer hala dinleme modundaysak tekrar başlat
+      if (voiceMatchMode && voiceMatchStep > 0 && voiceMatchStep < 5) {
+        setTimeout(() => {
+          if (voiceRecognitionRef.current && voiceMatchStep > 0) {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.log('Recognition already started');
+            }
+          }
+        }, 500);
+      }
+    };
+
+    voiceRecognitionRef.current = recognition;
+    recognition.start();
+    console.log('🎤 Ses tanıma başladı');
+  };
+
+  // Ses girişini işle
+  const processVoiceInput = (text) => {
+    console.log('🎤 İşleniyor:', text, 'Adım:', voiceMatchStep);
+    setVoiceMatchError('');
+
+    switch (voiceMatchStep) {
+      case 1: // Player 1
+      case 2: // Player 2
+        // İsim eşleştirme
+        const matches = names
+          .map(player => ({
+            ...player,
+            similarity: calculateSimilarity(text, player.fullName)
+          }))
+          .filter(p => p.similarity > 0.3)
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 5);
+
+        if (matches.length > 0) {
+          setVoicePlayerSuggestions(matches);
+          const bestMatch = matches[0];
+          
+          if (bestMatch.similarity > 0.7) {
+            // Yüksek benzerlik - otomatik seç
+            selectVoicePlayer(bestMatch.fullName);
+          } else {
+            // Düşük benzerlik - öneri göster
+            setVoiceMatchError('Eşleşen oyuncu seçin veya tekrar söyleyin:');
+          }
+        } else {
+          // Hiç eşleşme yok - manuel isim olarak al
+          selectVoicePlayer(text);
+        }
+        break;
+
+      case 3: // Target Score
+        const score = parseInt(text.replace(/[^0-9]/g, ''));
+        if (!isNaN(score) && score > 0 && score <= 100) {
+          setVoiceMatchData(prev => ({ ...prev, targetScore: score.toString() }));
+          setVoiceMatchStep(4);
+          setVoiceRecognizedText('');
+          setVoicePlayerSuggestions([]);
+        } else {
+          setVoiceMatchError('Geçerli bir sayı söyleyin (1-100)');
+        }
+        break;
+
+      case 4: // Target Rack
+        const rack = parseInt(text.replace(/[^0-9]/g, ''));
+        if (!isNaN(rack) && rack > 0 && rack <= 100) {
+          setVoiceMatchData(prev => ({ ...prev, targetRack: rack.toString() }));
+          setVoiceMatchStep(5); // Tamamlandı
+          setVoiceRecognizedText('');
+          setVoicePlayerSuggestions([]);
+          // Ses tanımayı durdur
+          if (voiceRecognitionRef.current) {
+            voiceRecognitionRef.current.stop();
+          }
+        } else {
+          setVoiceMatchError('Geçerli bir sayı söyleyin (1-100)');
+        }
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  // Oyuncu seç (önerilerden veya otomatik)
+  const selectVoicePlayer = (playerName) => {
+    if (voiceMatchStep === 1) {
+      setVoiceMatchData(prev => ({ ...prev, player1: playerName }));
+      setVoiceMatchStep(2);
+    } else if (voiceMatchStep === 2) {
+      setVoiceMatchData(prev => ({ ...prev, player2: playerName }));
+      setVoiceMatchStep(3);
+    }
+    setVoiceRecognizedText('');
+    setVoicePlayerSuggestions([]);
+    setVoiceMatchError('');
+  };
+
+  // Sesli maç başlatma modunu aç
+  const openVoiceMatchMode = () => {
+    setVoiceMatchMode(true);
+    setVoiceMatchStep(1);
+    setVoiceMatchData({ player1: '', player2: '', targetScore: '', targetRack: '' });
+    setVoiceRecognizedText('');
+    setVoiceMatchError('');
+    setVoicePlayerSuggestions([]);
+    
+    // Ses tanımayı başlat
+    setTimeout(() => startVoiceRecognition(), 500);
+  };
+
+  // Sesli maç modunu kapat
+  const closeVoiceMatchMode = () => {
+    setVoiceMatchMode(false);
+    setVoiceMatchStep(0);
+    setVoiceMatchData({ player1: '', player2: '', targetScore: '', targetRack: '' });
+    setVoiceRecognizedText('');
+    setVoiceMatchError('');
+    setVoicePlayerSuggestions([]);
+    
+    // Ses tanımayı durdur
+    if (voiceRecognitionRef.current) {
+      voiceRecognitionRef.current.stop();
+      voiceRecognitionRef.current = null;
+    }
+  };
+
+  // Sesli komutla maçı başlat
+  const startVoiceMatch = () => {
+    if (!voiceMatchData.player1 || !voiceMatchData.player2 || 
+        !voiceMatchData.targetScore || !voiceMatchData.targetRack) {
+      setVoiceMatchError('Tüm alanlar doldurulmalı!');
+      return;
+    }
+
+    const score = parseInt(voiceMatchData.targetScore);
+    const rack = parseInt(voiceMatchData.targetRack);
+
+    // Maç başlat
+    onStart(
+      voiceMatchData.player1,
+      voiceMatchData.player2,
+      score,
+      rack,
+      false, // hasPenalty
+      true,  // hasAso
+      false  // isRemote
+    );
+
+    closeVoiceMatchMode();
+  };
+
+  // Belirli adımı tekrar et
+  const retryVoiceStep = () => {
+    setVoiceRecognizedText('');
+    setVoiceMatchError('');
+    setVoicePlayerSuggestions([]);
+    startVoiceRecognition();
+  };
+
+  // Adım başlıklarını al
+  const getVoiceStepInstruction = () => {
+    switch (voiceMatchStep) {
+      case 1: return '1. OYUNCU İSMİNİ SÖYLEYİN';
+      case 2: return '2. OYUNCU İSMİNİ SÖYLEYİN';
+      case 3: return 'HEDEF SAYIYI SÖYLEYİN (örn: 30)';
+      case 4: return 'HEDEF ISTAKA SÖYLEYİN (örn: 30)';
+      case 5: return '✓ HAZIR! MAÇI BAŞLATIN';
+      default: return '';
+    }
+  };
+
+  // ===============================================
+  // SESLİ KOMUT FONKSİYONLARI SONU
+  // ===============================================
 
   const selectedPlayer1Photo = (!isManualPlayer1 && player1)
     ? (names.find(u => u.id === player1)?.photoURL || null)
@@ -2804,6 +3092,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
               {/* 2'li Karşılaşma Content */}
               {activeTab === '2vs2' && (
                 <>
+                {/* SESLİ KOMUT İLE MAÇ BAŞLAT BUTONU */}
+                <button
+                  className="voice-match-btn"
+                  onClick={openVoiceMatchMode}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <span className="voice-icon">🎤</span>
+                  SESLİ KOMUT İLE MAÇ BAŞLAT
+                </button>
+
               {isReviewMode ? (
                 <div ref={reviewPanelRef} className="match-review-card" style={{
                     background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%)',
@@ -3806,6 +4104,99 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         </div>
       </div>
       */}
+
+      {/* SESLİ KOMUT İLE MAÇ BAŞLATMA MODAL */}
+      {voiceMatchMode && (
+        <div className="voice-match-overlay">
+          <div className="voice-match-modal">
+            <h2 className="voice-match-title">
+              <span className="mic-icon">🎤</span>
+              SESLİ KOMUT İLE MAÇ BAŞLAT
+            </h2>
+
+            <div className="voice-match-step">
+              Adım {voiceMatchStep} / 4
+            </div>
+
+            <div className="voice-match-instruction">
+              {getVoiceStepInstruction()}
+            </div>
+
+            {voiceMatchStep < 5 && (
+              <div className="voice-match-listening">
+                <div className="voice-waves">
+                  <div className="voice-wave-bar"></div>
+                  <div className="voice-wave-bar"></div>
+                  <div className="voice-wave-bar"></div>
+                  <div className="voice-wave-bar"></div>
+                  <div className="voice-wave-bar"></div>
+                </div>
+                <div className="voice-recognized-text">
+                  {voiceRecognizedText || 'Dinleniyor...'}
+                </div>
+              </div>
+            )}
+
+            {voiceMatchError && (
+              <div className="voice-match-error">
+                {voiceMatchError}
+              </div>
+            )}
+
+            {voicePlayerSuggestions.length > 0 && (
+              <div className="voice-player-suggestions">
+                {voicePlayerSuggestions.map((player, index) => (
+                  <button
+                    key={player.id || index}
+                    className={`voice-player-suggestion ${index === 0 ? 'best-match' : ''}`}
+                    onClick={() => selectVoicePlayer(player.fullName)}
+                  >
+                    {player.fullName}
+                    {index === 0 && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="voice-match-values">
+              <div className={`voice-match-value-item ${voiceMatchData.player1 ? 'filled' : ''} ${voiceMatchStep === 1 ? 'active' : ''}`}>
+                <div className="voice-value-label">1. Oyuncu</div>
+                <div className="voice-value-text">{voiceMatchData.player1 || '-'}</div>
+              </div>
+              <div className={`voice-match-value-item ${voiceMatchData.player2 ? 'filled' : ''} ${voiceMatchStep === 2 ? 'active' : ''}`}>
+                <div className="voice-value-label">2. Oyuncu</div>
+                <div className="voice-value-text">{voiceMatchData.player2 || '-'}</div>
+              </div>
+              <div className={`voice-match-value-item ${voiceMatchData.targetScore ? 'filled' : ''} ${voiceMatchStep === 3 ? 'active' : ''}`}>
+                <div className="voice-value-label">Hedef Sayı</div>
+                <div className="voice-value-text">{voiceMatchData.targetScore || '-'}</div>
+              </div>
+              <div className={`voice-match-value-item ${voiceMatchData.targetRack ? 'filled' : ''} ${voiceMatchStep === 4 ? 'active' : ''}`}>
+                <div className="voice-value-label">Hedef Istaka</div>
+                <div className="voice-value-text">{voiceMatchData.targetRack || '-'}</div>
+              </div>
+            </div>
+
+            <div className="voice-match-actions">
+              <button className="voice-match-cancel-btn" onClick={closeVoiceMatchMode}>
+                ❌ İptal
+              </button>
+              {voiceMatchStep < 5 && (
+                <button className="voice-match-retry-btn" onClick={retryVoiceStep}>
+                  🔄 Tekrar Söyle
+                </button>
+              )}
+              <button 
+                className={`voice-match-confirm-btn ${voiceMatchStep === 5 ? 'ready' : ''}`}
+                onClick={startVoiceMatch}
+                disabled={voiceMatchStep !== 5}
+              >
+                🎯 MAÇI BAŞLAT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
