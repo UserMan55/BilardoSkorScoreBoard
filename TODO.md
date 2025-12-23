@@ -74,6 +74,20 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 | D.5 | Maç Başlıyor | Countdown bitince | Scoreboard'da maç başlamalı | ⬜ |
 | D.6 | Türkçe Fuzzy Match | "ibrahim topyıldız" → "İbrahim TOPYILDIZ" | Benzer isim eşleşmeli (%70+) | ⬜ |
 
+### 📱 QR + SESLİ KOMUT ENTEGRASYON TESTİ (Pi → Mobil → Pi)
+| # | Test | Adımlar | Beklenen Sonuç | Durum |
+|---|------|---------|----------------|-------|
+| Q.1 | Pi Bekleme Ekranı | Pi'de Scoreboard moduna gir | Salon logo, QR kod, "Maç Bekleniyor" gösterilmeli | ⬜ |
+| Q.2 | QR Kod Doğru URL | QR kodu tara veya URL'i kontrol et | `live.3cscore.com?table=table_1&voice=true` olmalı | ⬜ |
+| Q.3 | Mobil Otomatik Masa | QR tarayınca mobil aç | `table_1` otomatik seçili olmalı | ⬜ |
+| Q.4 | Otomatik Sesli Modal | Sayfa yüklenince | Sesli komut modalı otomatik açılmalı | ⬜ |
+| Q.5 | Mikrofon İzni (HTTPS) | Modal açılınca | Tarayıcı mikrofon izni popup göstermeli | ⬜ |
+| Q.6 | Sesli Komut Akışı | 1.Oyuncu → 2.Oyuncu → Sayı → Raket söyle | Her adım doğru algılanmalı | ⬜ |
+| Q.7 | Firebase Komut Gönder | "MAÇI BAŞLAT" tıkla | Alert: "Maç komutu gönderildi" | ⬜ |
+| Q.8 | Pi Komutu Alıyor | Pi bekleme ekranında bekle | Overlay: "MAÇ BAŞLIYOR" + oyuncu isimleri | ⬜ |
+| Q.9 | Countdown | 3...2...1 sayım | Countdown gösterilmeli | ⬜ |
+| Q.10 | Maç Başlıyor | Countdown bitince | Scoreboard maçı doğru ayarlarla başlatmalı | ⬜ |
+
 ### 🎤 TEST 1: Sesli Komut Özellikleri
 | # | Test Senaryosu | Beklenen Sonuç | Durum |
 |---|----------------|----------------|-------|
