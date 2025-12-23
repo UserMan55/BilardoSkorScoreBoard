@@ -14,6 +14,21 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
    - Firebase Console'da custom domain onaylandı
    - **🌐 https://live.3cscore.com artık AKTİF!**
 
+2. ✅ **VAPID Key Aktivasyonu TAMAMLANDI:**
+   - Firebase Console'dan Web Push certificate oluşturuldu
+   - Key: `BN9RixtgBJhaA2AZ5D5VjSUsq1wo-XSCVjq0PG07PYnWbcTlbweUGlvAt2696k6dS2WNboRU7OHoQ3Hg3wqwTvo`
+   - `src/services/firebase.js` içine eklendi
+
+3. ✅ **Kullanıcı Profil Header Eklendi:**
+   - Mobil ekranda kullanıcı fotoğrafı, ad-soyad, şehir, salon gösterimi
+   - 3cscore.com'a dönüş butonu (animasyonlu)
+   - `getUserById` fonksiyonu Firebase'den kullanıcı bilgisi çeker
+
+4. ✅ **3cscore.com Entegrasyon Butonu Hazırlandı:**
+   - `3CSCORE_BUTTON_CODE.md` dosyası oluşturuldu
+   - React component kodu hazır
+   - Token + userId parametreleri ile yönlendirme
+
 ### ✅ ÖNCEKİ OTURUMDA TAMAMLANANLAR (20 Aralık 2025):
 1. ✅ Firebase CLI tam login yapıldı (ilhamiilhan55@gmail.com)
 2. ✅ Blaze planına yükseltildi (45 TRY bütçe limiti)
@@ -26,8 +41,9 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
    - `sendMatchNotification` - Firestore trigger
 
 ### ⏳ BEKLEYEN GÖREVLER:
-1. ⏳ **VAPID Key Aktivasyonu** - Firebase Console'dan generate edilmeli
-2. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
+1. ⏳ **Firebase Deploy** - Login gerekli, yeni özellikler deploy edilmeli
+2. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
+3. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
 
 ### 🔴 SONRAKİ OTURUMDA İLK YAPILACAKLAR:
 
@@ -51,12 +67,19 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
   - URL: https://live.3cscore.com ✅
   ```
 
-- [ ] **4. VAPID Key Aktivasyonu:**
-  - Firebase Console > Project Settings > Cloud Messaging
-  - Web Push certificates > Generate key pair
-  - Key'i `src/services/firebase.js` içine yapıştır
+- [x] **4. VAPID Key Aktivasyonu:** ✅ TAMAMLANDI (23 Aralık 2025)
+  ```
+  - Firebase Console'dan generate edildi
+  - src/services/firebase.js içine eklendi
+  - Push notifications için hazır
+  ```
 
-- [ ] **5. Token Sistemini Test Et:**
+- [ ] **5. Firebase Deploy:**
+  - `firebase login` yap
+  - `npm run deploy:mobile` çalıştır
+  - Yeni özellikler (profil header, 3cscore butonu) canlıya alınacak
+
+- [ ] **6. Token Sistemini Test Et:**
   - 3cscore.com'dan gerçek Firebase token ile test
   - verifyTokenHttp: https://verifytokenhttp-qm6vy6vlwa-uc.a.run.app
 
