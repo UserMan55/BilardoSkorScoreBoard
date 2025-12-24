@@ -4,7 +4,7 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ---
 ## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
-**Tarih:** 24 Aralık 2025 - Oturum Güncellemesi
+**Tarih:** 24 Aralık 2025 - Oturum Güncellemesi (v2)
 
 ### ✅ BU OTURUMDA TAMAMLANANLAR (24 Aralık 2025):
 1. ✅ **Sesli Komut Sistemi İyileştirmeleri:**
@@ -29,13 +29,121 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
    - Web Speech API alternatifleri gösterilir
    - Varyasyonlar localStorage'da saklanır
    - JSON çıktı ile koda entegre edilebilir
-   - **Sonraki adım:** Bu araçla eğitim yapıp sisteme entegre etmek
+
+4. ✅ **Terminal Tarafı Sesli Komut QR Sistemi:**
+   - Terminal'de "Sesli Komut" butonuna basınca QR kod gösteriliyor
+   - QR URL: `live.3cscore.com?table=X&mode=controller&voice=true`
+   - Terminal Firebase'den maç komutu bekliyor
+   - Telefon QR tarayınca mobil sesli komut ekranı açılıyor
+   - Mobil'de maç başlatılınca Terminal'de "CANLI MAÇ BAŞLIYOR" overlay
+   - 5 saniye countdown sonrası oyun başlıyor
+   - "HEMEN BAŞLAT" butonu ile countdown atlanabiliyor
 
 ### ⏳ BEKLEYEN GÖREVLER:
 1. ⏳ **Ses Eğitimi Yapılacak** - voice-trainer.html ile tüm oyuncu isimleri ve sayılar eğitilecek
 2. ⏳ **Eğitim Sonuçları Entegre Edilecek** - JSON çıktı StartScreen.js'e eklenecek
 3. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
 4. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
+5. ⏳ **Pi/Terminal Kurulumu** - Aşağıdaki plana göre yapılacak
+
+### 🧪 TEST SENARYOLARI (Sesli Komut QR Sistemi):
+
+| # | Test | Adımlar | Beklenen Sonuç | Durum |
+|---|------|---------|----------------|-------|
+| T1 | Terminal QR Gösterimi | Terminal → "Sesli Komut" butonu | QR kod + "Maç komutu bekleniyor" | ⬜ |
+| T2 | QR Tarama | Telefonla QR tara | Mobil sesli komut ekranı açılmalı | ⬜ |
+| T3 | Mobil Sesli Komut | Oyuncu/sayı söyle → "MAÇI BAŞLAT" | Firebase'e komut gönderilmeli | ⬜ |
+| T4 | Terminal Komut Alma | Mobil'den komut gönder | Terminal'de QR kapanmalı, overlay açılmalı | ⬜ |
+| T5 | Countdown ve Başlat | 5 saniye bekle veya "HEMEN BAŞLAT" | Oyun başlamalı | ⬜ |
+| T6 | Oyun Kontrolü | Mobil'den + / - / OK | Terminal'de skor değişmeli | ⬜ |
+
+---
+
+## 🍓 Raspberry Pi KURULUM PLANI
+
+### ⚠️ ÖNEMLİ: Development vs Production
+
+| Mod | Komut | RAM | Pi için |
+|-----|-------|-----|---------|
+| Development | `npm run start:pi` | ~800 MB | ❌ KULLANMA - Donma riski! |
+| Production | `serve -s build` | ~50 MB | ✅ Güvenli ve stabil |
+
+### 📋 Kurulum Adımları
+
+#### ADIM 1: Windows'ta Build Yap
+```powershell
+# Proje klasöründe
+cd C:\Projects\BilardoSkorScoreBoard
+npm run build:pi
+# → build/ klasörü oluşur
+```
+
+#### ADIM 2: Build Dosyalarını Pi'ye Kopyala
+```powershell
+# SCP ile kopyala (Windows PowerShell)
+scp -r build/* pi@<PI_IP_ADRESI>:/home/pi/scoreboard/
+
+# Alternatif: USB ile kopyala
+# build/ klasörünü USB'ye kopyala → Pi'de /home/pi/scoreboard/ klasörüne yapıştır
+```
+
+#### ADIM 3: Pi'de Serve Kur (Bir kere)
+```bash
+# Pi'de terminal aç
+sudo npm install -g serve
+```
+
+#### ADIM 4: Uygulamayı Başlat
+```bash
+# Terminal/Scoreboard uygulamasını başlat
+serve -s /home/pi/scoreboard -l 3000
+
+# Arka planda çalıştırmak için:
+nohup serve -s /home/pi/scoreboard -l 3000 &
+```
+
+#### ADIM 5: Chromium Kiosk Mode (Tam Ekran)
+```bash
+# Scoreboard modu için:
+chromium-browser --kiosk --noerrdialogs "http://localhost:3000?mode=receiver"
+
+# Terminal modu için:
+chromium-browser --kiosk --noerrdialogs "http://localhost:3000"
+```
+
+### 🔄 Otomatik Başlatma (Opsiyonel)
+
+**Pi açılınca otomatik başlat:**
+```bash
+# /home/pi/.config/autostart/scoreboard.desktop dosyası oluştur
+mkdir -p /home/pi/.config/autostart
+nano /home/pi/.config/autostart/scoreboard.desktop
+```
+
+**İçerik:**
+```ini
+[Desktop Entry]
+Type=Application
+Name=Scoreboard
+Exec=/bin/bash -c "serve -s /home/pi/scoreboard -l 3000 & sleep 3 && chromium-browser --kiosk --noerrdialogs http://localhost:3000?mode=receiver"
+```
+
+### 📊 Pi Modları
+
+| URL Parametresi | Ekran | Kullanım |
+|-----------------|-------|----------|
+| `localhost:3000` | StartScreen | Manuel maç başlatma (Terminal) |
+| `localhost:3000?mode=receiver` | ScoreboardReceiver | Firebase'den maç bekleme |
+
+### 🔧 Güncelleme Prosedürü
+
+Kod değişikliği sonrası:
+1. Windows'ta: `npm run build:pi`
+2. `build/` klasörünü Pi'ye kopyala (SCP veya USB)
+3. Pi'de: `pkill serve && serve -s /home/pi/scoreboard -l 3000 &`
+4. Chromium'u yenile veya yeniden başlat
+
+---
 
 ### 🔬 ARAŞTIRMA YAPILDI:
 1. **Picovoice Rhino** - Özel kelime tanıma, ama Türkçe desteklemiyor
