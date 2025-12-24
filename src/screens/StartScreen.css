@@ -2064,3 +2064,255 @@
   border-color: rgba(16, 185, 129, 0.5);
   color: #6ee7b7;
 }
+
+/* Voice Match Progress Bar */
+.voice-match-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.voice-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.voice-progress-step.active {
+  opacity: 1;
+}
+
+.voice-progress-step.completed {
+  opacity: 0.8;
+}
+
+.voice-progress-step .step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.voice-progress-step.active .step-number {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border-color: #fbbf24;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.voice-progress-step.completed .step-number {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+}
+
+.voice-progress-step.completed .step-number::after {
+  content: '✓';
+  position: absolute;
+}
+
+.voice-progress-step .step-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.voice-progress-step.active .step-label {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.voice-progress-step.completed .step-label {
+  color: #10b981;
+}
+
+.voice-progress-line {
+  width: 30px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin-bottom: 20px;
+}
+
+/* Voice Number Hint */
+.voice-number-hint {
+  font-size: 14px;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  padding: 10px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px dashed rgba(96, 165, 250, 0.3);
+}
+
+/* Voice Suggestions Title */
+.voice-suggestions-title {
+  width: 100%;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Match Score Badge */
+.voice-player-suggestion .match-score {
+  font-size: 11px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.voice-player-suggestion.best-match .match-score {
+  background: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+/* ====== Voice Status Indicator ====== */
+.voice-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 30px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.voice-status-indicator.listening {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.3));
+  border: 2px solid #10b981;
+  color: #6ee7b7;
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+
+.voice-status-indicator.processing {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.3));
+  border: 2px solid #fbbf24;
+  color: #fde68a;
+}
+
+.voice-status-indicator.stopped {
+  background: rgba(100, 116, 139, 0.2);
+  border: 2px solid #64748b;
+  color: #94a3b8;
+}
+
+.voice-status-indicator.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 2px solid #ef4444;
+  color: #fca5a5;
+}
+
+.voice-status-indicator.idle {
+  background: rgba(99, 102, 241, 0.2);
+  border: 2px solid #6366f1;
+  color: #a5b4fc;
+}
+
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.2); }
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-dot.listening {
+  background: #10b981;
+  animation: dotBlink 1s ease-in-out infinite;
+}
+
+.status-dot.processing {
+  background: #fbbf24;
+  animation: dotSpin 1s linear infinite;
+}
+
+.status-dot.stopped {
+  background: #64748b;
+}
+
+.status-dot.error {
+  background: #ef4444;
+}
+
+.status-dot.idle {
+  background: #6366f1;
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+@keyframes dotSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Voice Control Buttons */
+.voice-control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.voice-control-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid;
+}
+
+.voice-control-btn.start {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  color: white;
+}
+
+.voice-control-btn.start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.voice-control-btn.stop {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+.voice-control-btn.stop:hover {
+  background: rgba(239, 68, 68, 0.3);
+  transform: translateY(-2px);
+}
+
+.voice-control-btn:active {
+  transform: translateY(0);
+}

@@ -4,7 +4,23 @@ import './ScoreboardReceiver.css';
 
 const FALLBACK_AVATAR = '/logo.png';
 
-function ScoreboardReceiver({ onStartGame }) {
+// Salon bilgileri (StartScreen ile aynı)
+const SALON_INFO = {
+  name: "SALON 3CSCORE",
+  city: "SAMSUN",
+  logo: "/logo.jfif"
+};
+
+// QR URL oluştur
+const getQRUrl = (tableId = 'table_1') => {
+  // Production'da live.3cscore.com, development'ta localhost
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://live.3cscore.com'
+    : `http://${window.location.hostname}:3000`;
+  return `${baseUrl}?table=${tableId}&voice=true`;
+};
+
+function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
   const [status, setStatus] = useState('loading'); // loading, waiting, connected, starting
   const [matchPreview, setMatchPreview] = useState(null);
   const [countdown, setCountdown] = useState(3);
@@ -182,11 +198,35 @@ function ScoreboardReceiver({ onStartGame }) {
   return (
     <div className="scoreboard-wrapper">
       <div className="scoreboard-waiting-screen">
-        <div className="scoreboard-waiting-title">SCOREBOARD MODU</div>
-        <div className="scoreboard-waiting-subtitle">UZAKTAN MAÇ BAŞLATMA KOMUTU BEKLENİYOR...</div>
+        {/* Salon Logo ve Bilgisi */}
+        <div className="scoreboard-waiting-header">
+          <img src={SALON_INFO.logo} alt={SALON_INFO.name} className="scoreboard-salon-logo" />
+          <div className="scoreboard-salon-name">{SALON_INFO.name}</div>
+          <div className="scoreboard-salon-city">{SALON_INFO.city}</div>
+        </div>
+
+        <div className="scoreboard-waiting-title">MAÇ BEKLENİYOR</div>
+        <div className="scoreboard-waiting-subtitle">Telefonunuzla QR kodu tarayın ve sesli komutla maç başlatın</div>
+        
+        {/* QR Kod Alanı */}
+        <div className="scoreboard-qr-section">
+          <div className="scoreboard-qr-container">
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getQRUrl(tableId))}`}
+              alt="QR Kod"
+              className="scoreboard-qr-image"
+            />
+          </div>
+          <div className="scoreboard-qr-instruction">
+            <span className="qr-icon">📱</span>
+            Telefonla tara → Sesli komutla maç başlat
+          </div>
+          <div className="scoreboard-qr-url">{getQRUrl(tableId)}</div>
+        </div>
+
         <div className="scoreboard-waiting-status">
           <div className="scoreboard-status-active">📡 Bağlantı Durumu: Aktif</div>
-          <div className="scoreboard-status-table">Masa ID: table_1</div>
+          <div className="scoreboard-status-table">Masa ID: {tableId}</div>
         </div>
       </div>
     </div>

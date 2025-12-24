@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎤 Ses Tanıma Eğitim Aracı - 3CScore</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 15px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .tab.active {
+      background: #4CAF50;
+    }
+
+    /* Training Card */
+    .training-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 15px;
+      padding: 30px;
+      margin-bottom: 20px;
+    }
+
+    .current-item {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .current-item-label {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .current-item-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .progress-info {
+      text-align: center;
+      color: #888;
+      margin-bottom: 20px;
+    }
+
+    /* Microphone Button */
+    .mic-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: white;
+      font-size: 2.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mic-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .mic-btn.listening {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      animation: pulse 1s infinite;
+    }
+
+    .mic-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* Results */
+    .results-container {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      min-height: 100px;
+    }
+
+    .results-label {
+      color: #888;
+      font-size: 0.8rem;
+      margin-bottom: 10px;
+    }
+
+    .alternative {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      margin-bottom: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .alternative:hover {
+      background: rgba(76, 175, 80, 0.3);
+    }
+
+    .alternative.selected {
+      background: rgba(76, 175, 80, 0.5);
+      border: 1px solid #4CAF50;
+    }
+
+    .alternative-text {
+      flex: 1;
+    }
+
+    .alternative-confidence {
+      color: #888;
+      font-size: 0.8rem;
+    }
+
+    .no-results {
+      color: #888;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* Learned variations */
+    .learned-container {
+      margin-top: 15px;
+    }
+
+    .learned-label {
+      color: #4CAF50;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+    }
+
+    .learned-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .learned-tag {
+      background: rgba(76, 175, 80, 0.3);
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .learned-tag .remove {
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .learned-tag .remove:hover {
+      opacity: 1;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Item List */
+    .item-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .item-chip {
+      padding: 10px 15px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .item-chip:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .item-chip.trained {
+      background: rgba(76, 175, 80, 0.3);
+      border: 1px solid #4CAF50;
+    }
+
+    .item-chip.active {
+      background: rgba(255, 193, 7, 0.3);
+      border: 1px solid #FFC107;
+    }
+
+    .item-chip .badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #4CAF50;
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    /* Output Section */
+    .output-section {
+      background: rgba(255,255,255,0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+
+    .output-section h3 {
+      margin-bottom: 15px;
+    }
+
+    .output-textarea {
+      width: 100%;
+      height: 300px;
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #4CAF50;
+      font-family: 'Consolas', monospace;
+      font-size: 0.85rem;
+      padding: 15px;
+      resize: vertical;
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    /* Status */
+    .status {
+      text-align: center;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .status.listening {
+      background: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+    }
+
+    .status.processing {
+      background: rgba(241, 196, 15, 0.2);
+      color: #f1c40f;
+    }
+
+    .status.error {
+      background: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+    }
+
+    .status.ready {
+      background: rgba(52, 152, 219, 0.2);
+      color: #3498db;
+    }
+
+    /* Instructions */
+    .instructions {
+      background: rgba(52, 152, 219, 0.1);
+      border-left: 3px solid #3498db;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .instructions h4 {
+      margin-bottom: 10px;
+      color: #3498db;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      color: #bbb;
+    }
+
+    .instructions li {
+      margin-bottom: 5px;
+    }
+
+    /* Summary stats */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 Ses Tanıma Eğitim Aracı</h1>
+    <p class="subtitle">3CScore Bilardo Skor Sistemi için özel kelime eğitimi</p>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="trainedPlayers">0</div>
+        <div class="stat-label">Eğitilen Oyuncu</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="trainedNumbers">0</div>
+        <div class="stat-label">Eğitilen Sayı</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="totalVariations">0</div>
+        <div class="stat-label">Toplam Varyasyon</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('players')">👤 Oyuncu İsimleri</button>
+      <button class="tab" onclick="switchTab('numbers')">🔢 Sayılar</button>
+      <button class="tab" onclick="switchTab('output')">📋 JSON Çıktı</button>
+    </div>
+
+    <!-- Players Tab -->
+    <div id="playersTab" class="tab-content">
+      <div class="instructions">
+        <h4>📌 Nasıl Çalışır?</h4>
+        <ol>
+          <li>Aşağıdan bir oyuncu seçin veya sırayla eğitin</li>
+          <li>🎤 Mikrofon butonuna basın</li>
+          <li>Oyuncunun adını <strong>net ve yavaş</strong> söyleyin</li>
+          <li>Algılanan varyasyonlardan doğru olanları seçin</li>
+          <li>Aynı isim için birden fazla deneme yapabilirsiniz</li>
+        </ol>
+      </div>
+
+      <!-- Item List -->
+      <div class="item-list" id="playerList"></div>
+
+      <!-- Training Card -->
+      <div class="training-card">
+        <div class="current-item">
+          <div class="current-item-label">Şu an eğitilen:</div>
+          <div class="current-item-value" id="currentPlayer">-</div>
+        </div>
+
+        <div class="progress-info" id="playerProgress">Bir oyuncu seçin veya "Sıradaki" butonuna tıklayın</div>
+
+        <!-- Status -->
+        <div class="status ready" id="status">Hazır - Mikrofon butonuna basın</div>
+
+        <!-- Microphone -->
+        <div class="mic-container">
+          <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎤</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container">
+          <div class="results-label">Algılanan Varyasyonlar (seçmek için tıklayın):</div>
+          <div id="alternatives">
+            <div class="no-results">Henüz bir şey algılanmadı</div>
+          </div>
+        </div>
+
+        <!-- Learned Variations -->
+        <div class="learned-container">
+          <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
+          <div class="learned-tags" id="learnedTags">
+            <!-- Tags will be added here -->
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
+          <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
+          <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Numbers Tab -->
+    <div id="numbersTab" class="tab-content" style="display: none;">
+      <div class="instructions">
+        <h4>📌 Sayı Eğitimi</h4>
+        <ol>
+          <li>Bilardo maçlarında sık kullanılan hedef skorları eğitiyoruz</li>
+          <li>Her sayıyı <strong>Türkçe olarak</strong> söyleyin (örn: "otuz", "yirmi beş")</li>
+          <li>Farklı söyleyiş şekillerini de deneyin</li>
+        </ol>
+      </div>
+
+      <!-- Number List -->
+      <div class="item-list" id="numberList"></div>
+
+      <!-- Training Card (same as players) -->
+      <div class="training-card">
+        <div class="current-item">
+          <div class="current-item-label">Şu an eğitilen sayı:</div>
+          <div class="current-item-value" id="currentNumber">-</div>
+        </div>
+
+        <div class="progress-info" id="numberProgress">Bir sayı seçin veya "Sıradaki" butonuna tıklayın</div>
+
+        <!-- Status -->
+        <div class="status ready" id="statusNumber">Hazır - Mikrofon butonuna basın</div>
+
+        <!-- Microphone -->
+        <div class="mic-container">
+          <button class="mic-btn" id="micBtnNumber" onclick="toggleListening()">🎤</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container">
+          <div class="results-label">Algılanan Varyasyonlar:</div>
+          <div id="alternativesNumber">
+            <div class="no-results">Henüz bir şey algılanmadı</div>
+          </div>
+        </div>
+
+        <!-- Learned Variations -->
+        <div class="learned-container">
+          <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
+          <div class="learned-tags" id="learnedTagsNumber"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
+          <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
+          <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Tab -->
+    <div id="outputTab" class="tab-content" style="display: none;">
+      <div class="output-section">
+        <h3>📋 Eğitim Sonuçları - JSON Çıktı</h3>
+        <p style="color: #888; margin-bottom: 15px;">
+          Bu çıktıyı kopyalayıp StartScreen.js dosyasına entegre edebilirsiniz.
+        </p>
+        <textarea class="output-textarea" id="jsonOutput" readonly></textarea>
+        <div class="output-actions">
+          <button class="btn btn-primary" onclick="copyToClipboard()">📋 Kopyala</button>
+          <button class="btn btn-secondary" onclick="downloadJSON()">💾 JSON İndir</button>
+          <button class="btn btn-secondary" onclick="clearAllData()">🗑️ Tümünü Sil</button>
+        </div>
+      </div>
+
+      <div class="output-section" style="margin-top: 20px;">
+        <h3>📝 Entegrasyon Kodu</h3>
+        <p style="color: #888; margin-bottom: 15px;">
+          Bu kodu doğrudan FALLBACK_PLAYER_LIST ve parseTurkishNumber fonksiyonuna ekleyebilirsiniz.
+        </p>
+        <textarea class="output-textarea" id="codeOutput" readonly style="height: 400px;"></textarea>
+        <div class="output-actions">
+          <button class="btn btn-primary" onclick="copyCodeToClipboard()">📋 Kodu Kopyala</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // DATA
+    // ============================================
+    
+    // Oyuncu listesi (StartScreen.js'den)
+    const PLAYERS = [
+      { id: 'player_ibrahim_topyildiz', fullName: 'İbrahim TOPYILDIZ' },
+      { id: 'player_ilhami_ilhan', fullName: 'İlhami İLHAN' },
+      { id: 'player_erol_oran', fullName: 'Erol ORAN' },
+      { id: 'player_huseyin_yolcu', fullName: 'Hüseyin YOLCU' },
+      { id: 'player_ahmet_senol_terzi', fullName: 'Ahmet Şenol TERZİ' },
+      { id: 'player_hasan_haciomeroglu', fullName: 'Hasan HACIÖMEROĞLU' }
+    ];
+
+    // Eğitilecek sayılar (yaygın hedef skorlar ve ıstakalar)
+    const NUMBERS = [15, 20, 25, 30, 35, 40, 45, 50, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // State
+    let currentTab = 'players';
+    let currentPlayerIndex = -1;
+    let currentNumberIndex = -1;
+    let isListening = false;
+    let recognition = null;
+
+    // Learned data (localStorage'dan yükle)
+    let learnedData = {
+      players: {},  // { "İbrahim TOPYILDIZ": ["ibrahim", "ibrahım", ...] }
+      numbers: {}   // { "30": ["otuz", "otus", ...] }
+    };
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+
+    function init() {
+      // localStorage'dan yükle
+      const saved = localStorage.getItem('voiceTrainerData');
+      if (saved) {
+        try {
+          learnedData = JSON.parse(saved);
+        } catch (e) {
+          console.error('Kayıtlı veri yüklenemedi:', e);
+        }
+      }
+
+      // Speech Recognition kontrolü
+      if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+        alert('Tarayıcınız ses tanımayı desteklemiyor! Chrome veya Edge kullanın.');
+        return;
+      }
+
+      // UI'ı güncelle
+      renderPlayerList();
+      renderNumberList();
+      updateStats();
+      updateOutput();
+    }
+
+    // ============================================
+    // TAB SWITCHING
+    // ============================================
+
+    function switchTab(tab) {
+      currentTab = tab;
+      
+      // Tab butonlarını güncelle
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', 
+          (i === 0 && tab === 'players') ||
+          (i === 1 && tab === 'numbers') ||
+          (i === 2 && tab === 'output')
+        );
+      });
+
+      // Tab içeriklerini göster/gizle
+      document.getElementById('playersTab').style.display = tab === 'players' ? 'block' : 'none';
+      document.getElementById('numbersTab').style.display = tab === 'numbers' ? 'block' : 'none';
+      document.getElementById('outputTab').style.display = tab === 'output' ? 'block' : 'none';
+
+      // Output sekmesinde JSON'ı güncelle
+      if (tab === 'output') {
+        updateOutput();
+      }
+    }
+
+    // ============================================
+    // RENDER FUNCTIONS
+    // ============================================
+
+    function renderPlayerList() {
+      const container = document.getElementById('playerList');
+      container.innerHTML = PLAYERS.map((player, index) => {
+        const variations = learnedData.players[player.fullName] || [];
+        const isTrained = variations.length > 0;
+        const isActive = index === currentPlayerIndex;
+        
+        return `
+          <div class="item-chip ${isTrained ? 'trained' : ''} ${isActive ? 'active' : ''}" 
+               onclick="selectPlayer(${index})">
+            ${player.fullName}
+            ${isTrained ? `<span class="badge">${variations.length}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderNumberList() {
+      const container = document.getElementById('numberList');
+      container.innerHTML = NUMBERS.map((num, index) => {
+        const variations = learnedData.numbers[num.toString()] || [];
+        const isTrained = variations.length > 0;
+        const isActive = index === currentNumberIndex;
+        
+        return `
+          <div class="item-chip ${isTrained ? 'trained' : ''} ${isActive ? 'active' : ''}" 
+               onclick="selectNumber(${index})">
+            ${num}
+            ${isTrained ? `<span class="badge">${variations.length}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderLearnedTags() {
+      let container, data, key;
+      
+      if (currentTab === 'players' && currentPlayerIndex >= 0) {
+        container = document.getElementById('learnedTags');
+        key = PLAYERS[currentPlayerIndex].fullName;
+        data = learnedData.players[key] || [];
+      } else if (currentTab === 'numbers' && currentNumberIndex >= 0) {
+        container = document.getElementById('learnedTagsNumber');
+        key = NUMBERS[currentNumberIndex].toString();
+        data = learnedData.numbers[key] || [];
+      } else {
+        return;
+      }
+
+      container.innerHTML = data.map((v, i) => `
+        <span class="learned-tag">
+          "${v}"
+          <span class="remove" onclick="removeVariation('${key}', ${i})">✕</span>
+        </span>
+      `).join('') || '<span style="color: #888;">Henüz varyasyon eklenmedi</span>';
+    }
+
+    // ============================================
+    // SELECTION
+    // ============================================
+
+    function selectPlayer(index) {
+      currentPlayerIndex = index;
+      const player = PLAYERS[index];
+      
+      document.getElementById('currentPlayer').textContent = player.fullName;
+      document.getElementById('playerProgress').textContent = 
+        `${index + 1} / ${PLAYERS.length} oyuncu`;
+      
+      // Reset alternatives
+      document.getElementById('alternatives').innerHTML = 
+        '<div class="no-results">Mikrofon butonuna basıp ismi söyleyin</div>';
+      
+      renderPlayerList();
+      renderLearnedTags();
+    }
+
+    function selectNumber(index) {
+      currentNumberIndex = index;
+      const num = NUMBERS[index];
+      
+      document.getElementById('currentNumber').textContent = num;
+      document.getElementById('numberProgress').textContent = 
+        `${index + 1} / ${NUMBERS.length} sayı`;
+      
+      // Reset alternatives
+      document.getElementById('alternativesNumber').innerHTML = 
+        '<div class="no-results">Mikrofon butonuna basıp sayıyı söyleyin</div>';
+      
+      renderNumberList();
+      renderLearnedTags();
+    }
+
+    // ============================================
+    // NAVIGATION
+    // ============================================
+
+    function nextItem() {
+      if (currentTab === 'players') {
+        const nextIndex = currentPlayerIndex < PLAYERS.length - 1 ? currentPlayerIndex + 1 : 0;
+        selectPlayer(nextIndex);
+      } else if (currentTab === 'numbers') {
+        const nextIndex = currentNumberIndex < NUMBERS.length - 1 ? currentNumberIndex + 1 : 0;
+        selectNumber(nextIndex);
+      }
+    }
+
+    function prevItem() {
+      if (currentTab === 'players') {
+        const prevIndex = currentPlayerIndex > 0 ? currentPlayerIndex - 1 : PLAYERS.length - 1;
+        selectPlayer(prevIndex);
+      } else if (currentTab === 'numbers') {
+        const prevIndex = currentNumberIndex > 0 ? currentNumberIndex - 1 : NUMBERS.length - 1;
+        selectNumber(prevIndex);
+      }
+    }
+
+    // ============================================
+    // SPEECH RECOGNITION
+    // ============================================
+
+    function toggleListening() {
+      if (isListening) {
+        stopListening();
+      } else {
+        startListening();
+      }
+    }
+
+    function startListening() {
+      // Hangi item seçili kontrol et
+      if (currentTab === 'players' && currentPlayerIndex < 0) {
+        selectPlayer(0);
+      } else if (currentTab === 'numbers' && currentNumberIndex < 0) {
+        selectNumber(0);
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      
+      recognition.lang = 'tr-TR';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 10;  // Maksimum alternatif
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateMicButton(true);
+        updateStatus('listening', '🎤 Dinleniyor... Konuşun!');
+      };
+
+      recognition.onresult = (event) => {
+        const result = event.results[0];
+        
+        // Tüm alternatifleri topla
+        const alternatives = [];
+        for (let i = 0; i < result.length; i++) {
+          const alt = result[i];
+          if (alt.transcript.trim()) {
+            alternatives.push({
+              text: alt.transcript.trim().toLowerCase(),
+              confidence: alt.confidence
+            });
+          }
+        }
+
+        // Alternatifleri göster
+        renderAlternatives(alternatives, result.isFinal);
+
+        if (result.isFinal) {
+          updateStatus('ready', '✅ Algılama tamamlandı - Varyasyonları seçin');
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Ses tanıma hatası:', event.error);
+        isListening = false;
+        updateMicButton(false);
+        
+        if (event.error === 'no-speech') {
+          updateStatus('error', '❌ Ses algılanamadı. Tekrar deneyin.');
+        } else if (event.error === 'not-allowed') {
+          updateStatus('error', '❌ Mikrofon izni verilmedi!');
+        } else {
+          updateStatus('error', `❌ Hata: ${event.error}`);
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        updateMicButton(false);
+      };
+
+      recognition.start();
+    }
+
+    function stopListening() {
+      if (recognition) {
+        recognition.stop();
+      }
+      isListening = false;
+      updateMicButton(false);
+    }
+
+    function updateMicButton(listening) {
+      const btn = currentTab === 'players' 
+        ? document.getElementById('micBtn')
+        : document.getElementById('micBtnNumber');
+      
+      if (btn) {
+        btn.classList.toggle('listening', listening);
+      }
+    }
+
+    function updateStatus(type, message) {
+      const statusEl = currentTab === 'players'
+        ? document.getElementById('status')
+        : document.getElementById('statusNumber');
+      
+      if (statusEl) {
+        statusEl.className = `status ${type}`;
+        statusEl.textContent = message;
+      }
+    }
+
+    function renderAlternatives(alternatives, isFinal) {
+      const container = currentTab === 'players'
+        ? document.getElementById('alternatives')
+        : document.getElementById('alternativesNumber');
+      
+      if (alternatives.length === 0) {
+        container.innerHTML = '<div class="no-results">Algılanamadı, tekrar deneyin</div>';
+        return;
+      }
+
+      // Unique alternatifleri filtrele
+      const unique = [];
+      const seen = new Set();
+      for (const alt of alternatives) {
+        const normalized = alt.text.toLowerCase().trim();
+        if (!seen.has(normalized)) {
+          seen.add(normalized);
+          unique.push(alt);
+        }
+      }
+
+      container.innerHTML = unique.map((alt, index) => `
+        <div class="alternative" onclick="selectAlternative('${escapeHtml(alt.text)}')">
+          <span class="alternative-text">"${escapeHtml(alt.text)}"</span>
+          <span class="alternative-confidence">${Math.round(alt.confidence * 100)}%</span>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ============================================
+    // VARIATION MANAGEMENT
+    // ============================================
+
+    function selectAlternative(text) {
+      let key, dataStore;
+      
+      if (currentTab === 'players' && currentPlayerIndex >= 0) {
+        key = PLAYERS[currentPlayerIndex].fullName;
+        dataStore = 'players';
+      } else if (currentTab === 'numbers' && currentNumberIndex >= 0) {
+        key = NUMBERS[currentNumberIndex].toString();
+        dataStore = 'numbers';
+      } else {
+        return;
+      }
+
+      // Normalize text
+      const normalized = text.toLowerCase().trim();
+
+      // Zaten var mı kontrol et
+      if (!learnedData[dataStore][key]) {
+        learnedData[dataStore][key] = [];
+      }
+
+      if (!learnedData[dataStore][key].includes(normalized)) {
+        learnedData[dataStore][key].push(normalized);
+        saveData();
+        renderLearnedTags();
+        updateStats();
+        
+        // Liste'yi güncelle
+        if (dataStore === 'players') {
+          renderPlayerList();
+        } else {
+          renderNumberList();
+        }
+      }
+    }
+
+    function removeVariation(key, index) {
+      const dataStore = currentTab === 'players' ? 'players' : 'numbers';
+      
+      if (learnedData[dataStore][key]) {
+        learnedData[dataStore][key].splice(index, 1);
+        
+        // Boşsa sil
+        if (learnedData[dataStore][key].length === 0) {
+          delete learnedData[dataStore][key];
+        }
+        
+        saveData();
+        renderLearnedTags();
+        updateStats();
+        
+        if (dataStore === 'players') {
+          renderPlayerList();
+        } else {
+          renderNumberList();
+        }
+      }
+    }
+
+    function clearCurrentLearned() {
+      let key, dataStore;
+      
+      if (currentTab === 'players' && currentPlayerIndex >= 0) {
+        key = PLAYERS[currentPlayerIndex].fullName;
+        dataStore = 'players';
+      } else if (currentTab === 'numbers' && currentNumberIndex >= 0) {
+        key = NUMBERS[currentNumberIndex].toString();
+        dataStore = 'numbers';
+      } else {
+        return;
+      }
+
+      if (confirm(`"${key}" için tüm varyasyonları silmek istediğinize emin misiniz?`)) {
+        delete learnedData[dataStore][key];
+        saveData();
+        renderLearnedTags();
+        updateStats();
+        
+        if (dataStore === 'players') {
+          renderPlayerList();
+        } else {
+          renderNumberList();
+        }
+      }
+    }
+
+    // ============================================
+    // DATA PERSISTENCE
+    // ============================================
+
+    function saveData() {
+      localStorage.setItem('voiceTrainerData', JSON.stringify(learnedData));
+    }
+
+    function updateStats() {
+      const trainedPlayers = Object.keys(learnedData.players).length;
+      const trainedNumbers = Object.keys(learnedData.numbers).length;
+      
+      let totalVariations = 0;
+      Object.values(learnedData.players).forEach(arr => totalVariations += arr.length);
+      Object.values(learnedData.numbers).forEach(arr => totalVariations += arr.length);
+
+      document.getElementById('trainedPlayers').textContent = trainedPlayers;
+      document.getElementById('trainedNumbers').textContent = trainedNumbers;
+      document.getElementById('totalVariations').textContent = totalVariations;
+    }
+
+    // ============================================
+    // OUTPUT
+    // ============================================
+
+    function updateOutput() {
+      // Raw JSON
+      const jsonOutput = JSON.stringify(learnedData, null, 2);
+      document.getElementById('jsonOutput').value = jsonOutput;
+
+      // Code output for StartScreen.js
+      let codeOutput = '// ======================================\n';
+      codeOutput += '// ÖĞRENILMIŞ SES VARYASYONLARI\n';
+      codeOutput += '// Bu kodu StartScreen.js\'e entegre edin\n';
+      codeOutput += '// ======================================\n\n';
+
+      // Player aliases
+      codeOutput += '// FALLBACK_PLAYER_LIST için aliases:\n';
+      codeOutput += 'const LEARNED_PLAYER_ALIASES = {\n';
+      for (const [name, variations] of Object.entries(learnedData.players)) {
+        codeOutput += `  "${name}": ${JSON.stringify(variations)},\n`;
+      }
+      codeOutput += '};\n\n';
+
+      // Number variations
+      codeOutput += '// parseTurkishNumber için öğrenilmiş varyasyonlar:\n';
+      codeOutput += 'const LEARNED_NUMBER_VARIATIONS = {\n';
+      for (const [num, variations] of Object.entries(learnedData.numbers)) {
+        codeOutput += `  ${num}: ${JSON.stringify(variations)},\n`;
+      }
+      codeOutput += '};\n\n';
+
+      // Usage example
+      codeOutput += '// Kullanım örneği - findBestPlayerMatches fonksiyonunda:\n';
+      codeOutput += '// const playerAliases = player.aliases || LEARNED_PLAYER_ALIASES[player.fullName] || [];\n\n';
+
+      codeOutput += '// Kullanım örneği - parseTurkishNumber fonksiyonunda:\n';
+      codeOutput += '// for (const [num, variations] of Object.entries(LEARNED_NUMBER_VARIATIONS)) {\n';
+      codeOutput += '//   if (variations.includes(normalized)) return parseInt(num);\n';
+      codeOutput += '// }\n';
+
+      document.getElementById('codeOutput').value = codeOutput;
+    }
+
+    function copyToClipboard() {
+      const textarea = document.getElementById('jsonOutput');
+      textarea.select();
+      document.execCommand('copy');
+      alert('JSON kopyalandı!');
+    }
+
+    function copyCodeToClipboard() {
+      const textarea = document.getElementById('codeOutput');
+      textarea.select();
+      document.execCommand('copy');
+      alert('Kod kopyalandı!');
+    }
+
+    function downloadJSON() {
+      const data = JSON.stringify(learnedData, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'voice-training-data.json';
+      a.click();
+      
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAllData() {
+      if (confirm('TÜM eğitim verilerini silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) {
+        learnedData = { players: {}, numbers: {} };
+        saveData();
+        renderPlayerList();
+        renderNumberList();
+        renderLearnedTags();
+        updateStats();
+        updateOutput();
+        alert('Tüm veriler silindi.');
+      }
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    
+    window.onload = init;
+  </script>
+</body>
+</html>

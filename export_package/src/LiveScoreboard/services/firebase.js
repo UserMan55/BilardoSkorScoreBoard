@@ -416,6 +416,34 @@ export async function getPlayerNames() {
 // Alias for getPlayerNames (for backward compatibility)
 export const getUserProfiles = getPlayerNames;
 
+// Kullanıcı ID'sine göre profil bilgilerini getirir
+export async function getUserById(userId) {
+  if (!userId) return null;
+  
+  try {
+    const userDoc = await getDoc(doc(db, "users", userId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      console.log('✅ Kullanıcı profili bulundu:', userId);
+      return {
+        id: userDoc.id,
+        fullName: userData.fullName || 'Kullanıcı',
+        email: userData.email || null,
+        city: userData.city || null,
+        salon: userData.salon || null,
+        photoURL: userData.photoURL || null,
+        username: userData.username || null
+      };
+    } else {
+      console.log('⚠️ Kullanıcı bulunamadı:', userId);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Kullanıcı profili çekilemedi:', error);
+    return null;
+  }
+}
+
 // --- NETWORK & CONNECTION FUNCTIONS ---
 
 // Public IP adresini getirir

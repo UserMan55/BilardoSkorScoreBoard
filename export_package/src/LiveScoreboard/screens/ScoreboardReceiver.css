@@ -163,27 +163,101 @@
   justify-content: center;
   min-height: 100vh;
   text-align: center;
+  padding: 40px;
+  gap: 20px;
+}
+
+/* Waiting Screen Header */
+.scoreboard-waiting-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.scoreboard-salon-logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 215, 0, 0.5);
+  margin-bottom: 15px;
+}
+
+.scoreboard-salon-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.scoreboard-salon-city {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 5px;
 }
 
 .scoreboard-waiting-title {
   font-size: 48px;
   font-weight: bold;
-  margin-bottom: 20px;
   color: #FFD700;
   animation: pulse 2s infinite;
 }
 
 .scoreboard-waiting-subtitle {
-  font-size: 24px;
+  font-size: 20px;
   color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 40px;
+  max-width: 500px;
 }
 
-.scoreboard-status-box {
-  padding: 20px 30px;
+/* QR Code Section */
+.scoreboard-qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin: 30px 0;
+}
+
+.scoreboard-qr-container {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.scoreboard-qr-image {
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
+.scoreboard-qr-instruction {
+  font-size: 18px;
+  color: #4ECDC4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-icon {
+  font-size: 24px;
+}
+
+.scoreboard-qr-url {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: monospace;
+  word-break: break-all;
+  max-width: 400px;
+}
+
+.scoreboard-waiting-status {
+  margin-top: 20px;
+  padding: 15px 25px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 15px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .scoreboard-status-active {

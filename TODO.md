@@ -4,9 +4,60 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ---
 ## 🚨🚨🚨 SONRAKİ OTURUM İÇİN KRİTİK GÖREVLER 🚨🚨🚨
-**Tarih:** 23 Aralık 2025 - Oturum Güncellemesi #2
+**Tarih:** 24 Aralık 2025 - Oturum Güncellemesi
 
-### ✅ BU OTURUMDA TAMAMLANANLAR (23 Aralık 2025 - İkinci Güncelleme):
+### ✅ BU OTURUMDA TAMAMLANANLAR (24 Aralık 2025):
+1. ✅ **Sesli Komut Sistemi İyileştirmeleri:**
+   - Oyuncu listesine alias (takma ad) sistemi eklendi
+   - "İbrahim", "Erol", "Hüso" gibi kısa isimlerle eşleşme
+   - Türkçe sayı algılama kapsamlı yenilendi (1-100 arası tüm sayılar)
+   - 30 varyasyonları: "otuz", "otus", "oduz", "otüz", "otuş" vb.
+   - Birleşik sayılar: "otuz beş", "yirmi beş", "kırk üç"
+   - Fuzzy eşleştirme (2 karakter hata toleransı)
+   - Sürekli dinleme modu (`continuous: true`)
+   - 10 alternatif sonuç (`maxAlternatives: 10`)
+   - Otomatik seçim eşikleri düşürüldü (alias: %45, normal: %55)
+
+2. ✅ **Mobil Sesli Komut Akışı Düzeltmesi:**
+   - Mobil'de sesli komut artık Firebase'e komut gönderiyor
+   - "CANLI MAÇ BAŞLIYOR" overlay'ı gösteriliyor
+   - 5 saniye countdown sonrası MobileController açılıyor
+
+3. ✅ **Ses Tanıma Eğitim Aracı Oluşturuldu:**
+   - `tools/voice-trainer.html` - Bağımsız eğitim aracı
+   - Oyuncu isimleri ve sayılar için ses kaydı
+   - Web Speech API alternatifleri gösterilir
+   - Varyasyonlar localStorage'da saklanır
+   - JSON çıktı ile koda entegre edilebilir
+   - **Sonraki adım:** Bu araçla eğitim yapıp sisteme entegre etmek
+
+### ⏳ BEKLEYEN GÖREVLER:
+1. ⏳ **Ses Eğitimi Yapılacak** - voice-trainer.html ile tüm oyuncu isimleri ve sayılar eğitilecek
+2. ⏳ **Eğitim Sonuçları Entegre Edilecek** - JSON çıktı StartScreen.js'e eklenecek
+3. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
+4. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
+
+### 🔬 ARAŞTIRMA YAPILDI:
+1. **Picovoice Rhino** - Özel kelime tanıma, ama Türkçe desteklemiyor
+2. **Vosk** - Açık kaynak, Türkçe modeli var (35MB), tarayıcıda çalışıyor
+3. **Mevcut çözüm** - Web Speech API + öğrenilmiş varyasyonlar (ücretsiz, şimdilik yeterli)
+
+---
+
+## 🧪 SES EĞİTİM ARACI KULLANIMI
+**Dosya:** `tools/voice-trainer.html`
+
+### Kullanım:
+1. Firebase'e deploy et: `firebase deploy --only hosting`
+2. https://bilardo-skor.web.app/voice-trainer.html adresini aç
+3. Her oyuncu ismini 3-5 kez farklı şekillerde söyle
+4. Her sayıyı (20, 25, 30, 35, 40, 45, 50) Türkçe söyle
+5. JSON Çıktı sekmesinden kodu kopyala
+6. StartScreen.js'e entegre et
+
+---
+
+### ✅ ÖNCEKİ OTURUMDA TAMAMLANANLAR (23 Aralık 2025 - İkinci Güncelleme):
 1. ✅ **Sesli Komut ile Maç Başlatma Özelliği:**
    - Local mode'da "SESLİ KOMUT İLE MAÇ BAŞLAT" butonu eklendi
    - Web Speech API ile Türkçe ses tanıma (`tr-TR`)
