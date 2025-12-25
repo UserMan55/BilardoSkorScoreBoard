@@ -39,10 +39,20 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
    - 5 saniye countdown sonrası oyun başlıyor
    - "HEMEN BAŞLAT" butonu ile countdown atlanabiliyor
 
+5. ✅ **Fiziksel Kumanda Mikrofon Entegrasyonu (G10/Air Mouse):**
+   - Pi tarafında (Terminal) mikrofon tuşu (F12/Search) dinleniyor
+   - Doğrudan sesli komut başlatma (mobilsiz kullanım)
+   - Chromium Kiosk için `--use-fake-ui-for-media-stream` parametresi eklendi
+   - Test için `Ctrl + M` veya `F12` kullanılabilir
+
 ### ⏳ BEKLEYEN GÖREVLER:
 1. ⏳ **Ses Eğitimi Yapılacak** - voice-trainer.html ile tüm oyuncu isimleri ve sayılar eğitilecek
 2. ⏳ **Eğitim Sonuçları Entegre Edilecek** - JSON çıktı StartScreen.js'e eklenecek
-3. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
+3. ⏳ **3cscore.com Buton Entegrasyonu (DOSYALAR HAZIR):**
+   - Arkadaşınıza gönderilecek dosyalar proje kök dizininde hazır:
+     - `LiveScoreboardButton.js` (React Bileşeni Kodu)
+     - `3CSCORE_BUTTON_CODE.md` (Entegrasyon Dokümanı & Alternatif HTML Kodları)
+   - 3cscore.com geliştiricisine bu dosyalar iletilecek
 4. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
 5. ⏳ **Pi/Terminal Kurulumu** - Aşağıdaki plana göre yapılacak
 
@@ -56,6 +66,17 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 | T4 | Terminal Komut Alma | Mobil'den komut gönder | Terminal'de QR kapanmalı, overlay açılmalı | ⬜ |
 | T5 | Countdown ve Başlat | 5 saniye bekle veya "HEMEN BAŞLAT" | Oyun başlamalı | ⬜ |
 | T6 | Oyun Kontrolü | Mobil'den + / - / OK | Terminal'de skor değişmeli | ⬜ |
+
+### 🧪 TEST SENARYOLARI (Fiziksel Kumanda G10/Air Mouse):
+
+| # | Test | Adımlar | Beklenen Sonuç | Durum |
+|---|------|---------|----------------|-------|
+| K1 | Mikrofon Tuşu Tetikleme | Kumanda üzerindeki Kırmızı Mikrofon tuşuna bas (veya F12) | Ekranda "Dinleniyor..." (Listening) overlay'i açılmalı | ⬜ |
+| K2 | Tuş Bırakma Testi | Tuşa bir kez basıp bırak (basılı tutma) | Dinleme modu aktif kalmalı (Push-to-talk değil Toggle olmalı) | ⬜ |
+| K3 | Sesli Komut Algılama | "İbrahim Topyıldız" veya "Otuz" de | İsim veya sayı doğru algılanıp işlenmeli | ⬜ |
+| K4 | İptal Etme | Dinleme modundayken tekrar Mikrofon tuşuna bas | Dinleme modu kapanmalı | ⬜ |
+| K5 | Chromium İzni | Pi Kiosk modunda mikrofon tuşuna bas | Tarayıcı "İzin verilsin mi?" diye SORMAMALI (Direkt çalışmalı) | ⬜ |
+| K6 | Gürültü/Hata | Anlaşılmayan bir şey söyle | "Anlaşılamadı" mesajı ve öneriler görünmeli | ⬜ |
 
 ---
 
@@ -105,10 +126,10 @@ nohup serve -s /home/pi/scoreboard -l 3000 &
 #### ADIM 5: Chromium Kiosk Mode (Tam Ekran)
 ```bash
 # Scoreboard modu için:
-chromium-browser --kiosk --noerrdialogs "http://localhost:3000?mode=receiver"
+chromium-browser --kiosk --noerrdialogs --use-fake-ui-for-media-stream "http://localhost:3000?mode=receiver"
 
-# Terminal modu için:
-chromium-browser --kiosk --noerrdialogs "http://localhost:3000"
+# Terminal modu için (MİKROFONLU KUMANDA İÇİN BU GEREKLİ):
+chromium-browser --kiosk --noerrdialogs --use-fake-ui-for-media-stream "http://localhost:3000"
 ```
 
 ### 🔄 Otomatik Başlatma (Opsiyonel)
@@ -125,7 +146,7 @@ nano /home/pi/.config/autostart/scoreboard.desktop
 [Desktop Entry]
 Type=Application
 Name=Scoreboard
-Exec=/bin/bash -c "serve -s /home/pi/scoreboard -l 3000 & sleep 3 && chromium-browser --kiosk --noerrdialogs http://localhost:3000?mode=receiver"
+Exec=/bin/bash -c "serve -s /home/pi/scoreboard -l 3000 & sleep 3 && chromium-browser --kiosk --noerrdialogs --use-fake-ui-for-media-stream http://localhost:3000"
 ```
 
 ### 📊 Pi Modları
@@ -215,7 +236,7 @@ Kod değişikliği sonrası:
 
 ### ⏳ BEKLEYEN GÖREVLER:
 1. ⏳ **Firebase Deploy** - Login gerekli, yeni özellikler deploy edilmeli
-2. ⏳ **3cscore.com Buton Entegrasyonu** - 3cscore.com tarafına buton eklenmeli
+2. ⏳ **3cscore.com Buton Entegrasyonu** - `LiveScoreboardButton.js` ve `3CSCORE_BUTTON_CODE.md` dosyalarını ilgili arkadaşa gönder.
 3. ⏳ **Token sistemi gerçek test** - 3cscore.com'dan gerçek token ile test
 
 ---
@@ -534,11 +555,12 @@ Proje 4 ana bölüme ayrılmıştır. Her görev ilgili bölümün altında list
 **Kapsam:** Uygulamaya diğer ağlar üzerinden erişimin sağlanması, projenin yayımlanması, domain işlemleri, uygulamaya (StartScreen ve mobil kumanda) entegrasyon
 
 **⏳ Yapılacaklar:**
-- [x] **Export Package Entegrasyonu:** `export_package` ana React projesine entegre edildiğinde, `StartScreen` giriş yapan kullanıcının bilgilerine (İl, Salon) göre otomatik yapılandırılacak.
-  - [x] Ana projeden kullanıcı bilgisinin (user context) `StartScreen` bileşenine prop olarak geçilmesi.
-  - [x] `StartScreen` içinde `currentUser` bilgisinin prop'tan alınması.
-  - [x] Kullanıcının iline göre oyuncu listesinin filtrelenmesi.
-  - [x] Kullanıcının salon bilgisine göre başlık ve salon bilgisinin gösterilmesi.
+- [x] **Export Package Temizliği:** `export_package` klasörü silindi, gerekli dosyalar (`LiveScoreboardButton.js`) proje kök dizinine taşındı.
+- [x] **Entegrasyon Dosyaları:** `3CSCORE_BUTTON_CODE.md` ve `LiveScoreboardButton.js` entegrasyon için hazır.
+- [x] Ana projeden kullanıcı bilgisinin (user context) `StartScreen` bileşenine prop olarak geçilmesi.
+- [x] `StartScreen` içinde `currentUser` bilgisinin prop'tan alınması.
+- [x] Kullanıcının iline göre oyuncu listesinin filtrelenmesi.
+- [x] Kullanıcının salon bilgisine göre başlık ve salon bilgisinin gösterilmesi.
 
 ---
 

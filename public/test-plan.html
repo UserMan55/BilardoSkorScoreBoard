@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3CSCORE Test Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --success: #22c55e;
+            --error: #ef4444;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .stats {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--border);
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        button.primary:hover {
+            filter: brightness(1.1);
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .test-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .test-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            gap: 15px;
+            transition: background 0.2s;
+        }
+
+        .test-item:last-child {
+            border-bottom: none;
+        }
+
+        .test-item:hover {
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .status-toggle {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 2px solid var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .test-item.passed .status-toggle {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .test-item.passed .status-toggle::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .test-item.failed .status-toggle {
+            background: var(--error);
+            border-color: var(--error);
+        }
+
+        .test-item.failed .status-toggle::after {
+            content: '✕';
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content {
+            flex: 1;
+        }
+
+        .title {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .desc {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="test-dashboard-wrapper">
+        <div class="container">
+            <header>
+                <div>
+                    <h1>Testing & Verification Dashboard</h1>
+                    <div class="stats">
+                        <span id="completed-count">0</span>/<span id="total-count">0</span> Tests Completed
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button onclick="resetTests()">Reset</button>
+                    <button class="primary" onclick="exportReport()">📋 Copy Report</button>
+                </div>
+            </header>
+
+            <div id="test-sections">
+                <!-- Sections will be populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Report copied to clipboard!</div>
+
+    <script>
+        const testData = [
+            {
+                title: "1. GENEL SİSTEM & ALTYAPI",
+                items: [
+                    { id: "g1", title: "Build Mobile", desc: "npm run build:mobile hatasız tamamlanıyor mu?" },
+                    { id: "g2", title: "Build Pi", desc: "npm run build:pi hatasız tamamlanıyor mu?" },
+                    { id: "g3", title: "Firebase Deploy", desc: "firebase deploy --only hosting çalışıyor ve site güncelleniyor mu?" },
+                    { id: "g4", title: "Console Logs", desc: "Konsol 'Warning' veya 'Error' mesajlarından temiz mi?" }
+                ]
+            },
+            {
+                title: "2. MOBİL FRONTEND & START SCREEN",
+                items: [
+                    { id: "m1", title: "Mobil Görünüm", desc: "Mobil cihazda doğru çözünürlük ve görünüm." },
+                    { id: "m2", title: "Profil Header", desc: "Fotoğraf, isim ve salon bilgisi doğru." },
+                    { id: "m3", title: "Tab Geçişleri", desc: "2'li Karşılaşma ve Survival sekmeleri çalışıyor." },
+                    { id: "m4", title: "Oyun Ayarları", desc: "Skor, Istaka, Penaltı, ASO ayarları değiştirilebiliyor." },
+                    { id: "m5", title: "Sesli Komut - QR", desc: "QR tarama ile doğru parametrelerle sayfa açılıyor." },
+                    { id: "m6", title: "Sesli Komut - Mikrofon", desc: "Mikrofon izni isteniyor ve ses (isim/sayı) algılanıyor." },
+                    { id: "m7", title: "Maç Başlatma", desc: "'Maçı Başlat' komutu Firebase'e gidiyor." }
+                ]
+            },
+            {
+                title: "3. KIOSK / RASPBERRY PI",
+                items: [
+                    { id: "k1", title: "Terminal Görünüm", desc: "Kiosk modunda tam ekran ve düzgün." },
+                    { id: "k2", title: "QR Kod", desc: "'Sesli Komut' butonuna basınca QR çıkıyor." },
+                    { id: "k3", title: "Fiziksel Kumanda - Navigasyon", desc: "Yön tuşları ile gezilebiliyor." },
+                    { id: "k4", title: "Fiziksel Kumanda - Ses (F12)", desc: "Mikrofon tuşu (F12/Search) ile yerel sesli komut çalışıyor." },
+                    { id: "k5", title: "Otomatik İzin", desc: "Pi Kiosk modunda mikrofon izni otomatik (sorusuz) veriliyor." }
+                ]
+            },
+            {
+                title: "4. OYUN EKRANI & KONTROLLER",
+                items: [
+                    { id: "gs1", title: "Skor Artırma/Azaltma", desc: "Kumanda yön tuşları çalışıyor." },
+                    { id: "gs2", title: "Timer Play/Pause", desc: "Sayacı durdurup başlatıyor." },
+                    { id: "gs3", title: "Sıra Geçiş & Undo", desc: "OK ile geçiş, Backspace ile geri alma çalışıyor." },
+                    { id: "gs4", title: "Oyun Sonu", desc: "Hedef skora ulaşınca oyun bitiyor." },
+                    { id: "gs5", title: "Survival Mantığı", desc: "Puan düşme ve Run hesaplama doğru." }
+                ]
+            },
+            {
+                title: "5. BACKEND & FIREBASE",
+                items: [
+                    { id: "b1", title: "Token Doğrulama", desc: "verifyTokenHttp fonksiyonu 200 OK dönüyor." },
+                    { id: "b2", title: "Masa Durumu", desc: "Firebase'de BUSY/IDLE durumları güncelleniyor." },
+                    { id: "b3", title: "Log Temizliği", desc: "Prodüksiyon build'inde gereksiz loglar yok." }
+                ]
+            }
+        ];
+
+        // State management
+        let testState = JSON.parse(localStorage.getItem('3cscore_test_state')) || {};
+
+        // Auth Logic - In-Page Form
+        window.onload = function () {
+            // Oturum daha önce açılmış mı kontrol et (Opsiyonel, şimdilik her seferinde soralım ya da sessionStorage kullanalım)
+            if (sessionStorage.getItem('3cscore_auth') === 'true') {
+                showDashboard();
+                return;
+            }
+
+            const authDiv = document.createElement('div');
+            authDiv.id = 'auth-overlay';
+            authDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;';
+            authDiv.innerHTML = `
+            <div style="background:#1e293b;padding:30px;border-radius:12px;border:1px solid #334155;text-align:center;width:300px;">
+                <h2 style="margin-top:0;color:#f8fafc;">Admin Girişi</h2>
+                <input type="password" id="pass-input" placeholder="Şifre" style="width:100%;padding:10px;margin:15px 0;border-radius:6px;border:1px solid #334155;background:#0f172a;color:white;box-sizing:border-box;">
+                <button onclick="tryLogin()" style="width:100%;background:#3b82f6;color:white;padding:10px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Giriş Yap</button>
+                <div id="auth-msg" style="color:#ef4444;margin-top:10px;font-size:0.9em;min-height:20px;"></div>
+            </div>
+        `;
+            document.body.appendChild(authDiv);
+
+            // Enter tuşu desteği
+            document.getElementById('pass-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') tryLogin();
+            });
+
+            // Dashboard'u gizle
+            document.getElementById('test-dashboard-wrapper').style.display = 'none';
+        };
+
+        window.tryLogin = function () {
+            const pass = document.getElementById('pass-input').value;
+            if (pass === "3cscore2025") {
+                sessionStorage.setItem('3cscore_auth', 'true');
+                document.getElementById('auth-overlay').remove();
+                showDashboard();
+            } else {
+                document.getElementById('auth-msg').textContent = "Hatalı şifre!";
+            }
+        };
+
+        function showDashboard() {
+            document.getElementById('test-dashboard-wrapper').style.display = 'block';
+            render();
+        }
+
+        function render() {
+            const container = document.getElementById('test-sections');
+            container.innerHTML = '';
+            let total = 0;
+            let completed = 0;
+
+            testData.forEach((section, sIndex) => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'section';
+
+                let sectionHtml = `
+                <div class="section-header" onclick="toggleSection(${sIndex})">
+                    ${section.title}
+                </div>
+                <ul class="test-list" id="list-${sIndex}">
+            `;
+
+                section.items.forEach(item => {
+                    total++;
+                    const status = testState[item.id] || 'pending'; // pending, passed, failed
+                    if (status === 'passed') completed++;
+
+                    sectionHtml += `
+                    <li class="test-item ${status}" onclick="toggleStatus('${item.id}')">
+                        <div class="status-toggle"></div>
+                        <div class="content">
+                            <span class="title">${item.title}</span>
+                            <span class="desc">${item.desc}</span>
+                        </div>
+                    </li>
+                `;
+                });
+
+                sectionHtml += '</ul></div>';
+                sectionEl.innerHTML = sectionHtml;
+                container.appendChild(sectionEl);
+            });
+
+            // Update stats
+            document.getElementById('completed-count').textContent = completed;
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('progress').style.width = `${(completed / total) * 100}%`;
+        }
+
+        function toggleStatus(id) {
+            const current = testState[id];
+            if (!current || current === 'pending') testState[id] = 'passed';
+            else if (current === 'passed') testState[id] = 'failed';
+            else testState[id] = 'pending';
+
+            localStorage.setItem('3cscore_test_state', JSON.stringify(testState));
+            render();
+        }
+
+        function resetTests() {
+            if (confirm('Tüm test durumları sıfırlansın mı?')) {
+                testState = {};
+                localStorage.removeItem('3cscore_test_state');
+                render();
+            }
+        }
+
+        function exportReport() {
+            let report = "# 3CSCORE Test Raporu\n\nTarih: " + new Date().toLocaleString() + "\n\n";
+
+            testData.forEach(section => {
+                report += `## ${section.title}\n`;
+                section.items.forEach(item => {
+                    const status = testState[item.id];
+                    const mark = status === 'passed' ? '✅' : (status === 'failed' ? '❌' : '⬜');
+                    report += `${mark} **${item.title}**: ${item.desc}\n`;
+                });
+                report += "\n";
+            });
+
+            navigator.clipboard.writeText(report).then(() => {
+                const toast = document.getElementById('toast');
+                toast.style.opacity = '1';
+                setTimeout(() => toast.style.opacity = '0', 2000);
+            });
+        }
+
+        // Initialize
+        render();
+    </script>
+
+</body>
+
+</html>

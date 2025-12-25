@@ -2164,10 +2164,11 @@
 /* Voice Suggestions Title */
 .voice-suggestions-title {
   width: 100%;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  color: #fbbf24;
   margin-bottom: 10px;
   text-align: center;
+  font-weight: 600;
 }
 
 /* Match Score Badge */

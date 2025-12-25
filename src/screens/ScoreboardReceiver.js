@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { listenForMatchCommands, getUserProfiles } from '../services/firebase';
 import './ScoreboardReceiver.css';
 
@@ -14,7 +14,7 @@ const SALON_INFO = {
 // QR URL oluştur
 const getQRUrl = (tableId = 'table_1') => {
   // Production'da live.3cscore.com, development'ta localhost
-  const baseUrl = process.env.NODE_ENV === 'production' 
+  const baseUrl = process.env.NODE_ENV === 'production'
     ? 'https://live.3cscore.com'
     : `http://${window.location.hostname}:3000`;
   return `${baseUrl}?table=${tableId}&voice=true`;
@@ -25,6 +25,7 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
   const [matchPreview, setMatchPreview] = useState(null);
   const [countdown, setCountdown] = useState(3);
   const [playerPhotos, setPlayerPhotos] = useState({});
+  const countdownIntervalRef = useRef(null);
 
   useEffect(() => {
     let isInitialLoad = true;
@@ -33,56 +34,71 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
     // Firebase dinleyicisini başlat
     const unsubscribe = listenForMatchCommands((data) => {
       // İlk veri geldiğinde loading'den çık
-      if (status === 'loading') {
-        setStatus('waiting');
-      }
-      
+      // Stale closure warning: status accessed here might be stale, but harmless for transition to 'waiting'
+      setStatus(prev => {
+        if (prev === 'loading') return 'waiting';
+        return prev;
+      });
+
       if (data && data.status === 'START') {
         const currentTimestamp = data.timestamp?.seconds || 0;
-        
+
         // İlk yüklemede eski veriyi atla
         if (isInitialLoad) {
           isInitialLoad = false;
           lastTimestamp = currentTimestamp;
-          console.log("İlk yükleme - eski veri atlandı");
+          // console.log("İlk yükleme - eski veri atlandı");
           return;
         }
-        
+
         // Sadece yeni gelen komutları işle (timestamp değiştiyse)
         if (currentTimestamp > lastTimestamp) {
-          console.log("Yeni maç komutu alındı:", data);
+          // console.log("Yeni maç komutu alındı:", data);
           lastTimestamp = currentTimestamp;
           setStatus('starting');
           setMatchPreview(data);
           setCountdown(3);
-          
+
           // Fotoğrafları doğrudan START komutundan al (varsa)
           if (data.playerPhotos) {
-            console.log("📷 Fotoğraflar START komutundan alındı:", data.playerPhotos);
+            // console.log("📷 Fotoğraflar START komutundan alındı:", data.playerPhotos);
             setPlayerPhotos(data.playerPhotos);
+          }
+
+          // Mevcut interval varsa temizle
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
           }
 
           // Countdown başlat
           let count = 3;
-          const countdownInterval = setInterval(() => {
+          const intervalId = setInterval(() => {
             count--;
             setCountdown(count);
             if (count <= 0) {
-              clearInterval(countdownInterval);
+              clearInterval(intervalId);
+              countdownIntervalRef.current = null;
               // Gelen veriyi direkt parent'a ilet
               if (onStartGame) {
                 onStartGame(data);
               }
             }
           }, 1000);
+          countdownIntervalRef.current = intervalId;
+
         } else {
-          console.log("Eski veri - atlandı");
+          // console.log("Eski veri - atlandı");
         }
       }
     });
 
-    // Component unmount olduğunda dinlemeyi durdur
-    return () => unsubscribe();
+    // Component unmount olduğunda dinlemeyi durdur ve intervali temizle
+    return () => {
+      unsubscribe();
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
   }, [onStartGame]);
 
   // Fetch player photos
@@ -91,43 +107,43 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
       const fetchPlayerPhotos = async () => {
         try {
           const allUsers = await getUserProfiles();
-          console.log("📷 Tüm kullanıcılar:", allUsers.map(u => ({ name: u.fullName, photo: u.photoURL ? 'VAR' : 'YOK' })));
-          console.log("📷 Aranan oyuncular:", matchPreview.players);
-          
+          // console.log("📷 Tüm kullanıcılar:", allUsers.map(u => ({ name: u.fullName, photo: u.photoURL ? 'VAR' : 'YOK' })));
+          // console.log("📷 Aranan oyuncular:", matchPreview.players);
+
           const photos = {};
-          
+
           matchPreview.players.forEach(playerName => {
             // Trim ve normalize et
             const normalizedPlayerName = playerName.trim().toLowerCase();
-            
-            const user = allUsers.find(u => 
+
+            const user = allUsers.find(u =>
               u.fullName.trim().toLowerCase() === normalizedPlayerName
             );
-            
-            console.log(`📷 ${playerName} -> Eşleşme:`, user ? user.fullName : 'BULUNAMADI', '| Foto:', user?.photoURL ? 'VAR' : 'YOK');
-            
+
+            // console.log(`📷 ${playerName} -> Eşleşme:`, user ? user.fullName : 'BULUNAMADI', '| Foto:', user?.photoURL ? 'VAR' : 'YOK');
+
             if (user && user.photoURL) {
               photos[playerName] = user.photoURL;
             }
           });
-          
-          console.log("📷 Yüklenen fotoğraflar:", photos);
+
+          // console.log("📷 Yüklenen fotoğraflar:", photos);
           setPlayerPhotos(photos);
         } catch (error) {
           console.error('Error fetching player photos:', error);
         }
       };
-      
+
       fetchPlayerPhotos();
     }
   }, [matchPreview]);
 
   if (status === 'starting' && matchPreview) {
-    console.log("🖼️ ScoreboardReceiver Render - playerPhotos:", playerPhotos);
-    console.log("🖼️ ScoreboardReceiver Render - players:", matchPreview.players);
-    console.log("🖼️ Player1 photo check:", matchPreview.players[0], "->", playerPhotos[matchPreview.players[0]]);
-    console.log("🖼️ Player2 photo check:", matchPreview.players[1], "->", playerPhotos[matchPreview.players[1]]);
-    
+    // console.log("🖼️ ScoreboardReceiver Render - playerPhotos:", playerPhotos);
+    // console.log("🖼️ ScoreboardReceiver Render - players:", matchPreview.players);
+    // console.log("🖼️ Player1 photo check:", matchPreview.players[0], "->", playerPhotos[matchPreview.players[0]]);
+    // console.log("🖼️ Player2 photo check:", matchPreview.players[1], "->", playerPhotos[matchPreview.players[1]]);
+
     return (
       <div className="scoreboard-wrapper">
         <div className="scoreboard-starting-screen">
@@ -207,11 +223,11 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
 
         <div className="scoreboard-waiting-title">MAÇ BEKLENİYOR</div>
         <div className="scoreboard-waiting-subtitle">Telefonunuzla QR kodu tarayın ve sesli komutla maç başlatın</div>
-        
+
         {/* QR Kod Alanı */}
         <div className="scoreboard-qr-section">
           <div className="scoreboard-qr-container">
-            <img 
+            <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getQRUrl(tableId))}`}
               alt="QR Kod"
               className="scoreboard-qr-image"
