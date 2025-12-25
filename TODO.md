@@ -82,6 +82,15 @@ Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında
 
 ## 🍓 Raspberry Pi KURULUM PLANI
 
+> [!CAUTION]
+> **🚨 KRİTİK UYARI: BUILD İŞLEMİ SADECE WINDOWS'TA YAPILMALIDIR!**
+> 
+> Pi üzerinde `npm run build` veya `npm start` **ASLA** çalıştırmayın! 
+> - Pi'nin RAM'i yetersizdir (~1GB), build sırasında donma/çökme yaşanır.
+> - Sadece hazır `build/` klasörünü Pi'ye kopyalayın ve `serve` ile çalıştırın.
+> 
+> **Doğru Akış:** Windows'ta build → USB/SCP ile Pi'ye kopyala → Pi'de `serve -s` çalıştır
+
 ### ⚠️ ÖNEMLİ: Development vs Production
 
 | Mod | Komut | RAM | Pi için |

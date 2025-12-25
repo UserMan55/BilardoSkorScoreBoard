@@ -126,7 +126,7 @@ const getTableFromURLParams = () => {
   }
 };
 
-function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = false, onShowController }) {
+function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = false, onShowController, autoOpenVoiceModal = false, onVoiceMatchClose }) {
   const [activeTab, setActiveTab] = useState("2vs2");
   const [names, setNames] = useState([]);
   // isMobileOnly prop'u varsa direkt controller modunda başla
@@ -362,7 +362,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [showLiveWatch, setShowLiveWatch] = useState(false);
 
   // SESLİ KOMUT İLE MAÇ BAŞLATMA STATE'LERİ
-  const [voiceMatchMode, setVoiceMatchMode] = useState(false);
+  const [voiceMatchMode, setVoiceMatchMode] = useState(autoOpenVoiceModal);
   const [voiceMatchStep, setVoiceMatchStep] = useState(0); // 0: idle, 1: player1, 2: player2, 3: targetScore, 4: targetRack
   const [voiceMatchData, setVoiceMatchData] = useState({
     player1: '',
@@ -1894,6 +1894,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         voiceRecognitionRef.current.stop();
       } catch (e) { }
       voiceRecognitionRef.current = null;
+    }
+
+    // Callback (mobil ana ekrana dönüş için)
+    if (onVoiceMatchClose) {
+      onVoiceMatchClose();
     }
   };
 
@@ -4521,176 +4526,166 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                 </div>
               </>
             ) : (
-              /* Mobil mod: Normal sesli komut arayüzü */
+              /* Mobil mod: Sadeleştirilmiş sesli komut arayüzü */
               <>
                 <h2 className="voice-match-title">
-                  <span className="mic-icon">🎤</span>
-                  SESLİ KOMUT İLE MAÇ BAŞLAT
+                  🎤 Sesli Maç Başlat
                 </h2>
 
-                {/* Adım göstergesi - progress bar şeklinde */}
-                <div className="voice-match-progress">
-                  <div className={`voice-progress-step ${voiceMatchStep >= 1 ? 'active' : ''} ${voiceMatchStep > 1 ? 'completed' : ''}`}>
-                    <span className="step-number">1</span>
-                    <span className="step-label">Oyuncu 1</span>
-                  </div>
-                  <div className="voice-progress-line"></div>
-                  <div className={`voice-progress-step ${voiceMatchStep >= 2 ? 'active' : ''} ${voiceMatchStep > 2 ? 'completed' : ''}`}>
-                    <span className="step-number">2</span>
-                    <span className="step-label">Oyuncu 2</span>
-                  </div>
-                  <div className="voice-progress-line"></div>
-                  <div className={`voice-progress-step ${voiceMatchStep >= 3 ? 'active' : ''} ${voiceMatchStep > 3 ? 'completed' : ''}`}>
-                    <span className="step-number">3</span>
-                    <span className="step-label">Sayı</span>
-                  </div>
-                  <div className="voice-progress-line"></div>
-                  <div className={`voice-progress-step ${voiceMatchStep >= 4 ? 'active' : ''} ${voiceMatchStep > 4 ? 'completed' : ''}`}>
-                    <span className="step-number">4</span>
-                    <span className="step-label">Istaka</span>
-                  </div>
+                {/* Minimal Adım Göstergesi */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '15px' }}>
+                  {[1, 2, 3, 4].map(step => (
+                    <div key={step} style={{
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '14px', fontWeight: 'bold',
+                      background: voiceMatchStep > step ? '#22c55e' : voiceMatchStep === step ? '#3b82f6' : '#334155',
+                      color: 'white'
+                    }}>
+                      {voiceMatchStep > step ? '✓' : step}
+                    </div>
+                  ))}
                 </div>
 
-                <div className="voice-match-instruction">
+                {/* Talimat */}
+                <div style={{ textAlign: 'center', fontSize: '16px', color: '#94a3b8', marginBottom: '15px' }}>
                   {getVoiceStepInstruction()}
                 </div>
 
-                {/* Adım 3 ve 4 için örnek sayılar göster */}
-                {(voiceMatchStep === 3 || voiceMatchStep === 4) && (
-                  <div className="voice-number-hint">
-                    💡 Örnek: "otuz", "kırk beş", "yirmi", "elli"
-                  </div>
-                )}
+                {/* Tek Satırda Değerler */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                  marginBottom: '20px',
+                  padding: '10px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: '10px'
+                }}>
+                  <span style={{ color: voiceMatchData.player1 ? '#22c55e' : '#64748b' }}>
+                    👤 {voiceMatchData.player1 || '---'}
+                  </span>
+                  <span style={{ color: '#475569' }}>vs</span>
+                  <span style={{ color: voiceMatchData.player2 ? '#22c55e' : '#64748b' }}>
+                    👤 {voiceMatchData.player2 || '---'}
+                  </span>
+                  <span style={{ color: '#475569' }}>|</span>
+                  <span style={{ color: voiceMatchData.targetScore ? '#22c55e' : '#64748b' }}>
+                    🎯 {voiceMatchData.targetScore || '--'}
+                  </span>
+                  <span style={{ color: '#475569' }}>|</span>
+                  <span style={{ color: voiceMatchData.targetRack ? '#22c55e' : '#64748b' }}>
+                    🎱 {voiceMatchData.targetRack || '--'}
+                  </span>
+                </div>
 
+                {/* Durum & Mikrofon - Tek Satır */}
                 {voiceMatchStep < 5 && (
-                  <div className="voice-match-listening">
-                    {/* Durum Göstergesi */}
-                    <div className={`voice-status-indicator ${voiceStatus}`}>
-                      {voiceStatus === 'listening' && (
-                        <>
-                          <span className="status-dot listening"></span>
-                          <span className="status-text">🎙️ DİNLENİYOR - Konuşun...</span>
-                        </>
-                      )}
-                      {voiceStatus === 'processing' && (
-                        <>
-                          <span className="status-dot processing"></span>
-                          <span className="status-text">⏳ İŞLENİYOR...</span>
-                        </>
-                      )}
-                      {voiceStatus === 'stopped' && (
-                        <>
-                          <span className="status-dot stopped"></span>
-                          <span className="status-text">⏸️ DURAKLATILDI</span>
-                        </>
-                      )}
-                      {voiceStatus === 'error' && (
-                        <>
-                          <span className="status-dot error"></span>
-                          <span className="status-text">❌ HATA</span>
-                        </>
-                      )}
-                      {voiceStatus === 'idle' && (
-                        <>
-                          <span className="status-dot idle"></span>
-                          <span className="status-text">⏹️ HAZIR</span>
-                        </>
-                      )}
+                  <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 20px',
+                      background: voiceStatus === 'listening' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100, 116, 139, 0.2)',
+                      borderRadius: '20px',
+                      marginBottom: '10px'
+                    }}>
+                      <span style={{
+                        width: '10px', height: '10px', borderRadius: '50%',
+                        background: voiceStatus === 'listening' ? '#22c55e' : '#64748b',
+                        animation: voiceStatus === 'listening' ? 'pulse 1s infinite' : 'none'
+                      }}></span>
+                      <span style={{ color: '#e2e8f0', fontSize: '14px' }}>
+                        {voiceStatus === 'listening' ? 'Dinleniyor...' : 'Hazır'}
+                      </span>
                     </div>
 
-                    {/* Dalga animasyonu - sadece dinlerken göster */}
-                    {voiceStatus === 'listening' && (
-                      <div className="voice-waves">
-                        <div className="voice-wave-bar"></div>
-                        <div className="voice-wave-bar"></div>
-                        <div className="voice-wave-bar"></div>
-                        <div className="voice-wave-bar"></div>
-                        <div className="voice-wave-bar"></div>
-                      </div>
-                    )}
-
-                    {/* Algılanan metin */}
-                    <div className="voice-recognized-text">
-                      {voiceRecognizedText || (voiceStatus === 'listening' ? 'Konuşmanızı bekliyorum...' : 'Dinleme başlatın')}
+                    <div style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '10px' }}>
+                      {voiceRecognizedText || '---'}
                     </div>
 
-                    {/* Mikrofon Kontrol Butonları */}
-                    <div className="voice-control-buttons">
-                      {voiceStatus === 'listening' ? (
-                        <button
-                          className="voice-control-btn stop"
-                          onClick={stopVoiceRecognition}
-                        >
-                          ⏹️ Dinlemeyi Durdur
-                        </button>
-                      ) : (
-                        <button
-                          className="voice-control-btn start"
-                          onClick={startVoiceRecognition}
-                        >
-                          🎙️ Dinlemeyi Başlat
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      onClick={voiceStatus === 'listening' ? stopVoiceRecognition : startVoiceRecognition}
+                      style={{
+                        padding: '12px 25px',
+                        fontSize: '15px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: voiceStatus === 'listening' ? '#ef4444' : '#22c55e',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {voiceStatus === 'listening' ? '⏹️ Durdur' : '🎙️ Dinle'}
+                    </button>
                   </div>
                 )}
 
+                {/* Hata & Öneriler */}
                 {voiceMatchError && (
-                  <div className="voice-match-error">
+                  <div style={{ color: '#fbbf24', textAlign: 'center', marginBottom: '10px', fontSize: '14px' }}>
                     {voiceMatchError}
                   </div>
                 )}
 
                 {voicePlayerSuggestions.length > 0 && (
-                  <div className="voice-player-suggestions">
-                    <div className="voice-suggestions-title">❓ Bunu mu demek istediniz? (Seçmek için tıklayın)</div>
-                    {voicePlayerSuggestions.map((player, index) => (
-                      <button
-                        key={player.id || index}
-                        className={`voice-player-suggestion ${index === 0 ? 'best-match' : ''}`}
-                        onClick={() => selectVoicePlayer(player.fullName)}
-                      >
-                        {player.fullName}
-                        <span className="match-score">%{Math.round(player.similarity * 100)}</span>
-                      </button>
-                    ))}
+                  <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>Bunu mu demek istediniz?</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {voicePlayerSuggestions.map((player, index) => (
+                        <button
+                          key={player.id || index}
+                          onClick={() => selectVoicePlayer(player.fullName)}
+                          style={{
+                            padding: '8px 15px',
+                            borderRadius: '8px',
+                            border: index === 0 ? '2px solid #22c55e' : '1px solid #475569',
+                            background: index === 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(71, 85, 105, 0.3)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                          }}
+                        >
+                          {player.fullName}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                <div className="voice-match-values">
-                  <div className={`voice-match-value-item ${voiceMatchData.player1 ? 'filled' : ''} ${voiceMatchStep === 1 ? 'active' : ''}`}>
-                    <div className="voice-value-label">1. Oyuncu</div>
-                    <div className="voice-value-text">{voiceMatchData.player1 || '-'}</div>
-                  </div>
-                  <div className={`voice-match-value-item ${voiceMatchData.player2 ? 'filled' : ''} ${voiceMatchStep === 2 ? 'active' : ''}`}>
-                    <div className="voice-value-label">2. Oyuncu</div>
-                    <div className="voice-value-text">{voiceMatchData.player2 || '-'}</div>
-                  </div>
-                  <div className={`voice-match-value-item ${voiceMatchData.targetScore ? 'filled' : ''} ${voiceMatchStep === 3 ? 'active' : ''}`}>
-                    <div className="voice-value-label">Hedef Sayı</div>
-                    <div className="voice-value-text">{voiceMatchData.targetScore || '-'}</div>
-                  </div>
-                  <div className={`voice-match-value-item ${voiceMatchData.targetRack ? 'filled' : ''} ${voiceMatchStep === 4 ? 'active' : ''}`}>
-                    <div className="voice-value-label">Hedef Istaka</div>
-                    <div className="voice-value-text">{voiceMatchData.targetRack || '-'}</div>
-                  </div>
-                </div>
-
-                <div className="voice-match-actions">
-                  <button className="voice-match-cancel-btn" onClick={closeVoiceMatchMode}>
+                {/* Aksiyon Butonları */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={closeVoiceMatchMode}
+                    style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #475569', background: 'transparent', color: '#94a3b8', cursor: 'pointer' }}
+                  >
                     ❌ İptal
                   </button>
                   {voiceMatchStep < 5 && (
-                    <button className="voice-match-retry-btn" onClick={retryVoiceStep}>
-                      🔄 Tekrar Söyle
+                    <button
+                      onClick={retryVoiceStep}
+                      style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3b82f6', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', cursor: 'pointer' }}
+                    >
+                      🔄 Tekrar
                     </button>
                   )}
                   <button
-                    className={`voice-match-confirm-btn ${voiceMatchStep === 5 ? 'ready' : ''}`}
                     onClick={startVoiceMatch}
                     disabled={voiceMatchStep !== 5}
+                    style={{
+                      padding: '10px 25px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: voiceMatchStep === 5 ? '#22c55e' : '#334155',
+                      color: voiceMatchStep === 5 ? 'white' : '#64748b',
+                      cursor: voiceMatchStep === 5 ? 'pointer' : 'not-allowed',
+                      fontWeight: 'bold'
+                    }}
                   >
-                    🎯 MAÇI BAŞLAT
+                    🎯 BAŞLAT
                   </button>
                 </div>
               </>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,7 +47,7 @@
     .tab {
       flex: 1;
       padding: 15px;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       border-radius: 10px;
       color: #fff;
@@ -56,7 +57,7 @@
     }
 
     .tab:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
     }
 
     .tab.active {
@@ -65,7 +66,7 @@
 
     /* Training Card */
     .training-card {
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       border-radius: 15px;
       padding: 30px;
       margin-bottom: 20px;
@@ -131,13 +132,20 @@
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
     }
 
     /* Results */
     .results-container {
-      background: rgba(0,0,0,0.3);
+      background: rgba(0, 0, 0, 0.3);
       border-radius: 10px;
       padding: 15px;
       margin-bottom: 20px;
@@ -155,7 +163,7 @@
       align-items: center;
       padding: 8px 12px;
       margin-bottom: 5px;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s;
@@ -243,7 +251,7 @@
     }
 
     .btn-secondary {
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
     }
 
@@ -267,7 +275,7 @@
 
     .item-chip {
       padding: 10px 15px;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       text-align: center;
       cursor: pointer;
@@ -276,7 +284,7 @@
     }
 
     .item-chip:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
     }
 
     .item-chip.trained {
@@ -302,7 +310,7 @@
 
     /* Output Section */
     .output-section {
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       border-radius: 15px;
       padding: 20px;
       margin-top: 30px;
@@ -316,7 +324,7 @@
       width: 100%;
       height: 300px;
       background: #1a1a2e;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       color: #4CAF50;
       font-family: 'Consolas', monospace;
@@ -407,179 +415,183 @@
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>🎤 Ses Tanıma Eğitim Aracı</h1>
-    <p class="subtitle">3CScore Bilardo Skor Sistemi için özel kelime eğitimi</p>
 
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-value" id="trainedPlayers">0</div>
-        <div class="stat-label">Eğitilen Oyuncu</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="trainedNumbers">0</div>
-        <div class="stat-label">Eğitilen Sayı</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="totalVariations">0</div>
-        <div class="stat-label">Toplam Varyasyon</div>
-      </div>
-    </div>
+  <div id="trainer-dashboard-wrapper">
+    <div class="container">
+      <h1>🎤 Ses Tanıma Eğitim Aracı</h1>
+      <p class="subtitle">3CScore Bilardo Skor Sistemi için özel kelime eğitimi</p>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('players')">👤 Oyuncu İsimleri</button>
-      <button class="tab" onclick="switchTab('numbers')">🔢 Sayılar</button>
-      <button class="tab" onclick="switchTab('output')">📋 JSON Çıktı</button>
-    </div>
-
-    <!-- Players Tab -->
-    <div id="playersTab" class="tab-content">
-      <div class="instructions">
-        <h4>📌 Nasıl Çalışır?</h4>
-        <ol>
-          <li>Aşağıdan bir oyuncu seçin veya sırayla eğitin</li>
-          <li>🎤 Mikrofon butonuna basın</li>
-          <li>Oyuncunun adını <strong>net ve yavaş</strong> söyleyin</li>
-          <li>Algılanan varyasyonlardan doğru olanları seçin</li>
-          <li>Aynı isim için birden fazla deneme yapabilirsiniz</li>
-        </ol>
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="trainedPlayers">0</div>
+          <div class="stat-label">Eğitilen Oyuncu</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="trainedNumbers">0</div>
+          <div class="stat-label">Eğitilen Sayı</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="totalVariations">0</div>
+          <div class="stat-label">Toplam Varyasyon</div>
+        </div>
       </div>
 
-      <!-- Item List -->
-      <div class="item-list" id="playerList"></div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('players')">👤 Oyuncu İsimleri</button>
+        <button class="tab" onclick="switchTab('numbers')">🔢 Sayılar</button>
+        <button class="tab" onclick="switchTab('output')">📋 JSON Çıktı</button>
+      </div>
 
-      <!-- Training Card -->
-      <div class="training-card">
-        <div class="current-item">
-          <div class="current-item-label">Şu an eğitilen:</div>
-          <div class="current-item-value" id="currentPlayer">-</div>
+      <!-- Players Tab -->
+      <div id="playersTab" class="tab-content">
+        <div class="instructions">
+          <h4>📌 Nasıl Çalışır?</h4>
+          <ol>
+            <li>Aşağıdan bir oyuncu seçin veya sırayla eğitin</li>
+            <li>🎤 Mikrofon butonuna basın</li>
+            <li>Oyuncunun adını <strong>net ve yavaş</strong> söyleyin</li>
+            <li>Algılanan varyasyonlardan doğru olanları seçin</li>
+            <li>Aynı isim için birden fazla deneme yapabilirsiniz</li>
+          </ol>
         </div>
 
-        <div class="progress-info" id="playerProgress">Bir oyuncu seçin veya "Sıradaki" butonuna tıklayın</div>
+        <!-- Item List -->
+        <div class="item-list" id="playerList"></div>
 
-        <!-- Status -->
-        <div class="status ready" id="status">Hazır - Mikrofon butonuna basın</div>
+        <!-- Training Card -->
+        <div class="training-card">
+          <div class="current-item">
+            <div class="current-item-label">Şu an eğitilen:</div>
+            <div class="current-item-value" id="currentPlayer">-</div>
+          </div>
 
-        <!-- Microphone -->
-        <div class="mic-container">
-          <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎤</button>
+          <div class="progress-info" id="playerProgress">Bir oyuncu seçin veya "Sıradaki" butonuna tıklayın</div>
+
+          <!-- Status -->
+          <div class="status ready" id="status">Hazır - Mikrofon butonuna basın</div>
+
+          <!-- Microphone -->
+          <div class="mic-container">
+            <button class="mic-btn" id="micBtn" onclick="toggleListening()">🎤</button>
+          </div>
+
+          <!-- Results -->
+          <div class="results-container">
+            <div class="results-label">Algılanan Varyasyonlar (seçmek için tıklayın):</div>
+            <div id="alternatives">
+              <div class="no-results">Henüz bir şey algılanmadı</div>
+            </div>
+          </div>
+
+          <!-- Learned Variations -->
+          <div class="learned-container">
+            <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
+            <div class="learned-tags" id="learnedTags">
+              <!-- Tags will be added here -->
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions">
+            <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
+            <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
+            <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Numbers Tab -->
+      <div id="numbersTab" class="tab-content" style="display: none;">
+        <div class="instructions">
+          <h4>📌 Sayı Eğitimi</h4>
+          <ol>
+            <li>Bilardo maçlarında sık kullanılan hedef skorları eğitiyoruz</li>
+            <li>Her sayıyı <strong>Türkçe olarak</strong> söyleyin (örn: "otuz", "yirmi beş")</li>
+            <li>Farklı söyleyiş şekillerini de deneyin</li>
+          </ol>
         </div>
 
-        <!-- Results -->
-        <div class="results-container">
-          <div class="results-label">Algılanan Varyasyonlar (seçmek için tıklayın):</div>
-          <div id="alternatives">
-            <div class="no-results">Henüz bir şey algılanmadı</div>
+        <!-- Number List -->
+        <div class="item-list" id="numberList"></div>
+
+        <!-- Training Card (same as players) -->
+        <div class="training-card">
+          <div class="current-item">
+            <div class="current-item-label">Şu an eğitilen sayı:</div>
+            <div class="current-item-value" id="currentNumber">-</div>
+          </div>
+
+          <div class="progress-info" id="numberProgress">Bir sayı seçin veya "Sıradaki" butonuna tıklayın</div>
+
+          <!-- Status -->
+          <div class="status ready" id="statusNumber">Hazır - Mikrofon butonuna basın</div>
+
+          <!-- Microphone -->
+          <div class="mic-container">
+            <button class="mic-btn" id="micBtnNumber" onclick="toggleListening()">🎤</button>
+          </div>
+
+          <!-- Results -->
+          <div class="results-container">
+            <div class="results-label">Algılanan Varyasyonlar:</div>
+            <div id="alternativesNumber">
+              <div class="no-results">Henüz bir şey algılanmadı</div>
+            </div>
+          </div>
+
+          <!-- Learned Variations -->
+          <div class="learned-container">
+            <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
+            <div class="learned-tags" id="learnedTagsNumber"></div>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions">
+            <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
+            <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
+            <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Tab -->
+      <div id="outputTab" class="tab-content" style="display: none;">
+        <div class="output-section">
+          <h3>📋 Eğitim Sonuçları - JSON Çıktı</h3>
+          <p style="color: #888; margin-bottom: 15px;">
+            Bu çıktıyı kopyalayıp StartScreen.js dosyasına entegre edebilirsiniz.
+          </p>
+          <textarea class="output-textarea" id="jsonOutput" readonly></textarea>
+          <div class="output-actions">
+            <button class="btn btn-primary" onclick="copyToClipboard()">📋 Kopyala</button>
+            <button class="btn btn-secondary" onclick="downloadJSON()">💾 JSON İndir</button>
+            <button class="btn btn-secondary" onclick="clearAllData()">🗑️ Tümünü Sil</button>
           </div>
         </div>
 
-        <!-- Learned Variations -->
-        <div class="learned-container">
-          <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
-          <div class="learned-tags" id="learnedTags">
-            <!-- Tags will be added here -->
+        <div class="output-section" style="margin-top: 20px;">
+          <h3>📝 Entegrasyon Kodu</h3>
+          <p style="color: #888; margin-bottom: 15px;">
+            Bu kodu doğrudan FALLBACK_PLAYER_LIST ve parseTurkishNumber fonksiyonuna ekleyebilirsiniz.
+          </p>
+          <textarea class="output-textarea" id="codeOutput" readonly style="height: 400px;"></textarea>
+          <div class="output-actions">
+            <button class="btn btn-primary" onclick="copyCodeToClipboard()">📋 Kodu Kopyala</button>
           </div>
         </div>
-
-        <!-- Actions -->
-        <div class="actions">
-          <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
-          <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
-          <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
-        </div>
       </div>
     </div>
-
-    <!-- Numbers Tab -->
-    <div id="numbersTab" class="tab-content" style="display: none;">
-      <div class="instructions">
-        <h4>📌 Sayı Eğitimi</h4>
-        <ol>
-          <li>Bilardo maçlarında sık kullanılan hedef skorları eğitiyoruz</li>
-          <li>Her sayıyı <strong>Türkçe olarak</strong> söyleyin (örn: "otuz", "yirmi beş")</li>
-          <li>Farklı söyleyiş şekillerini de deneyin</li>
-        </ol>
-      </div>
-
-      <!-- Number List -->
-      <div class="item-list" id="numberList"></div>
-
-      <!-- Training Card (same as players) -->
-      <div class="training-card">
-        <div class="current-item">
-          <div class="current-item-label">Şu an eğitilen sayı:</div>
-          <div class="current-item-value" id="currentNumber">-</div>
-        </div>
-
-        <div class="progress-info" id="numberProgress">Bir sayı seçin veya "Sıradaki" butonuna tıklayın</div>
-
-        <!-- Status -->
-        <div class="status ready" id="statusNumber">Hazır - Mikrofon butonuna basın</div>
-
-        <!-- Microphone -->
-        <div class="mic-container">
-          <button class="mic-btn" id="micBtnNumber" onclick="toggleListening()">🎤</button>
-        </div>
-
-        <!-- Results -->
-        <div class="results-container">
-          <div class="results-label">Algılanan Varyasyonlar:</div>
-          <div id="alternativesNumber">
-            <div class="no-results">Henüz bir şey algılanmadı</div>
-          </div>
-        </div>
-
-        <!-- Learned Variations -->
-        <div class="learned-container">
-          <div class="learned-label">✅ Kaydedilen Varyasyonlar:</div>
-          <div class="learned-tags" id="learnedTagsNumber"></div>
-        </div>
-
-        <!-- Actions -->
-        <div class="actions">
-          <button class="btn btn-secondary" onclick="prevItem()">← Önceki</button>
-          <button class="btn btn-secondary" onclick="clearCurrentLearned()">🗑️ Temizle</button>
-          <button class="btn btn-primary" onclick="nextItem()">Sıradaki →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Output Tab -->
-    <div id="outputTab" class="tab-content" style="display: none;">
-      <div class="output-section">
-        <h3>📋 Eğitim Sonuçları - JSON Çıktı</h3>
-        <p style="color: #888; margin-bottom: 15px;">
-          Bu çıktıyı kopyalayıp StartScreen.js dosyasına entegre edebilirsiniz.
-        </p>
-        <textarea class="output-textarea" id="jsonOutput" readonly></textarea>
-        <div class="output-actions">
-          <button class="btn btn-primary" onclick="copyToClipboard()">📋 Kopyala</button>
-          <button class="btn btn-secondary" onclick="downloadJSON()">💾 JSON İndir</button>
-          <button class="btn btn-secondary" onclick="clearAllData()">🗑️ Tümünü Sil</button>
-        </div>
-      </div>
-
-      <div class="output-section" style="margin-top: 20px;">
-        <h3>📝 Entegrasyon Kodu</h3>
-        <p style="color: #888; margin-bottom: 15px;">
-          Bu kodu doğrudan FALLBACK_PLAYER_LIST ve parseTurkishNumber fonksiyonuna ekleyebilirsiniz.
-        </p>
-        <textarea class="output-textarea" id="codeOutput" readonly style="height: 400px;"></textarea>
-        <div class="output-actions">
-          <button class="btn btn-primary" onclick="copyCodeToClipboard()">📋 Kodu Kopyala</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  </div> <!-- Close trainer-dashboard-wrapper -->
 
   <script>
     // ============================================
     // DATA
     // ============================================
-    
+
     // Oyuncu listesi (StartScreen.js'den)
     const PLAYERS = [
       { id: 'player_ibrahim_topyildiz', fullName: 'İbrahim TOPYILDIZ' },
@@ -640,10 +652,10 @@
 
     function switchTab(tab) {
       currentTab = tab;
-      
+
       // Tab butonlarını güncelle
       document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', 
+        t.classList.toggle('active',
           (i === 0 && tab === 'players') ||
           (i === 1 && tab === 'numbers') ||
           (i === 2 && tab === 'output')
@@ -671,7 +683,7 @@
         const variations = learnedData.players[player.fullName] || [];
         const isTrained = variations.length > 0;
         const isActive = index === currentPlayerIndex;
-        
+
         return `
           <div class="item-chip ${isTrained ? 'trained' : ''} ${isActive ? 'active' : ''}" 
                onclick="selectPlayer(${index})">
@@ -688,7 +700,7 @@
         const variations = learnedData.numbers[num.toString()] || [];
         const isTrained = variations.length > 0;
         const isActive = index === currentNumberIndex;
-        
+
         return `
           <div class="item-chip ${isTrained ? 'trained' : ''} ${isActive ? 'active' : ''}" 
                onclick="selectNumber(${index})">
@@ -701,7 +713,7 @@
 
     function renderLearnedTags() {
       let container, data, key;
-      
+
       if (currentTab === 'players' && currentPlayerIndex >= 0) {
         container = document.getElementById('learnedTags');
         key = PLAYERS[currentPlayerIndex].fullName;
@@ -729,15 +741,15 @@
     function selectPlayer(index) {
       currentPlayerIndex = index;
       const player = PLAYERS[index];
-      
+
       document.getElementById('currentPlayer').textContent = player.fullName;
-      document.getElementById('playerProgress').textContent = 
+      document.getElementById('playerProgress').textContent =
         `${index + 1} / ${PLAYERS.length} oyuncu`;
-      
+
       // Reset alternatives
-      document.getElementById('alternatives').innerHTML = 
+      document.getElementById('alternatives').innerHTML =
         '<div class="no-results">Mikrofon butonuna basıp ismi söyleyin</div>';
-      
+
       renderPlayerList();
       renderLearnedTags();
     }
@@ -745,15 +757,15 @@
     function selectNumber(index) {
       currentNumberIndex = index;
       const num = NUMBERS[index];
-      
+
       document.getElementById('currentNumber').textContent = num;
-      document.getElementById('numberProgress').textContent = 
+      document.getElementById('numberProgress').textContent =
         `${index + 1} / ${NUMBERS.length} sayı`;
-      
+
       // Reset alternatives
-      document.getElementById('alternativesNumber').innerHTML = 
+      document.getElementById('alternativesNumber').innerHTML =
         '<div class="no-results">Mikrofon butonuna basıp sayıyı söyleyin</div>';
-      
+
       renderNumberList();
       renderLearnedTags();
     }
@@ -804,7 +816,7 @@
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
-      
+
       recognition.lang = 'tr-TR';
       recognition.continuous = false;
       recognition.interimResults = true;
@@ -818,7 +830,7 @@
 
       recognition.onresult = (event) => {
         const result = event.results[0];
-        
+
         // Tüm alternatifleri topla
         const alternatives = [];
         for (let i = 0; i < result.length; i++) {
@@ -843,7 +855,7 @@
         console.error('Ses tanıma hatası:', event.error);
         isListening = false;
         updateMicButton(false);
-        
+
         if (event.error === 'no-speech') {
           updateStatus('error', '❌ Ses algılanamadı. Tekrar deneyin.');
         } else if (event.error === 'not-allowed') {
@@ -870,10 +882,10 @@
     }
 
     function updateMicButton(listening) {
-      const btn = currentTab === 'players' 
+      const btn = currentTab === 'players'
         ? document.getElementById('micBtn')
         : document.getElementById('micBtnNumber');
-      
+
       if (btn) {
         btn.classList.toggle('listening', listening);
       }
@@ -883,7 +895,7 @@
       const statusEl = currentTab === 'players'
         ? document.getElementById('status')
         : document.getElementById('statusNumber');
-      
+
       if (statusEl) {
         statusEl.className = `status ${type}`;
         statusEl.textContent = message;
@@ -894,7 +906,7 @@
       const container = currentTab === 'players'
         ? document.getElementById('alternatives')
         : document.getElementById('alternativesNumber');
-      
+
       if (alternatives.length === 0) {
         container.innerHTML = '<div class="no-results">Algılanamadı, tekrar deneyin</div>';
         return;
@@ -929,7 +941,7 @@
 
     function selectAlternative(text) {
       let key, dataStore;
-      
+
       if (currentTab === 'players' && currentPlayerIndex >= 0) {
         key = PLAYERS[currentPlayerIndex].fullName;
         dataStore = 'players';
@@ -953,7 +965,7 @@
         saveData();
         renderLearnedTags();
         updateStats();
-        
+
         // Liste'yi güncelle
         if (dataStore === 'players') {
           renderPlayerList();
@@ -965,19 +977,19 @@
 
     function removeVariation(key, index) {
       const dataStore = currentTab === 'players' ? 'players' : 'numbers';
-      
+
       if (learnedData[dataStore][key]) {
         learnedData[dataStore][key].splice(index, 1);
-        
+
         // Boşsa sil
         if (learnedData[dataStore][key].length === 0) {
           delete learnedData[dataStore][key];
         }
-        
+
         saveData();
         renderLearnedTags();
         updateStats();
-        
+
         if (dataStore === 'players') {
           renderPlayerList();
         } else {
@@ -988,7 +1000,7 @@
 
     function clearCurrentLearned() {
       let key, dataStore;
-      
+
       if (currentTab === 'players' && currentPlayerIndex >= 0) {
         key = PLAYERS[currentPlayerIndex].fullName;
         dataStore = 'players';
@@ -1004,7 +1016,7 @@
         saveData();
         renderLearnedTags();
         updateStats();
-        
+
         if (dataStore === 'players') {
           renderPlayerList();
         } else {
@@ -1024,7 +1036,7 @@
     function updateStats() {
       const trainedPlayers = Object.keys(learnedData.players).length;
       const trainedNumbers = Object.keys(learnedData.numbers).length;
-      
+
       let totalVariations = 0;
       Object.values(learnedData.players).forEach(arr => totalVariations += arr.length);
       Object.values(learnedData.numbers).forEach(arr => totalVariations += arr.length);
@@ -1095,12 +1107,12 @@
       const data = JSON.stringify(learnedData, null, 2);
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = 'voice-training-data.json';
       a.click();
-      
+
       URL.revokeObjectURL(url);
     }
 
@@ -1120,8 +1132,53 @@
     // ============================================
     // INIT
     // ============================================
-    
-    window.onload = init;
+
+    // Auth Logic - In-Page Form (same as test-plan.html)
+    window.onload = function () {
+      // Check session
+      if (sessionStorage.getItem('3cscore_auth') === 'true') {
+        showDashboard();
+        return;
+      }
+
+      const authDiv = document.createElement('div');
+      authDiv.id = 'auth-overlay';
+      authDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;';
+      authDiv.innerHTML = `
+            <div style="background:#16213e;padding:30px;border-radius:12px;border:1px solid #334155;text-align:center;width:300px;">
+                <h2 style="margin-top:0;color:#fff;">🔐 Admin Girişi</h2>
+                <input type="password" id="pass-input" placeholder="Şifre" style="width:100%;padding:10px;margin:15px 0;border-radius:6px;border:1px solid #334155;background:#1a1a2e;color:white;box-sizing:border-box;">
+                <button onclick="tryLogin()" style="width:100%;background:#4CAF50;color:white;padding:10px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Giriş Yap</button>
+                <div id="auth-msg" style="color:#e74c3c;margin-top:10px;font-size:0.9em;min-height:20px;"></div>
+            </div>
+        `;
+      document.body.appendChild(authDiv);
+
+      // Enter key support
+      document.getElementById('pass-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') tryLogin();
+      });
+
+      // Hide dashboard
+      document.getElementById('trainer-dashboard-wrapper').style.display = 'none';
+    };
+
+    window.tryLogin = function () {
+      const pass = document.getElementById('pass-input').value;
+      if (pass === "3cscore2025") {
+        sessionStorage.setItem('3cscore_auth', 'true');
+        document.getElementById('auth-overlay').remove();
+        showDashboard();
+      } else {
+        document.getElementById('auth-msg').textContent = "Hatalı şifre!";
+      }
+    };
+
+    function showDashboard() {
+      document.getElementById('trainer-dashboard-wrapper').style.display = 'block';
+      init();
+    }
   </script>
 </body>
+
 </html>
