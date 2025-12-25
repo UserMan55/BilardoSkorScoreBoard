@@ -2929,7 +2929,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                 flexWrap: 'wrap'
               }}>
                 {userProfile.city && <span>📍 {userProfile.city}</span>}
-                {userProfile.salon && <span>🎱 {userProfile.salon}</span>}
+                {(userProfile.venue || userProfile.salon) && <span>🎱 {userProfile.venue || userProfile.salon}</span>}
               </div>
             </div>
 

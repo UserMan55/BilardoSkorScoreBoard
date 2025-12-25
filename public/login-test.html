@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3CScore Test Login - Simülasyon</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo .badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #e2e8f0;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.8);
+            color: white;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .user-info {
+            display: none;
+        }
+
+        .user-info.visible {
+            display: block;
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            overflow: hidden;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-details h3 {
+            font-size: 18px;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .user-details p {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .info-list {
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #e2e8f0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.visible {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 20px;
+        }
+
+        .login-form {
+            display: block;
+        }
+
+        .login-form.hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🎱 3CScore</h1>
+            <span class="badge">⚠️ TEST SİMÜLASYONU</span>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Yükleniyor...</p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="card login-form" id="loginForm">
+            <h2>🔐 Giriş Yap</h2>
+
+            <div class="error-msg" id="errorMsg"></div>
+
+            <div class="form-group">
+                <label>E-posta</label>
+                <input type="email" id="email" placeholder="ornek@email.com">
+            </div>
+
+            <div class="form-group">
+                <label>Şifre</label>
+                <input type="password" id="password" placeholder="••••••••">
+            </div>
+
+            <button class="btn btn-primary" id="loginBtn" onclick="login()">
+                Giriş Yap
+            </button>
+        </div>
+
+        <!-- User Info (after login) -->
+        <div class="card user-info" id="userInfo">
+            <h2>✅ Giriş Başarılı</h2>
+
+            <div class="user-card">
+                <div class="user-avatar" id="userAvatar">?</div>
+                <div class="user-details">
+                    <h3 id="userName">-</h3>
+                    <p id="userEmail">-</p>
+                </div>
+            </div>
+
+            <div class="info-list">
+                <div class="info-item">
+                    <span class="info-label">User ID</span>
+                    <span class="info-value" id="userId">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">İl</span>
+                    <span class="info-value" id="userCity">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Salon</span>
+                    <span class="info-value" id="userVenue">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Token (kısaltılmış)</span>
+                    <span class="info-value" id="tokenPreview">-</span>
+                </div>
+            </div>
+
+            <button class="btn btn-success" id="goLiveBtn" onclick="goToLive()">
+                🎱 Canlı Skorboard'a Git
+            </button>
+
+            <button class="btn btn-primary" style="margin-top: 10px; background: rgba(255,255,255,0.1);"
+                onclick="logout()">
+                🚪 Çıkış Yap
+            </button>
+        </div>
+
+        <p class="footer-note">
+            Bu sayfa 3cscore.com entegrasyonunu test etmek için oluşturulmuştur.<br>
+            Gerçek 3cscore.com sitesi değildir.
+        </p>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+        // Firebase Config (aynı proje)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFqmZg4khPVJron56Cyj0nfsupvBjuTAA",
+            authDomain: "bilardo-skor.firebaseapp.com",
+            projectId: "bilardo-skor",
+            storageBucket: "bilardo-skor.firebasestorage.app",
+            messagingSenderId: "413070873797",
+            appId: "1:413070873797:web:9017509d95240516afccac",
+            measurementId: "G-VZJ76K1SLM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // State
+        let currentUser = null;
+        let currentToken = null;
+        let userProfile = null;
+
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const userInfo = document.getElementById('userInfo');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // Auth state listener
+        onAuthStateChanged(auth, async (user) => {
+            loading.classList.remove('visible');
+
+            if (user) {
+                currentUser = user;
+                currentToken = await user.getIdToken(true);
+
+                // Fetch user profile from Firestore
+                await fetchUserProfile(user.uid);
+
+                showUserInfo();
+            } else {
+                currentUser = null;
+                currentToken = null;
+                userProfile = null;
+                showLoginForm();
+            }
+        });
+
+        // Fetch user profile
+        async function fetchUserProfile(uid) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (userDoc.exists()) {
+                    userProfile = userDoc.data();
+                } else {
+                    userProfile = null;
+                }
+            } catch (error) {
+                console.error('Profil çekme hatası:', error);
+                userProfile = null;
+            }
+        }
+
+        // Show login form
+        function showLoginForm() {
+            loginForm.classList.remove('hidden');
+            userInfo.classList.remove('visible');
+        }
+
+        // Show user info
+        function showUserInfo() {
+            loginForm.classList.add('hidden');
+            userInfo.classList.add('visible');
+
+            // Update UI
+            const initials = getInitials(userProfile?.fullName || currentUser.displayName || currentUser.email);
+            document.getElementById('userAvatar').innerHTML = userProfile?.photoURL
+                ? `<img src="${userProfile.photoURL}" alt="Avatar">`
+                : initials;
+
+            document.getElementById('userName').textContent = userProfile?.fullName || currentUser.displayName || 'İsimsiz Kullanıcı';
+            document.getElementById('userEmail').textContent = currentUser.email;
+            document.getElementById('userId').textContent = currentUser.uid.substring(0, 12) + '...';
+            document.getElementById('userCity').textContent = userProfile?.city || 'Belirtilmemiş';
+            document.getElementById('userVenue').textContent = userProfile?.venue || 'Belirtilmemiş';
+            document.getElementById('tokenPreview').textContent = currentToken.substring(0, 20) + '...';
+        }
+
+        // Get initials
+        function getInitials(name) {
+            if (!name) return '?';
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
+
+        // Login function
+        window.login = async function () {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showError('E-posta ve şifre gerekli!');
+                return;
+            }
+
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Giriş yapılıyor...';
+            hideError();
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error('Login error:', error);
+                let msg = 'Giriş başarısız!';
+                if (error.code === 'auth/user-not-found') msg = 'Kullanıcı bulunamadı!';
+                if (error.code === 'auth/wrong-password') msg = 'Yanlış şifre!';
+                if (error.code === 'auth/invalid-email') msg = 'Geçersiz e-posta!';
+                if (error.code === 'auth/invalid-credential') msg = 'Geçersiz kimlik bilgileri!';
+                showError(msg);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Giriş Yap';
+            }
+        };
+
+        // Logout function
+        window.logout = async function () {
+            await signOut(auth);
+        };
+
+        // Go to live scoreboard
+        window.goToLive = async function () {
+            if (!currentUser || !currentToken) {
+                showError('Önce giriş yapmalısınız!');
+                return;
+            }
+
+            // Refresh token
+            currentToken = await currentUser.getIdToken(true);
+
+            // Build URL
+            const params = new URLSearchParams({
+                token: currentToken,
+                userId: currentUser.uid
+            });
+
+            const liveUrl = `https://live.3cscore.com?${params.toString()}`;
+
+            console.log('🚀 Yönlendiriliyor:', liveUrl);
+
+            // Redirect
+            window.location.href = liveUrl;
+        };
+
+        // Error functions
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMsg.style.display = 'none';
+        }
+
+        // Enter key support
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.login();
+        });
+
+        // Initial loading
+        loading.classList.add('visible');
+    </script>
+</body>
+
+</html>

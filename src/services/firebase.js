@@ -26,31 +26,31 @@ export async function verifyIdToken(idToken) {
   if (!idToken) {
     return { valid: false, error: 'Token bulunamadı' };
   }
-  
+
   try {
     // Token'ın geçerli bir JWT olup olmadığını kontrol et
     const parts = idToken.split('.');
     if (parts.length !== 3) {
       return { valid: false, error: 'Geçersiz token formatı' };
     }
-    
+
     // Payload'ı decode et
     const payload = JSON.parse(atob(parts[1]));
-    
+
     // Token'ın süresi dolmuş mu kontrol et
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp && payload.exp < now) {
       return { valid: false, error: 'Token süresi dolmuş' };
     }
-    
+
     // Doğru projeden mi geldiğini kontrol et
     if (payload.aud !== 'bilardo-skor') {
       return { valid: false, error: 'Token farklı bir projeden' };
     }
-    
+
     // Token geçerli
     console.log('✅ Token doğrulandı:', payload.sub || payload.user_id);
-    
+
     return {
       valid: true,
       uid: payload.sub || payload.user_id,
@@ -72,9 +72,9 @@ export { auth };
 export async function sendRemoteStartCommand(matchData, tableId = 'table_1', matchMeta = {}) {
   try {
     const { playerIds = [], startedBy = null, allowedControllers = [], salonId = null, salonCity = null } = matchMeta;
-    
+
     const matchId = `${tableId}_${Date.now()}`;
-    
+
     // 'live_matches' koleksiyonunda belirtilen masa dökümanını güncelliyoruz
     await setDoc(doc(db, "live_matches", tableId), {
       ...matchData,
@@ -89,11 +89,11 @@ export async function sendRemoteStartCommand(matchData, tableId = 'table_1', mat
       salonCity            // Salon şehri (bildirim için)
     });
     console.log(`Maç başlatma komutu gönderildi (${tableId}):`, matchData, 'Meta:', matchMeta);
-    
+
     // Bildirim gönderilecek oyuncuları belirle
     // startedBy hariç tüm playerIds'e bildirim gönder
     const notifyPlayerIds = playerIds.filter(id => id && id !== startedBy);
-    
+
     if (notifyPlayerIds.length > 0) {
       // Bildirim kuyruğuna ekle (Cloud Function tarafından işlenecek)
       await setDoc(doc(db, "notification_queue", matchId), {
@@ -114,7 +114,7 @@ export async function sendRemoteStartCommand(matchData, tableId = 'table_1', mat
       });
       console.log('📤 Bildirim kuyruğuna eklendi:', matchId, 'Alıcılar:', notifyPlayerIds);
     }
-    
+
     return true;
   } catch (error) {
     console.error("Komut gönderilemedi:", error);
@@ -151,7 +151,7 @@ export function listenForMatchCommands(onCommandReceived, tableId = 'table_1') {
       onCommandReceived(data);
     }
   });
-  
+
   // Dinlemeyi durdurmak için unsubscribe fonksiyonunu döndür
   return unsubscribe;
 }
@@ -167,19 +167,19 @@ let pendingTableStatus = null;
 export async function updateTableStatus(tableId, status, matchData = null, matchMeta = null) {
   // Pending durumu kaydet
   pendingTableStatus = { tableId, status, matchData, matchMeta };
-  
+
   // Eğer zaten bir timer varsa temizle
   if (tableStatusDebounceTimer) {
     clearTimeout(tableStatusDebounceTimer);
   }
-  
+
   // 30ms sonra gönder (ultra hızlı güncelleme için optimize edildi)
   tableStatusDebounceTimer = setTimeout(async () => {
     if (!pendingTableStatus) return;
-    
+
     const { tableId: id, status: st, matchData: md, matchMeta: meta } = pendingTableStatus;
     pendingTableStatus = null;
-    
+
     try {
       // Client timestamp kullanarak network round-trip azaltılıyor
       const statusData = {
@@ -187,14 +187,14 @@ export async function updateTableStatus(tableId, status, matchData = null, match
         currentMatch: md,
         lastUpdated: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
       };
-      
+
       // Multi-user bilgilerini ekle (varsa)
       if (meta) {
         statusData.playerIds = meta.playerIds || [];
         statusData.startedBy = meta.startedBy || null;
         statusData.allowedControllers = meta.allowedControllers || [];
       }
-      
+
       await setDoc(doc(db, "table_status", id), statusData);
     } catch (error) {
       console.error("Masa durumu güncellenemedi:", error);
@@ -259,7 +259,7 @@ export async function saveMatchToTestRecords(matchResult) {
     // Yeni döküman ID'si otomatik oluştur
     const newDocRef = doc(collection(db, "test_records"));
     await setDoc(newDocRef, recordData);
-    
+
     console.log("✅ Maç sonucu test_records'a kaydedildi:", newDocRef.id);
     return { success: true, id: newDocRef.id };
   } catch (error) {
@@ -274,22 +274,22 @@ export async function getPlayerNames() {
     console.log("Firebase bağlantısı başlanıyor...");
     const usersCol = collection(db, "users");
     console.log("Users koleksiyonu referansı oluşturuldu");
-    
+
     const usersSnapshot = await getDocs(usersCol);
     console.log("Kullanıcı sayısı:", usersSnapshot.size);
-    
+
     const users = [];
     const seenNames = new Set(); // Tekrar kontrolü için
-    
+
     usersSnapshot.docs.forEach((doc) => {
       const userData = doc.data();
-      
+
       // fullName'i al ve normalize et (büyük/küçük harf farketmez)
       let fullName = userData.fullName || "";
-      
+
       // Boşluk ve harf düzenleme
       fullName = fullName.trim();
-      
+
       if (fullName) {
         // Normalize edilmiş isim (küçük harf + türkçe karakter desteği)
         const normalizedName = fullName
@@ -307,11 +307,11 @@ export async function getPlayerNames() {
           .replace(/ç/g, 'c')
           .replace(/Ç/g, 'c')
           .replace(/\s+/g, ' '); // Birden fazla boşluğu tek boşluğa çevir
-        
+
         // Eğer bu isim daha önce eklenmemişse ekle
         if (!seenNames.has(normalizedName)) {
           seenNames.add(normalizedName);
-          
+
           // --- GENEL KULLANICI EŞLEŞTİRME MANTIĞI ---
           // 1. Veritabanından gelen mevcut veriyi al
           let city = userData.city || "";
@@ -339,7 +339,7 @@ export async function getPlayerNames() {
           let validPhotoURL = userData.photoURL || null;
           if (validPhotoURL) {
             const urlLower = validPhotoURL.toLowerCase();
-            
+
             // Bilinen placeholder/avatar generator servisleri (blacklist)
             const invalidDomains = [
               'ui-avatars.com',
@@ -348,7 +348,7 @@ export async function getPlayerNames() {
               'robohash.org',
               'api.adorable.io',
               'avataaars.io',
-              'boringavatars.com', 
+              'boringavatars.com',
               'avatar.oxro.io',
               'joeschmoe.io',
               'pravatar.cc',
@@ -358,7 +358,7 @@ export async function getPlayerNames() {
               'avatar.iran.liara.run',
               'source.boringavatars.com'
             ];
-            
+
             // URL parametreleri ile avatar oluşturan servisler
             const invalidParams = [
               'name=',      // ui-avatars: ?name=John+Doe
@@ -367,16 +367,16 @@ export async function getPlayerNames() {
               '?letter',    // letter avatar
               '&letter'     // letter avatar
             ];
-            
+
             // Domain kontrolü
             const hasInvalidDomain = invalidDomains.some(domain => urlLower.includes(domain));
-            
+
             // Parametre kontrolü
             const hasInvalidParam = invalidParams.some(param => urlLower.includes(param));
-            
+
             // Boş veya geçersiz
             const isEmpty = !validPhotoURL.trim();
-            
+
             if (isEmpty || hasInvalidDomain || hasInvalidParam) {
               console.log(`❌ Filtered: ${fullName} | Domain: ${hasInvalidDomain} | Param: ${hasInvalidParam}`);
               validPhotoURL = null;
@@ -399,10 +399,10 @@ export async function getPlayerNames() {
         }
       }
     });
-    
+
     // Alfabetik sıralama (fullName'e göre, Türkçe karakter desteği ile)
     users.sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'));
-    
+
     console.log("Benzersiz kullanıcılar:", users.length);
     return users;
   } catch (error) {
@@ -419,7 +419,7 @@ export const getUserProfiles = getPlayerNames;
 // Kullanıcı ID'sine göre profil bilgilerini getirir
 export async function getUserById(userId) {
   if (!userId) return null;
-  
+
   try {
     const userDoc = await getDoc(doc(db, "users", userId));
     if (userDoc.exists()) {
@@ -430,7 +430,8 @@ export async function getUserById(userId) {
         fullName: userData.fullName || 'Kullanıcı',
         email: userData.email || null,
         city: userData.city || null,
-        salon: userData.salon || null,
+        salon: userData.salon || userData.venue || null, // venue veya salon
+        venue: userData.venue || userData.salon || null, // venue veya salon
         photoURL: userData.photoURL || null,
         username: userData.username || null
       };
@@ -567,7 +568,7 @@ let messaging = null;
 // Messaging instance'ı güvenli şekilde al (tarayıcı desteği kontrolü)
 function getMessagingInstance() {
   if (messaging) return messaging;
-  
+
   try {
     // Service Worker ve Notification API desteği kontrolü
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window) {
@@ -635,7 +636,7 @@ export async function getUserFCMToken(userId) {
 // Foreground'da bildirim dinle
 export function listenToFCMMessages(onMessageReceived) {
   const msgInstance = getMessagingInstance();
-  if (!msgInstance) return () => {};
+  if (!msgInstance) return () => { };
 
   return onMessage(msgInstance, (payload) => {
     console.log('📩 FCM Mesajı alındı:', payload);
