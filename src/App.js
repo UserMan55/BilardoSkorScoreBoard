@@ -203,7 +203,7 @@ function App() {
   const [survivalPlayers, setSurvivalPlayers] = useState([]);
   const [gameKey, setGameKey] = useState(Date.now());
   const [controllerTableId, setControllerTableId] = useState(urlTableId);
-  const [mobileScreen, setMobileScreen] = useState('home'); // Mobil ekran durumu
+
 
   // Token doğrulama - Sadece mobil build'de çalışır
   useEffect(() => {
@@ -431,15 +431,7 @@ function App() {
   };
 
 
-  // Sesli maç başlatma modunu aç
-  const handleOpenVoiceMatch = () => {
-    setMobileScreen('voicematch');
-  };
 
-  // Mobil ana ekrana dön
-  const handleBackToHome = () => {
-    setMobileScreen('home');
-  };
 
   return (
     <>

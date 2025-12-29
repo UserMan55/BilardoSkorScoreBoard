@@ -24,13 +24,13 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
   const canControl = useMemo(() => {
     // Eğer readOnly prop'u true ise, kesinlikle kontrol yok
     if (readOnly) return false;
-    
+
     // Eğer allowedControllers listesi boşsa, herkes kontrol edebilir (eski davranış)
     if (!allowedControllers || allowedControllers.length === 0) return true;
-    
+
     // Eğer kullanıcı giriş yapmamışsa, kontrol yok
     if (!loggedInUser?.id) return false;
-    
+
     // Kullanıcı allowedControllers listesinde mi?
     return allowedControllers.includes(loggedInUser.id);
   }, [readOnly, allowedControllers, loggedInUser]);
@@ -50,16 +50,16 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
       setIsLoading(false); // İlk veri geldi
       if (data && data.status === 'BUSY' && data.currentMatch) {
         setMatchData(data.currentMatch);
-        
+
         // Multi-user erişim kontrolü bilgilerini al
         if (data.allowedControllers) {
           setAllowedControllers(data.allowedControllers);
         }
-        
+
         // matchData geldiğinde matchStarting durumunu sıfırla (geri sayım ekranını kapat)
         setMatchStarting(false);
         setStartingMatchData(null);
-        
+
         // Stats varsa güncelle
         if (data.currentMatch.stats) {
           setLiveStats(data.currentMatch.stats);
@@ -69,7 +69,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             setTimerRunning(data.currentMatch.stats.timerRunning);
           }
         }
-        
+
         setMatchEnded(false);
       } else if (data && data.status === 'IDLE') {
         // Masa boşa düştüyse maç bitmiştir veya iptal edilmiştir
@@ -86,14 +86,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
   // Survival maçı bittiğinde veya masa IDLE olduğunda otomatik ana ekrana dön
   useEffect(() => {
     const isSurvivalMode = liveStats?.mode === 'survival' || matchData?.mode === 'survival';
-    
+
     // Survival modunda maç bittiyse veya masa IDLE olduysa
     if (isSurvivalMode && (liveStats?.gameEnded || matchEnded)) {
       // Kısa bir gecikme ile ana ekrana dön (kullanıcının sonucu görmesi için)
       const timer = setTimeout(() => {
         handleBackToHome();
       }, 3000); // 3 saniye bekle, sonra otomatik dön
-      
+
       return () => clearTimeout(timer);
     }
   }, [liveStats?.gameEnded, liveStats?.mode, matchData?.mode, matchEnded]);
@@ -129,40 +129,40 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     let lastTimestamp = 0;
     const mountTime = Date.now() / 1000; // Component mount zamanı
     let countdownIntervalRef = null;
-    
+
     const unsubscribe = listenForMatchCommands((data) => {
       if (data && data.status === 'START') {
         const currentTimestamp = data.timestamp?.seconds || 0;
-        
+
         // Eğer bu komut component mount'undan önce (5 saniyeden fazla) geldiyse atla
         const isStaleData = (mountTime - currentTimestamp) > 5;
-        
+
         if (isStaleData) {
           console.log("📱 MobileController: Eski START komutu atlandı", currentTimestamp);
           lastTimestamp = currentTimestamp;
           return;
         }
-        
+
         // Sadece yeni gelen komutları işle
         if (currentTimestamp > lastTimestamp) {
           lastTimestamp = currentTimestamp;
           console.log("📱 MobileController: START komutu alındı", data);
-          
+
           setMatchStarting(true);
           setStartingMatchData(data);
           setIsLoading(false);
-          
+
           // Fotoğrafları doğrudan START komutundan al (varsa)
           if (data.playerPhotos) {
             console.log("📷 Fotoğraflar START komutundan alındı:", data.playerPhotos);
             setPlayerPhotos(data.playerPhotos);
           }
-          
+
           // Önceki geri sayımı temizle
           if (countdownIntervalRef) {
             clearInterval(countdownIntervalRef);
           }
-          
+
           // Geri sayım başlat
           setCountdown(3);
           let count = 3;
@@ -198,22 +198,22 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
         try {
           const allUsers = await getUserProfiles();
           const photos = {};
-          
+
           players.forEach(playerName => {
-            const user = allUsers.find(u => 
+            const user = allUsers.find(u =>
               u.fullName.toLowerCase() === playerName.toLowerCase()
             );
             if (user && user.photoURL) {
               photos[playerName] = user.photoURL;
             }
           });
-          
+
           setPlayerPhotos(photos);
         } catch (error) {
           console.error('Error fetching player photos:', error);
         }
       };
-      
+
       fetchPlayerPhotos();
     }
   }, [matchData, startingMatchData]);
@@ -235,8 +235,10 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
   // Maçtan çıkış onaylandığında
   const handleConfirmExit = () => {
-    // Maçı sonlandır komutu gönder
-    sendMatchCommand('END_MATCH', { reason: 'user_exit' }, tableId);
+    // Maçı sonlandır komutu gönder (Sadece yetkili kullanıcı ise)
+    if (!isReadOnly) {
+      sendMatchCommand('END_MATCH', { reason: 'user_exit' }, tableId);
+    }
     handleBackToHome();
   };
 
@@ -252,16 +254,16 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     if (navigator.vibrate) {
       navigator.vibrate(20); // Kısa titreşim
     }
-    
+
     // Timer için optimistic update (görsel geri bildirim)
     if (command === 'TOGGLE_TIMER') {
       setTimerRunning(prev => !prev);
     }
-    
+
     // NOT: RUN değeri için optimistic update kaldırıldı
     // Tabela tarafı ile tutarsızlık oluşuyordu (race condition)
     // Artık sadece Firebase'den gelen değerler kullanılıyor
-    
+
     // Fire-and-forget: await kaldırıldı, buton anında tepki veriyor
     sendMatchCommand(command, {}, tableId);
   };
@@ -285,7 +287,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
       <div className="mobile-controller-wrapper">
         <div className="match-starting-screen">
           <div className="starting-title">CANLI MAÇ BAŞLIYOR...</div>
-          
+
           <div className="starting-players">
             <div className="starting-player">
               <div className="starting-player-photo">
@@ -293,9 +295,9 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               </div>
               <div className="starting-player-name">{startingMatchData.players[0]}</div>
             </div>
-            
+
             <div className="starting-vs">VS</div>
-            
+
             <div className="starting-player">
               <div className="starting-player-photo">
                 <img src={playerPhotos[startingMatchData.players[1]] || FALLBACK_AVATAR} alt={startingMatchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
@@ -303,7 +305,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               <div className="starting-player-name">{startingMatchData.players[1]}</div>
             </div>
           </div>
-          
+
           <div className="starting-details">
             <div className="starting-detail-item">
               <span className="detail-label">Hedef Sayı:</span>
@@ -341,29 +343,29 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
   if (!matchData) {
     return (
       <div className="mobile-controller-wrapper">
-          <div className="waiting-screen">
+        <div className="waiting-screen">
           <div className="waiting-icon">🎮</div>
           <h2>{isReadOnly ? 'Canlı İzleme' : 'Uzaktan Kumanda'}</h2>
           <p>{isReadOnly ? 'Maç henüz başlamadı veya veri bekleniyor' : 'Menüde gezinmek için kullanın'}</p>
-          
+
           {!isReadOnly && (
             <>
               <div className="nav-pad-container">
                 <div className="d-pad-grid">
-                   <button className="d-btn up" onClick={() => handleNavCommand('UP')}>▲</button>
-                   <button className="d-btn left" onClick={() => handleNavCommand('LEFT')}>◀</button>
-                   <button className="d-btn enter" onClick={() => handleNavCommand('ENTER')}>OK</button>
-                   <button className="d-btn right" onClick={() => handleNavCommand('RIGHT')}>▶</button>
-                   <button className="d-btn down" onClick={() => handleNavCommand('DOWN')}>▼</button>
+                  <button className="d-btn up" onClick={() => handleNavCommand('UP')}>▲</button>
+                  <button className="d-btn left" onClick={() => handleNavCommand('LEFT')}>◀</button>
+                  <button className="d-btn enter" onClick={() => handleNavCommand('ENTER')}>OK</button>
+                  <button className="d-btn right" onClick={() => handleNavCommand('RIGHT')}>▶</button>
+                  <button className="d-btn down" onClick={() => handleNavCommand('DOWN')}>▼</button>
                 </div>
                 <div className="action-buttons">
-                   <button className="act-btn back" onClick={() => handleNavCommand('BACK')}>Geri</button>
-                   <button className="act-btn menu" onClick={() => handleNavCommand('MENU')}>Menü</button>
+                  <button className="act-btn back" onClick={() => handleNavCommand('BACK')}>Geri</button>
+                  <button className="act-btn menu" onClick={() => handleNavCommand('MENU')}>Menü</button>
                 </div>
               </div>
 
-              <button 
-                className="back-home-btn" 
+              <button
+                className="back-home-btn"
                 onClick={handleBackToHome}
                 style={{ marginTop: '20px', background: 'rgba(255,255,255,0.1)' }}
               >
@@ -382,7 +384,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
       <div className="mobile-controller-wrapper">
         <div className="match-starting-screen">
           <div className="starting-title">CANLI MAÇ BAŞLIYOR...</div>
-          
+
           <div className="starting-players">
             <div className="starting-player">
               <div className="starting-player-photo">
@@ -390,9 +392,9 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               </div>
               <div className="starting-player-name">{matchData.players[0]}</div>
             </div>
-            
+
             <div className="starting-vs">VS</div>
-            
+
             <div className="starting-player">
               <div className="starting-player-photo">
                 <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
@@ -400,7 +402,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               <div className="starting-player-name">{matchData.players[1]}</div>
             </div>
           </div>
-          
+
           <div className="starting-details">
             <div className="starting-detail-item">
               <span className="detail-label">Hedef Sayı:</span>
@@ -455,14 +457,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             </div>
           </div>
           <div className="save-buttons">
-            <button 
-              className="save-btn cancel" 
+            <button
+              className="save-btn cancel"
               onClick={() => handleCommand('SAVE_CANCEL')}
             >
               Hayır, Kaydetme
             </button>
-            <button 
-              className="save-btn confirm" 
+            <button
+              className="save-btn confirm"
               onClick={() => handleCommand('SAVE_CONFIRM')}
             >
               Evet, Kaydet
@@ -494,14 +496,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             </div>
           </div>
           <div className="match-end-buttons">
-            <button 
-              className="match-end-btn rematch" 
+            <button
+              className="match-end-btn rematch"
               onClick={() => handleCommand('REMATCH')}
             >
               🔄 Aynı Maç
             </button>
-            <button 
-              className="match-end-btn new-match" 
+            <button
+              className="match-end-btn new-match"
               onClick={() => handleCommand('NEW_MATCH')}
             >
               ➕ Yeni Maç
@@ -517,7 +519,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
   // Survival Mode UI
   const isSurvivalMode = liveStats?.mode === 'survival' || matchData?.mode === 'survival';
-  
+
   if (isSurvivalMode && liveStats?.survivalPlayers) {
     return (
       <div className="mobile-controller-wrapper">
@@ -539,7 +541,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             <span className="viewer-number">{viewerCount}</span>
           </div>
           {/* Çıkış Butonu */}
-          <button 
+          <button
             className="header-exit-btn"
             onClick={handleExitRequest}
             title="Çıkış"
@@ -575,15 +577,15 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
           {/* Players Grid */}
           <div className="survival-players-grid">
             {liveStats.survivalPlayers.map((player, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`survival-player-card ${player.isActive ? 'active' : ''} ${player.isDisqualified ? 'disqualified' : ''}`}
               >
                 <div className="survival-player-photo">
-                  <img 
-                    src={playerPhotos[player.name] || FALLBACK_AVATAR} 
-                    alt={player.name} 
-                    onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} 
+                  <img
+                    src={playerPhotos[player.name] || FALLBACK_AVATAR}
+                    alt={player.name}
+                    onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }}
                   />
                   {player.isDisqualified && <div className="disqualified-overlay">✕</div>}
                 </div>
@@ -609,7 +611,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
           {/* Timer Progress Bar */}
           <div className="mobile-timer-container survival-timer">
-            <TimerProgressBar 
+            <TimerProgressBar
               isTimerRunning={liveStats?.isTimerRunning || false}
               currentTurn={liveStats?.currentTurn || 0}
               timerPhase={liveStats?.timerPhase || 'idle'}
@@ -674,21 +676,21 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
             {/* Control Buttons */}
             <div className="control-buttons">
-              <button 
+              <button
                 className="control-btn control-left"
                 onClick={() => handleCommand('MINUS')}
                 title="Run -1"
               >
                 ◀
               </button>
-              <button 
+              <button
                 className="control-btn control-center"
                 onClick={() => handleCommand('OK')}
                 title="Sayıyı Ekle / Sıra Geç"
               >
                 OK
               </button>
-              <button 
+              <button
                 className="control-btn control-right"
                 onClick={() => handleCommand('PLUS')}
                 title="Run +1"
@@ -699,27 +701,27 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
             {/* Media Control Buttons */}
             <div className="media-controls">
-              <button 
-                className="media-btn" 
+              <button
+                className="media-btn"
                 onClick={() => handleCommand('UNDO')}
                 title="Geri Al (Undo)"
               >
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </button>
-              <button 
-                className="media-btn media-btn-timer" 
+              <button
+                className="media-btn media-btn-timer"
                 onClick={() => handleCommand('TOGGLE_TIMER')}
                 title="Timer Başlat/Durdur"
               >
                 {timerRunning ? (
                   <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                   </svg>
                 ) : (
                   <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
+                    <path d="M8 5v14l11-7z" />
                   </svg>
                 )}
               </button>
@@ -751,7 +753,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
           <span className="viewer-number">{viewerCount}</span>
         </div>
         {/* Çıkış Butonu - readOnly modunda da görünür */}
-        <button 
+        <button
           className="header-exit-btn"
           onClick={handleExitRequest}
           title="Çıkış"
@@ -784,177 +786,175 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
         </div>
 
         <div className="stats-row player-row">
-              <div className={`player-card player1 ${liveStats?.currentTurn === 0 ? 'active' : ''}`}>
-                <div className="player-name">{matchData.players[0]}</div>
-                {/* Profile Picture */}
-                <div className="player-profile-pic">
-                  <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
-                </div>
-                <div className="player-score">{liveStats?.score1 || 0}</div>
-                <div className="player-stats">
-                  <span>HR1: {liveStats?.hr1 || 0}</span>
-                  <span>HR2: {liveStats?.hr2 || 0}</span>
-                </div>
-                {/* Timeout hakları */}
-                <div className="timeout-rights">
-                  {[...Array(liveStats?.player1TimeoutLeft || 0)].map((_, i) => (
-                    <div key={i} className="timeout-box"></div>
-                  ))}
-                </div>
-              </div>
-              <div className={`player-card player2 ${liveStats?.currentTurn === 1 ? 'active' : ''}`}>
-                <div className="player-name">{matchData.players[1]}</div>
-                {/* Profile Picture */}
-                <div className="player-profile-pic">
-                  <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
-                </div>
-                <div className="player-score">{liveStats?.score2 || 0}</div>
-                <div className="player-stats">
-                  <span>HR1: {liveStats?.hr1_2 || 0}</span>
-                  <span>HR2: {liveStats?.hr2_2 || 0}</span>
-                </div>
-                {/* Timeout hakları */}
-                <div className="timeout-rights">
-                  {[...Array(liveStats?.player2TimeoutLeft || 0)].map((_, i) => (
-                    <div key={i} className="timeout-box"></div>
-                  ))}
-                </div>
-              </div>
+          <div className={`player-card player1 ${liveStats?.currentTurn === 0 ? 'active' : ''}`}>
+            <div className="player-name">{matchData.players[0]}</div>
+            {/* Profile Picture */}
+            <div className="player-profile-pic">
+              <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
             </div>
-            
-            {/* Timer Progress Bar */}
-            <div className="mobile-timer-container">
-              <TimerProgressBar 
-                isTimerRunning={liveStats?.isTimerRunning || false}
-                currentTurn={liveStats?.currentTurn || 0}
-                timerPhase={liveStats?.timerPhase || 'idle'}
-                resetTrigger={liveStats?.timerResetTrigger || 0}
-                isTimerPaused={liveStats?.isTimerPaused || false}
-                activeColor={liveStats?.currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
-                duration={40}
-                height={22}
-              />
+            <div className="player-score">{liveStats?.score1 || 0}</div>
+            <div className="player-stats">
+              <span>HR: {liveStats?.eys1 || liveStats?.hr1 || 0}</span>
+            </div>
+            {/* Timeout hakları */}
+            <div className="timeout-rights">
+              {[...Array(liveStats?.player1TimeoutLeft || 0)].map((_, i) => (
+                <div key={i} className="timeout-box"></div>
+              ))}
             </div>
           </div>
-
-          {/* Notification Overlay */}
-          {liveStats?.notification && (
-            <div className={`mobile-notification mobile-notification-${liveStats.notification.type}`}>
-              <div className="notification-content">
-                {liveStats.notification.message}
-              </div>
+          <div className={`player-card player2 ${liveStats?.currentTurn === 1 ? 'active' : ''}`}>
+            <div className="player-name">{matchData.players[1]}</div>
+            {/* Profile Picture */}
+            <div className="player-profile-pic">
+              <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
             </div>
-          )}
-
-          {/* Warning Message */}
-          {liveStats?.warningMessage && (
-            <div className="mobile-warning">
-              {liveStats.warningMessage}
+            <div className="player-score">{liveStats?.score2 || 0}</div>
+            <div className="player-stats">
+              <span>HR: {liveStats?.eys2 || liveStats?.hr2 || liveStats?.hr1_2 || 0}</span>
             </div>
-          )}
-
-          {/* Menu Overlay */}
-          {liveStats?.showMenuOverlay && (
-            <div className="mobile-menu-overlay">
-              <div className="mobile-menu-content">
-                <h2>⚠️ MAÇTAN ÇIKMAK İSTER MİSİNİZ?</h2>
-                <p>Maç sonuçları kaydedilmeyecektir.</p>
-                <div className="mobile-menu-buttons">
-                  <button 
-                    className="mobile-menu-btn cancel"
-                    onClick={() => handleCommand('MENU_CANCEL')}
-                  >
-                    VAZGEÇ
-                  </button>
-                  <button 
-                    className="mobile-menu-btn confirm"
-                    onClick={() => handleCommand('MENU_CONFIRM')}
-                  >
-                    MAÇTAN ÇIK
-                  </button>
-                </div>
-              </div>
+            {/* Timeout hakları */}
+            <div className="timeout-rights">
+              {[...Array(liveStats?.player2TimeoutLeft || 0)].map((_, i) => (
+                <div key={i} className="timeout-box"></div>
+              ))}
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Modern Remote Control */}
-          <div className="remote-control">
-            {/* Power Button - Top Left (sadece kontrol modunda) */}
-            {!isReadOnly && (
-              <button 
-                className="power-btn-exit"
-                onClick={() => handleCommand('EXIT')}
-                title="Maçtan Çık"
+        {/* Timer Progress Bar */}
+        <div className="mobile-timer-container">
+          <TimerProgressBar
+            isTimerRunning={liveStats?.isTimerRunning || false}
+            currentTurn={liveStats?.currentTurn || 0}
+            timerPhase={liveStats?.timerPhase || 'idle'}
+            resetTrigger={liveStats?.timerResetTrigger || 0}
+            isTimerPaused={liveStats?.isTimerPaused || false}
+            activeColor={liveStats?.currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
+            duration={40}
+            height={22}
+          />
+        </div>
+      </div>
+
+      {/* Notification Overlay */}
+      {liveStats?.notification && (
+        <div className={`mobile-notification mobile-notification-${liveStats.notification.type}`}>
+          <div className="notification-content">
+            {liveStats.notification.message}
+          </div>
+        </div>
+      )}
+
+      {/* Warning Message */}
+      {liveStats?.warningMessage && (
+        <div className="mobile-warning">
+          {liveStats.warningMessage}
+        </div>
+      )}
+
+      {/* Menu Overlay */}
+      {liveStats?.showMenuOverlay && (
+        <div className="mobile-menu-overlay">
+          <div className="mobile-menu-content">
+            <h2>⚠️ MAÇTAN ÇIKMAK İSTER MİSİNİZ?</h2>
+            <p>Maç sonuçları kaydedilmeyecektir.</p>
+            <div className="mobile-menu-buttons">
+              <button
+                className="mobile-menu-btn cancel"
+                onClick={() => handleCommand('MENU_CANCEL')}
               >
-                ✕
+                VAZGEÇ
               </button>
-            )}
-
-            {/* RUN Display */}
-            <div className="run-display">
-              <div className="run-label">RUN</div>
-              <div className={`run-value ${liveStats?.currentTurn === 0 ? 'player1' : 'player2'}`}>
-                {liveStats?.run || 0}
-              </div>
+              <button
+                className="mobile-menu-btn confirm"
+                onClick={() => handleCommand('MENU_CONFIRM')}
+              >
+                MAÇTAN ÇIK
+              </button>
             </div>
-
-            {/* Control Buttons */}
-            {!isReadOnly && (
-              <div className="control-buttons">
-                <button 
-                  className="control-btn control-left"
-                  onClick={() => handleCommand('MINUS')}
-                  title="Run -1"
-                >
-                  ◀
-                </button>
-                <button 
-                  className="control-btn control-center"
-                  onClick={() => handleCommand('OK')}
-                  title="Sayıyı Ekle / Sıra Geç"
-                >
-                  OK
-                </button>
-                <button 
-                  className="control-btn control-right"
-                  onClick={() => handleCommand('PLUS')}
-                  title="Run +1"
-                >
-                  ▶
-                </button>
-              </div>
-            )}
-
-            {/* Media Control Buttons */}
-            {!isReadOnly && (
-              <div className="media-controls">
-                <button 
-                  className="media-btn" 
-                  onClick={() => handleCommand('UNDO')}
-                  title="Geri Al (Undo)"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-                  </svg>
-                </button>
-                <button 
-                  className="media-btn media-btn-timer" 
-                  onClick={() => handleCommand('TOGGLE_TIMER')}
-                  title="Timer Başlat/Durdur"
-                >
-                  {timerRunning ? (
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-            )}
           </div>
+        </div>
+      )}
+
+      {/* Modern Remote Control */}
+      <div className="remote-control">
+        {/* Power Button - Top Left (sadece kontrol modunda) */}
+        {!isReadOnly && (
+          <button
+            className="power-btn-exit"
+            onClick={() => handleCommand('EXIT')}
+            title="Maçtan Çık"
+          >
+            ✕
+          </button>
+        )}
+
+        {/* RUN Display */}
+        <div className="run-display">
+          <div className="run-label">RUN</div>
+          <div className={`run-value ${liveStats?.currentTurn === 0 ? 'player1' : 'player2'}`}>
+            {liveStats?.run || 0}
+          </div>
+        </div>
+
+        {/* Control Buttons */}
+        {!isReadOnly && (
+          <div className="control-buttons">
+            <button
+              className="control-btn control-left"
+              onClick={() => handleCommand('MINUS')}
+              title="Run -1"
+            >
+              ◀
+            </button>
+            <button
+              className="control-btn control-center"
+              onClick={() => handleCommand('OK')}
+              title="Sayıyı Ekle / Sıra Geç"
+            >
+              OK
+            </button>
+            <button
+              className="control-btn control-right"
+              onClick={() => handleCommand('PLUS')}
+              title="Run +1"
+            >
+              ▶
+            </button>
+          </div>
+        )}
+
+        {/* Media Control Buttons */}
+        {!isReadOnly && (
+          <div className="media-controls">
+            <button
+              className="media-btn"
+              onClick={() => handleCommand('UNDO')}
+              title="Geri Al (Undo)"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+              </svg>
+            </button>
+            <button
+              className="media-btn media-btn-timer"
+              onClick={() => handleCommand('TOGGLE_TIMER')}
+              title="Timer Başlat/Durdur"
+            >
+              {timerRunning ? (
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

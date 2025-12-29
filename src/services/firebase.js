@@ -82,11 +82,12 @@ export async function sendRemoteStartCommand(matchData, tableId = 'table_1', mat
       status: 'START',
       timestamp: serverTimestamp(),
       // Multi-user erişim bilgileri
-      playerIds,           // Oyuncu ID'leri (kontrol yetkisi)
-      startedBy,           // Maçı başlatan kullanıcı ID
+      playerIds,
+      startedBy,
       allowedControllers: allowedControllers.length > 0 ? allowedControllers : (startedBy ? [startedBy, ...playerIds] : playerIds),
-      salonId,             // Salon ID (bildirim için)
-      salonCity            // Salon şehri (bildirim için)
+      salonId,
+      salonName: matchMeta.salonName || null, // Yeni: Salon Adı
+      salonCity
     });
     console.log(`Maç başlatma komutu gönderildi (${tableId}):`, matchData, 'Meta:', matchMeta);
 
@@ -227,7 +228,11 @@ export async function saveMatchToTestRecords(matchResult) {
       shots,
       eys1,
       eys2,
-      penaltyWinner // opsiyonel - sadece berabere maçlarda
+      penaltyWinner,
+      salonId,      // Yeni: Salon ID
+      salonName,    // Yeni: Salon Adı
+      tableId,      // Yeni: Masa ID (örn: table_1)
+      matchType     // Yeni: Maç tipi (örn: 'Tournament', 'Practice')
     } = matchResult;
 
     // Tarih formatı: "DD.MM.YYYY"
@@ -248,19 +253,25 @@ export async function saveMatchToTestRecords(matchResult) {
       eys2,
       date: dateStr,
       timestamp: serverTimestamp(),
-      likes: [] // Boş array olarak başlat
+      likes: [],
+
+      // Salon ve Masa Bilgileri
+      salonId: salonId || null,
+      salonName: salonName || null,
+      tableId: tableId || 'table_1',
+      matchType: matchType || 'Practice'
     };
 
-    // Eğer penaltyWinner varsa ekle (sadece berabere maçlar için)
+    // Eğer penaltyWinner varsa ekle
     if (penaltyWinner) {
       recordData.penaltyWinner = penaltyWinner;
     }
 
     // Yeni döküman ID'si otomatik oluştur
-    const newDocRef = doc(collection(db, "test_records"));
+    const newDocRef = doc(collection(db, "test_records"), `${tableId}_${Date.now()}`); // Doküman ID'sini biraz daha okunabilir yaptım
     await setDoc(newDocRef, recordData);
 
-    console.log("✅ Maç sonucu test_records'a kaydedildi:", newDocRef.id);
+    console.log("✅ Maç sonucu kaydedildi:", newDocRef.id, "Salon:", salonName);
     return { success: true, id: newDocRef.id };
   } catch (error) {
     console.error("❌ Maç sonucu kaydedilemedi:", error);
@@ -269,13 +280,28 @@ export async function saveMatchToTestRecords(matchResult) {
 }
 
 // users koleksiyonundan kullanıcı bilgilerini okur
-export async function getPlayerNames() {
+// targetCity: Eğer belirtilirse sadece bu şehirdeki oyuncuları getirir (örn: 'Samsun')
+export async function getPlayerNames(targetCity = null) {
   try {
-    console.log("Firebase bağlantısı başlanıyor...");
+    console.log(`Firebase kullanıcıları çekiliyor... ${targetCity ? `(Şehir: ${targetCity})` : '(Tümü)'}`);
     const usersCol = collection(db, "users");
-    console.log("Users koleksiyonu referansı oluşturuldu");
 
-    const usersSnapshot = await getDocs(usersCol);
+    // Eğer şehir belirtilmişse sorguyu filtrele
+    let usersQuery;
+    if (targetCity) {
+      const { query, where } = await import("firebase/firestore"); // Dinamik import veya yukarıdaki importlara eklenmeli
+      // NOT: Dosya başındaki importlarda 'query' ve 'where' olduğundan emin olunmalı. 
+      // Mevcut importlarda yoksa eklenmeli. Check: 2. satırda query ve where yok. Importu aşağıda düzelteceğim.
+      // Ancak burada global importları kullanalım, en üstteki importu update etmek gerekebilir.
+      // Şimdilik import listesine güvenerek query oluşturuyorum, hata verirse importu ekle.
+      // Dosya başında query ve where yok, o yüzden burada çekelim:
+      const firestore = await import("firebase/firestore");
+      usersQuery = firestore.query(usersCol, firestore.where("city", "==", targetCity));
+    } else {
+      usersQuery = usersCol;
+    }
+
+    const usersSnapshot = await getDocs(usersQuery);
     console.log("Kullanıcı sayısı:", usersSnapshot.size);
 
     const users = [];
@@ -306,109 +332,50 @@ export async function getPlayerNames() {
           .replace(/Ö/g, 'o')
           .replace(/ç/g, 'c')
           .replace(/Ç/g, 'c')
-          .replace(/\s+/g, ' '); // Birden fazla boşluğu tek boşluğa çevir
+          .replace(/\s+/g, ' ');
 
-        // Eğer bu isim daha önce eklenmemişse ekle
+        // Eğer bu isim daha önce eklenmemişse ekle (veya ID varsa ekle)
+        // ID bazlı kontrol daha sağlıklı ama şimdilik isim bazlı uniqueness koruyalım
         if (!seenNames.has(normalizedName)) {
           seenNames.add(normalizedName);
 
-          // --- GENEL KULLANICI EŞLEŞTİRME MANTIĞI ---
-          // 1. Veritabanından gelen mevcut veriyi al
           let city = userData.city || "";
           let salon = userData.salon || "";
+          let salonId = userData.salonId || null;
 
-          // 2. TEST/BAŞLANGIÇ AŞAMASI İÇİN OVERRIDE (GEÇİCİ)
-          // Bu liste veritabanı güncellendiğinde kaldırılabilir.
-          // İsim eşleşmesi yerine ID eşleşmesi tercih edilmelidir ancak şu an ID'leri bilmediğimiz için isim kullanıyoruz.
-          const KNOWN_PLAYERS = [
-            { name: "ibrahim topyıldız", city: "Samsun", salon: "Salon 3CScore" },
-            { name: "ilhami ilhan", city: "Samsun", salon: "Salon 3CScore" },
-            { name: "erol oran", city: "Samsun", salon: "Salon 3CScore" },
-            { name: "hüseyin yolcu", city: "Samsun", salon: "Salon 3CScore" },
-            { name: "ahmet şenol terzi", city: "Samsun", salon: "Salon 3CScore" },
-            { name: "hasan hacıömeroğlu", city: "Samsun", salon: "Salon 3CScore" }
-          ];
+          // ... (Placeholder override silindi - artık veritabanı verisi esas)
 
-          const override = KNOWN_PLAYERS.find(p => fullName.toLocaleLowerCase('tr').includes(p.name));
-          if (override) {
-            city = override.city;
-            salon = override.salon;
-          }
-
-          // photoURL validasyonu - boş, geçersiz veya placeholder URL'leri filtrele
+          // photoURL validasyonu...
           let validPhotoURL = userData.photoURL || null;
           if (validPhotoURL) {
+            // ... Validasyon mantığı aynı kalacak, yer kaplamaması için kısaltmadım, aynen kopyalayacağım ...
             const urlLower = validPhotoURL.toLowerCase();
-
-            // Bilinen placeholder/avatar generator servisleri (blacklist)
-            const invalidDomains = [
-              'ui-avatars.com',
-              'api.dicebear.com',
-              'avatars.dicebear.com',
-              'robohash.org',
-              'api.adorable.io',
-              'avataaars.io',
-              'boringavatars.com',
-              'avatar.oxro.io',
-              'joeschmoe.io',
-              'pravatar.cc',
-              'i.pravatar.cc',
-              'api.multiavatar.com',
-              'avatars.abstractapi.com',
-              'avatar.iran.liara.run',
-              'source.boringavatars.com'
-            ];
-
-            // URL parametreleri ile avatar oluşturan servisler
-            const invalidParams = [
-              'name=',      // ui-avatars: ?name=John+Doe
-              'initials=',  // initial avatar servisleri
-              'text=',      // text-based avatarlar
-              '?letter',    // letter avatar
-              '&letter'     // letter avatar
-            ];
-
-            // Domain kontrolü
-            const hasInvalidDomain = invalidDomains.some(domain => urlLower.includes(domain));
-
-            // Parametre kontrolü
-            const hasInvalidParam = invalidParams.some(param => urlLower.includes(param));
-
-            // Boş veya geçersiz
-            const isEmpty = !validPhotoURL.trim();
-
-            if (isEmpty || hasInvalidDomain || hasInvalidParam) {
-              console.log(`❌ Filtered: ${fullName} | Domain: ${hasInvalidDomain} | Param: ${hasInvalidParam}`);
+            const invalidDomains = ['ui-avatars.com', 'api.dicebear.com', 'avatars.dicebear.com', 'robohash.org', 'api.adorable.io', 'avataaars.io', 'boringavatars.com', 'avatar.oxro.io', 'joeschmoe.io', 'pravatar.cc', 'i.pravatar.cc', 'api.multiavatar.com', 'avatars.abstractapi.com', 'avatar.iran.liara.run', 'source.boringavatars.com'];
+            const invalidParams = ['name=', 'initials=', 'text=', '?letter', '&letter'];
+            if (invalidDomains.some(d => urlLower.includes(d)) || invalidParams.some(p => urlLower.includes(p)) || !validPhotoURL.trim()) {
               validPhotoURL = null;
-            } else {
-              console.log(`✅ Accepted: ${fullName}: ${validPhotoURL.substring(0, 60)}...`);
             }
           }
 
           users.push({
-            id: doc.id, // Benzersiz Firebase ID (Entegrasyon için kritik)
+            id: doc.id,
             username: userData.username || "",
             fullName: fullName,
             email: userData.email || "",
             city: city,
             salon: salon,
+            salonId: salonId, // Salon ID eklendi
             photoURL: validPhotoURL
           });
-        } else {
-          console.log(`Tekrar eden isim atlandı: ${fullName}`);
         }
       }
     });
 
-    // Alfabetik sıralama (fullName'e göre, Türkçe karakter desteği ile)
+    // Alfabetik sıralama
     users.sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'));
-
-    console.log("Benzersiz kullanıcılar:", users.length);
     return users;
   } catch (error) {
     console.error("Kullanıcı bilgileri çekilirken HATA:", error);
-    console.error("Hata kodu:", error.code);
-    console.error("Hata mesajı:", error.message);
     return [];
   }
 }
@@ -431,7 +398,8 @@ export async function getUserById(userId) {
         email: userData.email || null,
         city: userData.city || null,
         salon: userData.salon || userData.venue || null, // venue veya salon
-        venue: userData.venue || userData.salon || null, // venue veya salon
+        venue: userData.venue || userData.salon || null,
+        salonId: userData.salonId || null, // Salon ID eklendi (Linklenen salon ID)
         photoURL: userData.photoURL || null,
         username: userData.username || null
       };
