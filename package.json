@@ -21,6 +21,7 @@
     "build:mobile": "set REACT_APP_BUILD_TARGET=mobile&& react-scripts build",
     "build:pi": "set REACT_APP_BUILD_TARGET=pi&& react-scripts build",
     "deploy:mobile": "npm run build:mobile && firebase deploy --only hosting",
+    "deploy:pi": "powershell -ExecutionPolicy Bypass -File ./deploy-to-pi.ps1",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "sync-export": "powershell -ExecutionPolicy Bypass -File ./sync-to-export.ps1",
