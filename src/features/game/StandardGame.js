@@ -754,23 +754,24 @@ function StandardGame({
 
       // 2. Game Actions
       switch (e.key) {
-        case 'ArrowRight': // Sayı Artır (Yeni Mapping)
+        case 'ArrowRight': // Sayı Artır
+        case 'NumpadAdd':
+        case 'ChannelUp':
+        case '+':
           callHandler('handlePlusRun');
           break;
-        case 'ArrowLeft': // Sayı Azalt (Yeni Mapping)
+        case 'ArrowLeft': // Sayı Azalt
+        case 'NumpadSubtract':
+        case 'ChannelDown':
+        case '-':
           callHandler('handleMinusRun');
           break;
-        /* ArrowUp ve ArrowDown iptal edildi
-        case 'ArrowUp': // Timer Başlat/Durdur (Yeni Mapping)
-        case 'ArrowDown':
-          handleToggleTimer();
-          break;
-        */
         case 'Enter': // OK (Sıra Geç)
           callHandler('handleOk');
           break;
         case 't': // Timer Başlat/Durdur (Yedek)
         case 'T':
+        case 'MediaPlayPause':
           callHandler('handleToggleTimer');
           break;
         case 'Escape': // Exit

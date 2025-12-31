@@ -3,13 +3,12 @@
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
   color: white;
   padding: 20px;
-  padding-bottom: 80px; /* Alt buton için boşluk */
+  padding-bottom: 80px;
+  /* Alt buton için boşluk */
   overflow-y: auto;
   position: relative;
 }
 
-.waiting-screen,
-.match-end-screen,
 .match-starting-screen,
 .save-confirm-screen,
 .loading-screen {
@@ -19,6 +18,7 @@
   justify-content: center;
   min-height: 80vh;
   text-align: center;
+  will-change: transform, opacity;
 }
 
 /* Loading Screen */
@@ -43,7 +43,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Match Starting Screen */
@@ -58,6 +60,7 @@
   margin-bottom: 40px;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   animation: pulse 2s infinite;
+  will-change: transform;
 }
 
 .starting-players {
@@ -121,10 +124,10 @@
 }
 
 .starting-details {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.9);
+  /* Opaque fallback for performance */
   border-radius: 15px;
   padding: 20px 30px;
-  backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.1);
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -167,8 +170,17 @@
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
 }
 
 .waiting-screen h2,
@@ -265,8 +277,17 @@
 }
 
 @keyframes pulseReadonly {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(0.98); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
 }
 
 .back-button-large {
@@ -308,18 +329,26 @@
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* Match Stats Panel */
 .match-stats-panel {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.85);
+  /* Faster than transparent + blur */
   border-radius: 15px;
   padding: 12px;
   margin-bottom: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stats-row {
@@ -378,7 +407,7 @@
   justify-content: center;
   margin: 0 auto 10px;
   color: rgba(255, 255, 255, 0.5);
-  box-shadow: 
+  box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -636,7 +665,7 @@
   color: white;
   cursor: pointer;
   transition: transform 0.1s;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .ctrl-btn:active {
@@ -722,13 +751,33 @@
   transform: scale(0.95);
 }
 
-.d-btn.up { grid-column: 2; grid-row: 1; background: rgba(33, 150, 243, 0.3); }
-.d-btn.left { grid-column: 1; grid-row: 2; background: rgba(33, 150, 243, 0.3); }
-.d-btn.right { grid-column: 3; grid-row: 2; background: rgba(33, 150, 243, 0.3); }
-.d-btn.down { grid-column: 2; grid-row: 3; background: rgba(33, 150, 243, 0.3); }
-.d-btn.enter { 
-  grid-column: 2; 
-  grid-row: 2; 
+.d-btn.up {
+  grid-column: 2;
+  grid-row: 1;
+  background: rgba(33, 150, 243, 0.3);
+}
+
+.d-btn.left {
+  grid-column: 1;
+  grid-row: 2;
+  background: rgba(33, 150, 243, 0.3);
+}
+
+.d-btn.right {
+  grid-column: 3;
+  grid-row: 2;
+  background: rgba(33, 150, 243, 0.3);
+}
+
+.d-btn.down {
+  grid-column: 2;
+  grid-row: 3;
+  background: rgba(33, 150, 243, 0.3);
+}
+
+.d-btn.enter {
+  grid-column: 2;
+  grid-row: 2;
   background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
   font-size: 18px;
   font-weight: bold;
@@ -886,6 +935,7 @@
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.8);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -893,8 +943,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Remote Control */
@@ -907,7 +962,7 @@
   gap: 20px;
   background: linear-gradient(145deg, #3a3d4a 0%, #2d2f3b 100%);
   border-radius: 30px;
-  box-shadow: 
+  box-shadow:
     0 15px 50px rgba(0, 0, 0, 0.7),
     0 5px 20px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -943,14 +998,14 @@
 
 .run-value.player1 {
   color: #FFFFFF;
-  text-shadow: 
+  text-shadow:
     0 3px 10px rgba(255, 255, 255, 0.6),
     0 0 20px rgba(255, 255, 255, 0.3);
 }
 
 .run-value.player2 {
   color: #FFD700;
-  text-shadow: 
+  text-shadow:
     0 3px 10px rgba(255, 215, 0, 0.6),
     0 0 20px rgba(255, 215, 0, 0.3);
 }
@@ -973,7 +1028,7 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(255, 71, 87, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   outline: none;
@@ -983,7 +1038,7 @@
 
 .power-btn-exit:active {
   transform: translateY(2px) scale(0.95);
-  box-shadow: 
+  box-shadow:
     0 2px 6px rgba(255, 71, 87, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -1011,7 +1066,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 
+  box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -1030,21 +1085,21 @@
   background: linear-gradient(145deg, #2196F3 0%, #1976D2 100%);
   font-size: 20px;
   font-weight: 800;
-  box-shadow: 
+  box-shadow:
     0 5px 12px rgba(33, 150, 243, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .control-btn:active {
   transform: scale(0.92) translateY(2px);
-  box-shadow: 
+  box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .control-center:active {
   background: linear-gradient(145deg, #1976D2 0%, #1565C0 100%);
-  box-shadow: 
+  box-shadow:
     0 3px 8px rgba(33, 150, 243, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -1072,7 +1127,7 @@
   transition: all 0.1s ease;
   outline: none;
   -webkit-tap-highlight-color: transparent;
-  box-shadow: 
+  box-shadow:
     0 3px 6px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -1084,7 +1139,7 @@
 
 .media-btn:active {
   transform: translateY(2px) scale(0.95);
-  box-shadow: 
+  box-shadow:
     0 2px 3px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -1092,7 +1147,7 @@
 /* Timer Button (Play/Pause) - Special styling */
 .media-btn-timer {
   background: linear-gradient(145deg, #4ECDC4 0%, #44A89E 100%);
-  box-shadow: 
+  box-shadow:
     0 4px 8px rgba(78, 205, 196, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -1113,8 +1168,15 @@
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .save-confirm-screen h2 {
@@ -1381,8 +1443,15 @@
 }
 
 @keyframes trophy-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .winner-title {
@@ -1454,8 +1523,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .exit-confirm-modal {
@@ -1471,11 +1545,12 @@
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(30px) scale(0.95);
   }
-  to { 
+
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }

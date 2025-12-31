@@ -177,7 +177,7 @@ export function updateTableStatus(tableId, status, matchData = null, matchMeta =
     clearTimeout(tableStatusDebounceTimer);
   }
 
-  // 600ms sonra gönder (titreme önleme - UI'ı hiç bloklamaz)
+  // 200ms sonra gönder (titreme önleme - UI'ı hiç bloklamaz)
   tableStatusDebounceTimer = setTimeout(() => {
     if (!pendingTableStatus) return;
 
@@ -201,7 +201,7 @@ export function updateTableStatus(tableId, status, matchData = null, matchMeta =
     // Fire-and-forget: await yok, UI thread'i bloklanmaz
     setDoc(doc(db, "table_status", id), statusData)
       .catch(error => console.error("Masa durumu güncellenemedi:", error));
-  }, 600);
+  }, 200);
 }
 
 // Masanın durumunu dinler (Mobil tarafı için)
@@ -285,10 +285,10 @@ export async function saveMatchRecord(matchResult) {
     }
 
     // Yeni döküman ID'si otomatik oluştur
-    const newDocRef = doc(collection(db, "match_records"), `${tableId}_${Date.now()}`); // match_records koleksiyonuna kaydediyoruz
+    const newDocRef = doc(collection(db, "records"), `${tableId}_${Date.now()}`); // match_records yerine 'records' kullanıyoruz (TODO gereği)
     await setDoc(newDocRef, recordData);
 
-    console.log("✅ Maç sonucu kaydedildi (match_records):", newDocRef.id, "Salon:", salonName);
+    console.log("✅ Maç sonucu kaydedildi (records):", newDocRef.id, "Salon:", salonName);
     return { success: true, id: newDocRef.id };
   } catch (error) {
     console.error("❌ Maç sonucu kaydedilemedi:", error);

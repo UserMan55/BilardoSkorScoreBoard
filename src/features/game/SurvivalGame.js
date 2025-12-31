@@ -249,17 +249,17 @@ function SurvivalGame({
       }
 
       // Play/Pause tuşu - Timer başlat/durdur
-      if (e.key === 'MediaPlayPause') {
+      if (e.key === 'MediaPlayPause' || e.key === 't' || e.key === 'T') {
         callHandler('handleToggleTimer');
         return;
       }
 
       // Plus Run
-      if (e.key === 'ArrowUp' || e.key === '+' || e.code === 'NumpadAdd') {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === '+' || e.code === 'NumpadAdd' || e.key === 'ChannelUp') {
         callHandler('handlePlusRun');
       }
       // Minus Run
-      else if (e.key === 'ArrowDown' || e.key === '-' || e.code === 'NumpadSubtract') {
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === '-' || e.code === 'NumpadSubtract' || e.key === 'ChannelDown') {
         callHandler('handleMinusRun');
       }
       // OK / Next Turn

@@ -25,14 +25,14 @@
 }
 
 .scoreboard-starting-title {
-  font-size: clamp(32px, 5vw, 56px);
-  /* Responsive font */
+  font-size: clamp(28px, 4vw, 48px);
   font-weight: bold;
   color: #FFD700;
-  margin-bottom: 20px;
-  /* Azaltıldı */
+  margin-bottom: clamp(10px, 2vh, 20px);
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   animation: pulse 2s infinite;
+  max-width: 95vw;
+  line-height: 1.2;
 }
 
 .scoreboard-starting-players {
@@ -97,8 +97,10 @@
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.1);
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 30px 60px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px clamp(30px, 4vw, 60px);
+  width: 90%;
+  max-width: 600px;
 }
 
 .scoreboard-detail-item {
@@ -121,10 +123,8 @@
 }
 
 .scoreboard-starting-countdown {
-  margin-top: 20px;
-  /* Azaltıldı */
-  font-size: clamp(80px, 15vw, 150px);
-  /* Büyütüldü ve responsive */
+  margin-top: clamp(10px, 2vh, 40px);
+  font-size: clamp(60px, 12vw, 120px);
   font-weight: bold;
   color: #FFD700;
   animation: pulse 1s ease-in-out infinite;

@@ -3942,7 +3942,15 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                       // Her iki oyuncu seçilmiş mi kontrolü
                       const isPlayer1Ready = isManualPlayer1 ? manualPlayer1Name.trim() : player1;
                       const isPlayer2Ready = isManualPlayer2 ? manualPlayer2Name.trim() : player2;
-                      const canStartMatch = isPlayer1Ready && isPlayer2Ready && !isTableBusy;
+
+                      // MEB (Maç Başlatma Engeli): Oyuncu kendisinin olmadığı maçı başlatamaz
+                      // SADECE GİRİŞ YAPMIŞ OYUNCULAR İÇİN GEÇERLİ - Misafir (Default) ise engel yok (veya tam tersi?)
+                      // Kullanıcının talebi: "Prevent players from starting games they are not a part of"
+                      const isUserInMatch = !currentUser || (currentUser.id === DEFAULT_USER_PROFILE.id) ||
+                        (isManualPlayer1 ? (manualPlayer1Name.trim() === currentUser.fullName) : (player1 === currentUser.id)) ||
+                        (isManualPlayer2 ? (manualPlayer2Name.trim() === currentUser.fullName) : (player2 === currentUser.id));
+
+                      const canStartMatch = isPlayer1Ready && isPlayer2Ready && !isTableBusy && isUserInMatch;
 
                       return (
                         <button
@@ -3950,13 +3958,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                           onClick={canStartMatch ? handleRemoteSend : undefined}
                           disabled={!canStartMatch}
                           style={{
-                            background: canStartMatch ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#64748b',
+                            background: isTableBusy ? '#334155' : (canStartMatch ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#64748b'),
                             cursor: canStartMatch ? 'pointer' : 'not-allowed',
                             opacity: canStartMatch ? 1 : 0.7,
                             fontWeight: '700'
                           }}
                         >
-                          {isTableBusy ? '⛔ MASA DOLU' : (!isPlayer1Ready || !isPlayer2Ready) ? '⚠️ OYUNCU SEÇİN' : '▶ MAÇI BAŞLAT'}
+                          {isTableBusy ? '⛔ MASA DOLU' : (!isPlayer1Ready || !isPlayer2Ready) ? '⚠️ OYUNCU SEÇİN' : (!isUserInMatch ? '🚫 MAÇTA DEĞİLSİNİZ' : '▶ MAÇI BAŞLAT')}
                         </button>
                       );
                     })()}
@@ -4090,27 +4098,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                         Survival Maçını Başlat
                       </button>
                     )}
-                    {showRemoteButton && (
-                      <button
-                        className={`start-button ${!isTableBusy && [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
-                          .filter(p => p !== "").length >= 3
-                          ? "active"
-                          : "disabled"
-                          }`}
-                        onClick={handleRemoteSend}
-                        disabled={
-                          isTableBusy || [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4]
-                            .filter(p => p !== "").length < 3
-                        }
-                        style={{
-                          background: isTableBusy ? '#334155' : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                          cursor: isTableBusy ? 'not-allowed' : 'pointer',
-                          opacity: isTableBusy ? 0.8 : 1
-                        }}
-                      >
-                        {isTableBusy ? '⛔ DOLU MASA' : '📡 Uzaktan Başlat'}
-                      </button>
-                    )}
+                    {showRemoteButton && (() => {
+                      const selectedCount = [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4].filter(p => p !== "").length;
+                      const isUserInMatch = !currentUser || (currentUser.id === DEFAULT_USER_PROFILE.id) ||
+                        [survivalPlayer1, survivalPlayer2, survivalPlayer3, survivalPlayer4].includes(currentUser.id);
+
+                      const canStartMatch = !isTableBusy && selectedCount >= 3 && isUserInMatch;
+
+                      return (
+                        <button
+                          className={`start-button ${canStartMatch ? "active" : "disabled"}`}
+                          onClick={canStartMatch ? handleRemoteSend : undefined}
+                          disabled={!canStartMatch}
+                          style={{
+                            background: isTableBusy ? '#334155' : (canStartMatch ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' : '#64748b'),
+                            cursor: canStartMatch ? 'pointer' : 'not-allowed',
+                            opacity: canStartMatch ? 1 : 0.8
+                          }}
+                        >
+                          {isTableBusy ? '⛔ DOLU MASA' : selectedCount < 3 ? '⚠️ OYUNCU SEÇİN' : (!isUserInMatch ? '🚫 MAÇTA DEĞİLSİNİZ' : '📡 Uzaktan Başlat')}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
