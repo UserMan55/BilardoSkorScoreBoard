@@ -6,7 +6,8 @@ function SurvivalGame({
   players: initialPlayers, // Array of player names
   onExit,
   tableName = 'Masa 1',
-  salonName = 'SALON 3CSCORE'
+  salonName = 'SALON 3CSCORE',
+  tableId = 'table_1'
 }) {
   // Game Constants
   const STARTING_SCORE = 10;
@@ -415,7 +416,7 @@ function SurvivalGame({
       // Değişiklik varsa veya heartbeat (force) ise gönder
       if (force || statsJson !== lastStatsJson) {
         lastStatsJson = statsJson;
-        updateTableStatus('table_1', 'BUSY', currentStats);
+        updateTableStatus(tableId, 'BUSY', currentStats);
       }
     };
 
@@ -434,7 +435,7 @@ function SurvivalGame({
     // Sekme Kapanırken Temizlik
     const handleUnload = () => {
       if (!gameEnded) {
-        updateTableStatus('table_1', 'IDLE');
+        updateTableStatus(tableId, 'IDLE');
       }
     };
     window.addEventListener('beforeunload', handleUnload);

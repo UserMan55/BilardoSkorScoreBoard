@@ -19,23 +19,30 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
   const [startingMatchData, setStartingMatchData] = useState(null); // START komutuyla gelen maç verisi
   const [allowedControllers, setAllowedControllers] = useState([]); // Kontrol yetkisi olan kullanıcılar
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Maçtan çıkış onay dialogu
+  const [showSwapConfirm, setShowSwapConfirm] = useState(false); // Oyuncu yer değiştirme dialogu
+  const [pendingSwapData, setPendingSwapData] = useState(null); // Yer değiştirme bekleyen maç verisi
 
   // Erişim kontrolü: Kullanıcı kontrol yetkisine sahip mi?
   const canControl = useMemo(() => {
-    // Eğer readOnly prop'u true ise, kesinlikle kontrol yok
+    // Eğer readOnly prop'u true ise, kesinlikle kontrol yok (Canlı İzleme modu)
     if (readOnly) return false;
 
-    // Eğer kullanıcı giriş yapmamışsa, kontrol yok (Anonim izleyiciler kontrol edemez)
-    if (!loggedInUser?.uid && !loggedInUser?.id) return false;
+    // Eğer readOnly=false ise (maçı başlatan kişi), direkt kontrol ver
+    // Bu, StartScreen'den MobileController'a geçişte her zaman kontrol sağlar
+    if (loggedInUser) {
+      console.log('🔐 canControl: loggedInUser var, kontrol izni veriliyor', loggedInUser.id || loggedInUser.uid);
+      return true;
+    }
 
-    // Eğer allowedControllers listesi boşsa, giriş yapmış herhangi bir kullanıcı kontrol edebilir (Geri uyumluluk)
-    // Ancak ideali, sadece maçı başlatanın kontrol etmesidir.
-    if (!allowedControllers || allowedControllers.length === 0) return true;
+    // Kullanıcı giriş yapmamışsa (anonim), allowedControllers listesine bak
+    // Bu durumda kontrol yok (anonim kullanıcılar sadece izleyebilir)
+    if (!loggedInUser?.uid && !loggedInUser?.id) {
+      console.log('🔐 canControl: loggedInUser yok, izleme modu');
+      return false;
+    }
 
-    // Kullanıcı allowedControllers listesinde mi?
-    const userId = loggedInUser.uid || loggedInUser.id;
-    return allowedControllers.includes(userId);
-  }, [readOnly, allowedControllers, loggedInUser]);
+    return true;
+  }, [readOnly, loggedInUser]);
 
   const isReadOnly = !canControl;
 
@@ -48,9 +55,12 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
   // Masa durumunu dinle (Canlı Skor için)
   useEffect(() => {
+    console.log('📱 MobileController: Masa dinleniyor - tableId:', tableId);
     const unsubscribe = listenToTableStatus(tableId, (data) => {
+      console.log('📱 MobileController: table_status verisi geldi -', tableId, '- status:', data?.status, '- currentMatch:', !!data?.currentMatch);
       setIsLoading(false); // İlk veri geldi
       if (data && data.status === 'BUSY' && data.currentMatch) {
+        console.log('📱 MobileController: BUSY durumu alındı, matchData set ediliyor');
         setMatchData(data.currentMatch);
 
         // Multi-user erişim kontrolü bilgilerini al
@@ -131,6 +141,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     let lastTimestamp = 0;
     const mountTime = Date.now() / 1000; // Component mount zamanı
     let countdownIntervalRef = null;
+    let fallbackTimeoutRef = null;
 
     const unsubscribe = listenForMatchCommands((data) => {
       if (data && data.status === 'START') {
@@ -160,9 +171,12 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             setPlayerPhotos(data.playerPhotos);
           }
 
-          // Önceki geri sayımı temizle
+          // Önceki timeout'ları temizle
           if (countdownIntervalRef) {
             clearInterval(countdownIntervalRef);
+          }
+          if (fallbackTimeoutRef) {
+            clearTimeout(fallbackTimeoutRef);
           }
 
           // Geri sayım başlat
@@ -175,8 +189,14 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               clearInterval(countdownIntervalRef);
               countdownIntervalRef = null;
               setCountdown(null);
-              // Geri sayım bitti, matchData gelene kadar bekle
-              // matchData geldiğinde listenToTableStatus otomatik olarak matchStarting'i false yapacak
+
+              // Geri sayım bitti - 10 saniye içinde matchData gelmezse bekleme ekranına dön
+              // Bu, skorboard açık değilse veya bağlantı sorunlarında takılmayı önler
+              fallbackTimeoutRef = setTimeout(() => {
+                console.log("⚠️ matchData 10 sn içinde gelmedi, bekleme ekranına dönülüyor");
+                setMatchStarting(false);
+                setStartingMatchData(null);
+              }, 10000);
             }
           }, 1000);
         }
@@ -187,6 +207,9 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
       unsubscribe();
       if (countdownIntervalRef) {
         clearInterval(countdownIntervalRef);
+      }
+      if (fallbackTimeoutRef) {
+        clearTimeout(fallbackTimeoutRef);
       }
     };
   }, [tableId]);
@@ -329,10 +352,36 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             </div>
           </div>
 
-          {/* Countdown */}
-          {countdown !== null && countdown > 0 && (
+          {/* Countdown veya Yer Değiştirme Sorusu */}
+          {countdown !== null && countdown > 0 ? (
             <div className="starting-countdown">
               {countdown}
+            </div>
+          ) : (
+            /* Geri sayım bitti - Yer değiştirme sorusu göster */
+            <div className="swap-confirm-section">
+              <div className="swap-question">🔄 Oyuncuların yerini değiştirmek ister misiniz?</div>
+              <div className="swap-hint">Tabela veya mobil cihazdan yanıt verebilirsiniz</div>
+              <div className="swap-buttons">
+                <button
+                  className="swap-btn swap-btn-no"
+                  onClick={() => {
+                    console.log('📱 NO_SWAP komutu gönderiliyor...');
+                    sendMatchCommand('NO_SWAP', {}, tableId);
+                  }}
+                >
+                  Hayır, Bu Şekilde Kalsın
+                </button>
+                <button
+                  className="swap-btn swap-btn-yes"
+                  onClick={() => {
+                    console.log('📱 SWAP_CONFIRM komutu gönderiliyor...');
+                    sendMatchCommand('SWAP_CONFIRM', {}, tableId);
+                  }}
+                >
+                  Evet, Değiştir
+                </button>
+              </div>
             </div>
           )}
         </div>

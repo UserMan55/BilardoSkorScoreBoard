@@ -181,7 +181,6 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const isReceiverMode = urlParams.get('mode') === 'receiver';
   const isMobileControllerMode = urlParams.get('mode') === 'controller';
-  const isMobileHomeMode = urlParams.get('mode') === 'home';
   const urlTableId = urlParams.get('table') || 'table_1';
   const urlToken = urlParams.get('token'); // Firebase ID Token
   const isForceMobile = urlParams.get('mobile') === 'true'; // Test için mobil modu zorla
@@ -197,7 +196,6 @@ function App() {
 
   // Başlangıç ekranını belirle
   const getInitialScreen = () => {
-    if (isMobileHomeMode) return 'mobile_home';
     if (isMobileControllerMode) return 'controller'; // URL'de mode=controller varsa
     if (!isPiMode) return 'start'; // Mobil build - StartScreen (maç başlatma)
     if (isReceiverMode) return 'receiver'; // Pi receiver mode
@@ -441,8 +439,8 @@ function App() {
       setGameSettings(settings);
       setScreen('standard');
 
-      // Masa durumunu BUSY yap (Receiver üzerinden başlatılsa bile)
-      updateTableStatus('table_1', 'BUSY', {
+      // Masa durumunu BUSY yap (urlTableId kullanarak)
+      updateTableStatus(urlTableId, 'BUSY', {
         mode: '2vs2',
         players: [p1, p2],
         settings: { targetScore: targetScore }
@@ -471,15 +469,6 @@ function App() {
 
   const content = (
     <>
-      {/* Mobile Home - Yeni Tasarım */}
-      {screen === 'mobile_home' && (
-        <MobileHome
-          userProfile={authState.user}
-
-          onOpenController={() => handleShowController()}
-        />
-      )}
-
       {/* Mobile Controller - Her iki platformda da var */}
       {screen === 'controller' && (
         <MobileController
@@ -493,6 +482,7 @@ function App() {
       {screen === 'receiver' && isPiMode && ScoreboardReceiver && (
         <ScoreboardReceiver
           onStartGame={handleReceiveMatchData}
+          tableId={urlTableId}
         />
       )}
 
@@ -509,7 +499,7 @@ function App() {
 
       {/* Pi-only: Game Screens */}
       {screen === 'standard' && isPiMode && StandardGame && (
-        <StandardGame {...gameSettings} onExit={handleExitGame} />
+        <StandardGame {...gameSettings} onExit={handleExitGame} tableId={urlTableId} />
       )}
       {screen === 'survival' && isPiMode && SurvivalGame && (
         <SurvivalGame
@@ -518,6 +508,7 @@ function App() {
           onExit={handleExitGame}
           tableName={gameSettings?.tableName || 'Masa 1'}
           salonName={gameSettings?.salonName || 'SALON 3CSCORE'}
+          tableId={urlTableId}
         />
       )}
     </>

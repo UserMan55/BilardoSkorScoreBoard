@@ -956,6 +956,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       console.log("✅ Giriş Yapan Kullanıcı (prop):", loggedInUser);
       setCurrentUser(loggedInUser);
       setupLocationFromUser(loggedInUser);
+      // Otomatik olarak Oyuncu 1 olarak seç
+      if (loggedInUser.id) {
+        setPlayer1(loggedInUser.id);
+        setIsManualPlayer1(false);
+        console.log("🎯 Oyuncu 1 otomatik seçildi:", loggedInUser.fullName);
+      }
       return;
     }
 
@@ -965,6 +971,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       console.log("✅ URL'den Gelen Kullanıcı:", urlUser);
       setCurrentUser(urlUser);
       setupLocationFromUser(urlUser);
+      // Otomatik olarak Oyuncu 1 olarak seç
+      if (urlUser.id) {
+        setPlayer1(urlUser.id);
+        setIsManualPlayer1(false);
+        console.log("🎯 Oyuncu 1 otomatik seçildi:", urlUser.fullName);
+      }
       return;
     }
 
@@ -976,6 +988,12 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       console.log("ℹ️ Varsayılan kullanıcı atanıyor:", fallbackUser.fullName);
       setCurrentUser(fallbackUser);
       setupLocationFromUser(fallbackUser);
+      // Otomatik olarak Oyuncu 1 olarak seç
+      if (fallbackUser.id) {
+        setPlayer1(fallbackUser.id);
+        setIsManualPlayer1(false);
+        console.log("🎯 Oyuncu 1 otomatik seçildi:", fallbackUser.fullName);
+      }
     } else {
       console.log("⚠️ Varsayılan kullanıcı listede bulunamadı.");
       setCurrentUser(DEFAULT_USER_PROFILE);
@@ -1824,9 +1842,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             mode: "survival",
             players: selectedPlayers,
             settings: {}
-          }, SALON_INFO.tables[0].id, matchMeta);
+          }, selectedTableId || (currentSalon?.tables?.[0]?.id || 'table_1'), matchMeta);
           setErrorMessage("📡 Komut Başarıyla Gönderildi!");
-          setTimeout(() => setErrorMessage(null), 3000);
+          setTimeout(() => {
+            setErrorMessage(null);
+            setControllerReadOnly(false);
+            setShowMobileController(true); // Mobil kontrol paneline geç
+          }, 2000);
         } catch (error) {
           setErrorMessage("❌ Komut Gönderilemedi: " + error.message);
         }
@@ -2391,14 +2413,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     if (!currentSalon || !currentSalon.tables || currentSalon.tables.length === 0) {
       return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#000', color: '#fff' }}>Yükleniyor...</div>;
     }
+    const effectiveTableId = selectedTableId || (currentSalon?.tables?.[0]?.id || 'table_1');
+    const effectiveUser = currentUser || loggedInUser || { id: 'anonymous', fullName: 'Anonim' };
+    console.log('🔧 MobileController açılıyor - selectedTableId:', selectedTableId, 'effectiveTableId:', effectiveTableId, 'effectiveUser:', effectiveUser?.id, 'readOnly:', controllerReadOnly);
     return (
       <MobileController
         onBack={() => {
           setShowMobileController(false);
           setControllerReadOnly(false);
         }}
-        tableId={currentSalon.tables[0].id}
+        tableId={effectiveTableId}
         readOnly={controllerReadOnly}
+        loggedInUser={effectiveUser}
       />
     );
   }
@@ -2509,15 +2535,18 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
           transform: 'translate(-50%, -50%)',
           background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
           color: 'white',
-          padding: '30px 50px',
-          borderRadius: '15px',
-          fontSize: '24px',
+          padding: '25px 35px',
+          borderRadius: '16px',
+          fontSize: '18px',
           fontWeight: 'bold',
           textAlign: 'center',
-          zIndex: 9999,
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+          zIndex: 11000,
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
           border: '3px solid rgba(255, 255, 255, 0.3)',
-          animation: 'slideIn 0.3s ease-out'
+          animation: 'errorMessageSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          width: 'max-content',
+          maxWidth: '85vw',
+          pointerEvents: 'none'
         }}>
           {errorMessage}
         </div>

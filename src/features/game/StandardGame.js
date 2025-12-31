@@ -3,11 +3,11 @@ import PlayerPanel from '../../components/PlayerPanel';
 import ScorePanel from '../../components/ScorePanel';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
-import { saveMatchRecord, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount } from '../../services/firebase';
+import { saveMatchRecord, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount, sendMatchCommand } from '../../services/firebase';
 
 function StandardGame({
-  player1Name,
-  player2Name,
+  player1Name: initialPlayer1Name,
+  player2Name: initialPlayer2Name,
   targetScore,
   targetRack,
   hasPenalty,
@@ -15,8 +15,16 @@ function StandardGame({
   onExit,
   isFreeMode = false,
   tableName = 'Masa 1',
-  salonName = 'SALON 3CSCORE'
+  salonName = 'SALON 3CSCORE',
+  tableId = 'table_1'
 }) {
+  // Oyuncu yer değiştirme state'i
+  const [playersSwapped, setPlayersSwapped] = useState(false);
+
+  // Etkili oyuncu isimleri (swap durumuna göre)
+  const player1Name = playersSwapped ? initialPlayer2Name : initialPlayer1Name;
+  const player2Name = playersSwapped ? initialPlayer1Name : initialPlayer2Name;
+
   // Oyun state'leri
   const [currentTurn, setCurrentTurn] = useState(0); // 0: player1, 1: player2
   const [playerPhotos, setPlayerPhotos] = useState({});
@@ -47,6 +55,9 @@ function StandardGame({
   // Save Confirmation State
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingSaveData, setPendingSaveData] = useState(null);
+
+  // Swap Confirmation State - Maç başında oyuncu sırası onayı
+  const [showSwapConfirm, setShowSwapConfirm] = useState(true); // Maç başında true
 
   // UNDO için history stack
   const [history, setHistory] = useState([]);
@@ -127,7 +138,7 @@ function StandardGame({
 
   // İzleyici sayısını dinle
   useEffect(() => {
-    const unsubscribe = listenToViewerCount('table_1', (count) => {
+    const unsubscribe = listenToViewerCount(tableId, (count) => {
       setViewerCount(count);
     });
     return () => unsubscribe();
@@ -189,10 +200,22 @@ function StandardGame({
               // Mobil taraftan maç sonlandırma komutu
               console.log('📱 END_MATCH komutu alındı - Maç sonlandırılıyor...');
               // Masa durumunu IDLE yap ve çıkış fonksiyonunu çağır
-              updateTableStatus('table_1', 'IDLE');
+              updateTableStatus(tableId, 'IDLE');
               if (onExitRef.current) {
                 onExitRef.current();
               }
+              break;
+            case 'SWAP_PLAYERS':
+            case 'SWAP_CONFIRM':
+              // Mobil veya tabela tarafından oyuncu yer değiştirme komutu
+              console.log('🔄 SWAP komutu alındı - Oyuncular yer değiştiriliyor...');
+              setPlayersSwapped(true);
+              setShowSwapConfirm(false); // Onay ekranını kapat
+              break;
+            case 'NO_SWAP':
+              // Yer değiştirme reddedildi
+              console.log('✅ NO_SWAP komutu alındı - Mevcut sıralama korunuyor');
+              setShowSwapConfirm(false); // Onay ekranını kapat
               break;
             default:
               break;
@@ -287,7 +310,7 @@ function StandardGame({
       // Eğer veri değişmişse veya force=true (heartbeat) ise gönder
       if (force || statsJson !== lastStatsJson) {
         lastStatsJson = statsJson;
-        updateTableStatus('table_1', 'BUSY', currentStats);
+        updateTableStatus(tableId, 'BUSY', currentStats);
       }
     };
 
@@ -308,7 +331,7 @@ function StandardGame({
     const handleUnload = () => {
       if (!gameEnded) {
         // Maç bitmeden çıkılıyorsa masayı IDLE yap (veya tercihen 'ABANDONED')
-        updateTableStatus('table_1', 'IDLE');
+        updateTableStatus(tableId, 'IDLE');
       }
     };
 
@@ -1101,6 +1124,161 @@ function StandardGame({
           </div>
         )}
       </div>
+
+      {/* Swap Confirmation Overlay - Maç başında oyuncu sırası onayı */}
+      {showSwapConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            animation: 'fadeIn 0.5s ease-out'
+          }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+            padding: '40px 50px',
+            borderRadius: '25px',
+            border: '3px solid rgba(255, 215, 0, 0.5)',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.7)',
+            textAlign: 'center',
+            maxWidth: '600px',
+            width: '90%'
+          }}>
+            {/* Oyuncu Kartları */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '40px',
+              marginBottom: '30px'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '4px solid #FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 15px',
+                  overflow: 'hidden'
+                }}>
+                  {playerPhotos[player1Name] ? (
+                    <img src={playerPhotos[player1Name]} alt={player1Name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '40px' }}>👤</span>
+                  )}
+                </div>
+                <div style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: '20px' }}>{player1Name}</div>
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '5px' }}>BEYAZ TOP</div>
+              </div>
+
+              <div style={{
+                fontSize: '36px',
+                fontWeight: 'bold',
+                color: '#FFD700',
+                textShadow: '0 4px 8px rgba(0,0,0,0.5)'
+              }}>VS</div>
+
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 215, 0, 0.1)',
+                  border: '4px solid #FFD700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 15px',
+                  overflow: 'hidden'
+                }}>
+                  {playerPhotos[player2Name] ? (
+                    <img src={playerPhotos[player2Name]} alt={player2Name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '40px' }}>👤</span>
+                  )}
+                </div>
+                <div style={{ color: '#FFD700', fontWeight: 'bold', fontSize: '20px' }}>{player2Name}</div>
+                <div style={{ color: 'rgba(255,215,0,0.6)', fontSize: '14px', marginTop: '5px' }}>SARI TOP</div>
+              </div>
+            </div>
+
+            <div style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: '#FFD700',
+              marginBottom: '15px'
+            }}>
+              🔄 Oyuncuların Yerini Değiştirmek İster misiniz?
+            </div>
+
+            <div style={{
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.7)',
+              marginBottom: '30px'
+            }}>
+              Tabela veya mobil cihazdan yanıt verebilirsiniz
+            </div>
+
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  console.log('🎱 NO_SWAP komutu gönderiliyor (Tabela)...');
+                  sendMatchCommand('NO_SWAP', {}, tableId);
+                  setShowSwapConfirm(false);
+                }}
+                style={{
+                  padding: '18px 40px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #4a5568 0%, #2d3748 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '15px',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                  transition: 'transform 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                Hayır, Bu Şekilde Kalsın
+              </button>
+              <button
+                onClick={() => {
+                  console.log('🎱 SWAP_CONFIRM komutu gönderiliyor (Tabela)...');
+                  sendMatchCommand('SWAP_CONFIRM', {}, tableId);
+                  setPlayersSwapped(true);
+                  setShowSwapConfirm(false);
+                }}
+                style={{
+                  padding: '18px 40px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                  color: '#1a1d2e',
+                  border: 'none',
+                  borderRadius: '15px',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(255,215,0,0.4)',
+                  transition: 'transform 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                Evet, Değiştir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save Confirmation Overlay */}
       {showSaveConfirm && (

@@ -1789,6 +1789,18 @@
   }
 }
 
+@keyframes errorMessageSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 @keyframes pulse {
 
   0%,
