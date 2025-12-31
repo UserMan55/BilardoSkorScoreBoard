@@ -15,18 +15,22 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  justify-content: space-evenly;
+  /* Alanı eşit dağıt */
+  height: 100vh;
   text-align: center;
-  padding: 40px;
+  padding: 20px;
+  box-sizing: border-box;
   animation: fadeIn 0.5s ease-out;
 }
 
 .scoreboard-starting-title {
-  font-size: 56px;
+  font-size: clamp(32px, 5vw, 56px);
+  /* Responsive font */
   font-weight: bold;
   color: #FFD700;
-  margin-bottom: 60px;
+  margin-bottom: 20px;
+  /* Azaltıldı */
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   animation: pulse 2s infinite;
 }
@@ -34,8 +38,10 @@
 .scoreboard-starting-players {
   display: flex;
   align-items: center;
-  gap: 80px;
-  margin-bottom: 60px;
+  gap: clamp(20px, 5vw, 80px);
+  /* Responsive gap */
+  margin-bottom: 20px;
+  /* Azaltıldı */
 }
 
 .scoreboard-starting-player {
@@ -46,8 +52,8 @@
 }
 
 .scoreboard-player-photo {
-  width: 150px;
-  height: 150px;
+  width: clamp(100px, 12vw, 150px);
+  height: clamp(100px, 12vw, 150px);
   border-radius: 50%;
   background: linear-gradient(145deg, #3a3a3a 0%, #2a2a2a 100%);
   border: 4px solid rgba(255, 255, 255, 0.3);
@@ -71,14 +77,14 @@
 }
 
 .scoreboard-player-name {
-  font-size: 28px;
+  font-size: clamp(18px, 2.5vw, 28px);
   font-weight: bold;
   max-width: 200px;
   text-align: center;
 }
 
 .scoreboard-starting-vs {
-  font-size: 48px;
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: bold;
   color: #FF6B6B;
   text-shadow: 0 4px 8px rgba(255, 107, 107, 0.5);
@@ -87,7 +93,7 @@
 .scoreboard-starting-details {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 20px;
-  padding: 30px 50px;
+  padding: clamp(15px, 2vw, 30px);
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.1);
   display: grid;
@@ -115,8 +121,10 @@
 }
 
 .scoreboard-starting-countdown {
-  margin-top: 60px;
-  font-size: 120px;
+  margin-top: 20px;
+  /* Azaltıldı */
+  font-size: clamp(80px, 15vw, 150px);
+  /* Büyütüldü ve responsive */
   font-weight: bold;
   color: #FFD700;
   animation: pulse 1s ease-in-out infinite;
@@ -273,17 +281,33 @@
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ========================================
@@ -331,8 +355,17 @@
 }
 
 @keyframes live-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
 }
 
 .survival-game-timer {
@@ -447,8 +480,13 @@
 }
 
 @keyframes bounce {
-  from { transform: translateY(0); }
-  to { transform: translateY(-5px); }
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-5px);
+  }
 }
 
 .survival-player-live-photo {
@@ -569,8 +607,17 @@
 }
 
 @keyframes trophy-glow {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px gold); }
-  50% { transform: scale(1.1); filter: drop-shadow(0 0 40px gold); }
+
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 20px gold);
+  }
+
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 40px gold);
+  }
 }
 
 .survival-winner-label {

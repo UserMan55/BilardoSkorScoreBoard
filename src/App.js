@@ -3,6 +3,8 @@ import StartScreen from './screens/StartScreen';
 import MobileController from './screens/MobileController';
 import MobileHome from './screens/MobileHome';
 import { updateTableStatus, verifyIdToken } from './services/firebase';
+import { getPlatformInfo, shouldApplySafeArea, shouldReduceMotion } from './utils/platformUtils';
+import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLock';
 
 // Build hedefine göre mod belirleme
 // REACT_APP_BUILD_TARGET=mobile ise sadece mobil ekranlar yüklenir
@@ -179,19 +181,23 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const isReceiverMode = urlParams.get('mode') === 'receiver';
   const isMobileControllerMode = urlParams.get('mode') === 'controller';
+  const isMobileHomeMode = urlParams.get('mode') === 'home';
   const urlTableId = urlParams.get('table') || 'table_1';
   const urlToken = urlParams.get('token'); // Firebase ID Token
+  const isForceMobile = urlParams.get('mobile') === 'true'; // Test için mobil modu zorla
 
-  // Auth durumu - Sadece mobil build'de kontrol edilir
+  // Auth durumu - Sadece mobil build'de veya force mobile'da kontrol edilir
+  // Ancak test kolaylığı için force mobile'da auth loading'i atlayalım (isPiMode gibi davransın, ama mobileOnly olsun)
   const [authState, setAuthState] = useState({
-    loading: !isPiMode, // Pi'de loading yok, Mobil'de var
-    authenticated: isPiMode, // Pi default olarak authenticated
+    loading: !isPiMode && !isForceMobile, // Pi'de loading yok, Mobil'de var, force mobile'da da yok
+    authenticated: isPiMode || isForceMobile, // Pi default olarak authenticated, force mobile'da da
     error: null,
     user: null
   });
 
   // Başlangıç ekranını belirle
   const getInitialScreen = () => {
+    if (isMobileHomeMode) return 'mobile_home';
     if (isMobileControllerMode) return 'controller'; // URL'de mode=controller varsa
     if (!isPiMode) return 'start'; // Mobil build - StartScreen (maç başlatma)
     if (isReceiverMode) return 'receiver'; // Pi receiver mode
@@ -203,7 +209,35 @@ function App() {
   const [survivalPlayers, setSurvivalPlayers] = useState([]);
   const [gameKey, setGameKey] = useState(Date.now());
   const [controllerTableId, setControllerTableId] = useState(urlTableId);
+  const [mobileScreen, setMobileScreen] = useState('home'); // Mobil ekran durumu
+  const [platform, setPlatform] = useState(getPlatformInfo()); // Platform bilgisi
 
+  // Platform Algılama ve Wake Lock Başlatma
+  useEffect(() => {
+    const info = getPlatformInfo();
+    setPlatform(info);
+    console.log("🖥️ Platform:", info.deviceType, "| TV:", info.isSmartTV);
+
+    // Eğer bir "Receiver" veya "Oyun" ekranındaysak (Tabela modu) Wake Lock'u aç
+    // Mobil kontrolcü ekranında da ekranın kapanmaması iyidir
+    if (screen === 'receiver' || screen === 'standard' || screen === 'survival' || screen === 'controller') {
+      requestWakeLock();
+      setupWakeLockVisibilityHandler();
+    }
+    // Screen değişince tekrar kontrol et (örn: menüden oyuna girince)
+  }, [screen]);
+
+  // Başlangıç ekranındaysak masayı IDLE yap (Önceki oturumdan kalan BUSY durumunu temizle)
+  useEffect(() => {
+    if (screen === 'start' && isPiMode) {
+      // 1 saniye gecikmeli yap ki Firebase bağlantısı tam otursun
+      const timer = setTimeout(() => {
+        console.log("🧹 Masa durumu temizleniyor: IDLE");
+        updateTableStatus('table_1', 'IDLE');
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [screen]);
 
   // Token doğrulama - Sadece mobil build'de çalışır
   useEffect(() => {
@@ -324,7 +358,7 @@ function App() {
   }, [screen]);
 
   // Auth kontrolü - Mobil build için (hook'lardan sonra olmalı)
-  if (!isPiMode) {
+  if (!isPiMode && !isForceMobile) { // isForceMobile durumunda auth'u atla
     if (authState.loading) {
       return <AuthLoading />;
     }
@@ -433,13 +467,25 @@ function App() {
 
 
 
-  return (
+
+
+  const content = (
     <>
+      {/* Mobile Home - Yeni Tasarım */}
+      {screen === 'mobile_home' && (
+        <MobileHome
+          userProfile={authState.user}
+
+          onOpenController={() => handleShowController()}
+        />
+      )}
+
       {/* Mobile Controller - Her iki platformda da var */}
       {screen === 'controller' && (
         <MobileController
           tableId={controllerTableId}
           onBack={handleExitController}
+          loggedInUser={authState.user} // Kimlik doğrulama bilgisi
         />
       )}
 
@@ -455,9 +501,9 @@ function App() {
         <StartScreen
           onStart={isPiMode ? handleStartStandard : undefined}
           onSurvivalStart={isPiMode ? handleStartSurvival : undefined}
+          loggedInUser={authState.user} // Mobil giriş yapan kullanıcı
+          isMobileOnly={!isPiMode || isForceMobile} // Mobil build veya URL parametresi
           onShowController={handleShowController}
-          isMobileOnly={!isPiMode}
-          loggedInUser={!isPiMode ? authState.user : null}
         />
       )}
 
@@ -476,6 +522,26 @@ function App() {
       )}
     </>
   );
+
+  // TV ve Overscan için sarmalayıcı (Sadece Tabela modunda)
+  // Eğer Smart TV ise kenarlardan boşluk bırakır (Safe Area)
+  if (isPiMode && (screen === 'standard' || screen === 'survival' || screen === 'receiver')) {
+    const safeAreaStyle = shouldApplySafeArea() ? {
+      padding: '2vw', // TV Overscan koruması
+      boxSizing: 'border-box',
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden'
+    } : {};
+
+    return (
+      <div style={safeAreaStyle} className={shouldReduceMotion() ? 'reduce-motion' : ''}>
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }
 
 export default App;

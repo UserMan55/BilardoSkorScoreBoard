@@ -5,7 +5,9 @@ import {
   listenToTableStatus,
   updateTableStatus,
   listenForMatchCommands,
-  getUserById
+  getUserById,
+  getSalons,
+  updateSalon
 } from "../services/firebase";
 import ScoreboardReceiver from "./ScoreboardReceiver";
 import MobileController from "./MobileController";
@@ -14,15 +16,45 @@ import VirtualKeyboard from "../components/VirtualKeyboard";
 import deviceProfile from "../config/deviceProfile";
 import "./StartScreen.css";
 
+/* MOCK SALON VERİLERİ KALDIRILDI - FIREBASE'DEN ÇEKİLİYOR */
 
-const SALON_INFO = {
-  name: "SALON 3CSCORE",
-  city: "SAMSUN",
-  tables: [
-    { id: "table_1", name: "Masa 1" }
-  ],
-  logo: "/logo.png"
+const groupSalonsByCity = (salonsList) => {
+  const grouped = {};
+  salonsList.forEach(salon => {
+    if (!salon.city) return;
+    let cityKey = salon.city.toLocaleUpperCase('tr-TR');
+    if (cityKey === 'İSTANBUL') cityKey = 'ISTANBUL';
+    else if (cityKey === 'İZMİR') cityKey = 'IZMIR';
+
+    if (!grouped[cityKey]) grouped[cityKey] = [];
+
+    // Tables format
+    let formattedTables = [];
+    if (salon.tableIds && Array.isArray(salon.tableIds)) {
+      formattedTables = salon.tableIds.map((tid, idx) => ({ id: tid, name: `Masa ${idx + 1}` }));
+    } else if (salon.tableCount) {
+      for (let i = 0; i < salon.tableCount; i++) {
+        formattedTables.push({ id: `${salon.id}_t${i + 1}`, name: `Masa ${i + 1}` });
+      }
+    }
+    // Eğer hiç masa yoksa varsayılan bir masa ekle
+    if (formattedTables.length === 0) {
+      formattedTables.push({ id: `${salon.id}_default`, name: 'Masa 1' });
+    }
+
+    grouped[cityKey].push({
+      ...salon,
+      tables: formattedTables,
+      logo: salon.logo || "/logo.png"
+    });
+  });
+  return grouped;
 };
+
+// Dummy constants to prevent crashes before state migration is complete
+const DEFAULT_SALON = { id: 'loading', name: 'Yükleniyor...', city: '', tables: [] };
+const SALON_INFO = DEFAULT_SALON;
+
 
 // QR URL oluştur (mobil kontrol için)
 const getControllerQRUrl = (tableId = 'table_1') => {
@@ -81,11 +113,24 @@ const DEFAULT_USER_PROFILE = {
   salon: FALLBACK_PLAYER_LIST[0].salon
 };
 
-const filterPlayersByCity = (players = [], city) => {
-  if (!city) return players;
-  const normalizedCity = city.toLocaleLowerCase('tr-TR');
-  const filtered = players.filter((player) => (player.city || '').toLocaleLowerCase('tr-TR') === normalizedCity);
-  return filtered.length > 0 ? filtered : players;
+const filterPlayersByCity = (players = [], cityKey) => {
+  if (!cityKey || cityKey === "TÜMÜ") return players;
+
+  // Key'e göre olası şehir isimleri (Ascii Key -> Turkish Name mapping)
+  let targetCities = [cityKey];
+  if (cityKey === 'ISTANBUL') targetCities = ['İSTANBUL', 'ISTANBUL', 'İstanbul', 'Istanbul'];
+  else if (cityKey === 'IZMIR') targetCities = ['İZMİR', 'IZMIR', 'İzmir', 'Izmir'];
+  else targetCities = [cityKey];
+
+  // Case-insensitive kontrol
+  const targets = targetCities.map(c => c.toLocaleLowerCase('tr-TR'));
+
+  return players.filter(p => {
+    if (!p.city) return false;
+    const pCity = p.city.toLocaleLowerCase('tr-TR');
+    // Basit içerik kontrolü (SAMSUN, Samsun vs)
+    return targets.some(t => pCity.includes(t) || t.includes(pCity));
+  });
 };
 
 // URL'den kullanıcı bilgilerini oku (live.3cscore.com → bilardo-skor.web.app yönlendirmesi için)
@@ -134,8 +179,43 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [deviceMode, setDeviceMode] = useState(isMobileOnly ? 'controller' : null);
   console.log('🔧 StartScreen INIT - deviceMode:', isMobileOnly ? 'controller' : null);
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
+
+  /* FIREBASE SALON DATASINI YÖNETEN STATE */
+  const [SALONS_DATA, setSALONS_DATA] = useState({});
+  const [debugSalons, setDebugSalons] = useState(null);
+
+  useEffect(() => {
+    const initData = async () => {
+      // --- TEK SEFERLİK VERİ DÜZELTME ---
+      // 3CSCORE -> Bafra, Samsun
+      await updateSalon("nMzJ1JhU4VenW3oXJ3JE", { address: "Bafra, Samsun" });
+
+      // Test Salon 3 -> İSTANBUL, 4 Masa
+      await updateSalon("1ajFTqRsGWQlWiSOqK98", {
+        city: "İSTANBUL",
+        tableCount: 4,
+        tableIds: ["test_t1", "test_t2", "test_t3", "test_t4"]
+      });
+
+      // Verileri Çek
+      const data = await getSalons();
+
+      setDebugSalons(data);
+      const grouped = groupSalonsByCity(data);
+      console.log("🔥 Gruplanmış Salonlar (Güncel):", grouped);
+      setSALONS_DATA(grouped);
+
+      if (grouped["SAMSUN"] && grouped["SAMSUN"].length > 0) {
+        // Auto select handled by other effect
+      }
+    };
+
+    initData();
+  }, []); // Sadece mount anında çalışır
+
   const [showMobileController, setShowMobileController] = useState(false);
   const [controllerReadOnly, setControllerReadOnly] = useState(false);
+
 
   // Kullanıcı Profili State (mobil mod için)
   const [userProfile, setUserProfile] = useState(null);
@@ -270,6 +350,42 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     }
   }, []);
 
+  // --- ŞEHİR VE SALON SEÇİMİ STATE'LERİ ---
+  const [selectedCity, setSelectedCity] = useState("SAMSUN");
+  // Başlangıçta null, veri gelince useEffect ile dolacak
+  const [currentSalon, setCurrentSalon] = useState(null);
+
+  // Şehir değişince VEYA SALON VERİSİ YÜKLENİNCE salonu ve masaları güncelle
+  useEffect(() => {
+    // Eğer veri henüz yüklenmediyse işlem yapma
+    if (Object.keys(SALONS_DATA).length === 0) return;
+
+    const salons = SALONS_DATA[selectedCity];
+    if (salons && salons.length > 0) {
+      // Eğer mevcut salon seçili ve bu şehirdeyse dokunma (Kullanıcı değiştirmiş olabilir)
+      // Ancak henüz seçili değilse ilkini seç
+      if (!currentSalon || currentSalon.city !== selectedCity) {
+        const newSalon = salons[0];
+        setCurrentSalon(newSalon);
+        if (newSalon.tables && newSalon.tables.length > 0) {
+          setSelectedTableId(newSalon.tables[0].id);
+        }
+      }
+    } else {
+      setCurrentSalon(null);
+    }
+  }, [selectedCity, SALONS_DATA]); // SALONS_DATA değişince de tetiklenmeli
+
+
+  // Şehir değişince veya oyuncular yüklenince listeyi güncelle
+  useEffect(() => {
+    if (names.length > 0) {
+      console.log("🏙️ Oyuncu Listesi Filtreleniyor. Şehir:", selectedCity);
+      const filtered = filterPlayersByCity(names, selectedCity);
+      setFilteredPlayers(filtered);
+    }
+  }, [names, selectedCity]);
+
   // Table Status State
   const [tableStatus, setTableStatus] = useState(null); // { status: 'BUSY' | 'IDLE', currentMatch: ... }
   const [allTableStatuses, setAllTableStatuses] = useState({}); // Tüm masaların durumları: { table_1: {...}, table_2: {...} }
@@ -279,7 +395,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
   // URL parametrelerinden masa ID ve voice flag'i oku
   const urlTableParams = getTableFromURLParams();
-  const [selectedTableId, setSelectedTableId] = useState(urlTableParams.tableId || SALON_INFO.tables[0].id);
+  const [selectedTableId, setSelectedTableId] = useState(urlTableParams.tableId || "");
 
 
   // 2vs2 states
@@ -800,24 +916,55 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
     console.log("🔍 Kullanıcı Arama Başladı. Toplam Oyuncu:", names.length);
 
+    // Helper: Kullanıcıya göre konum ayarla
+    const setupLocationFromUser = (user) => {
+      if (!user || !user.city) return;
+
+      let cityKey = user.city.toLocaleUpperCase('tr-TR');
+      if (cityKey === 'İSTANBUL') cityKey = 'ISTANBUL';
+      else if (cityKey === 'İZMİR') cityKey = 'IZMIR';
+
+      if (SALONS_DATA[cityKey]) {
+        setSelectedCity(cityKey);
+        let targetSalon = null;
+
+        // Salon Arama
+        if (user.salon) {
+          const normUserSalon = user.salon.toLocaleLowerCase('tr-TR');
+          targetSalon = SALONS_DATA[cityKey].find(s => {
+            const sName = s.name.toLocaleLowerCase('tr-TR');
+            return sName === normUserSalon || sName.includes(normUserSalon) || normUserSalon.includes(sName);
+          });
+        }
+
+        // Salon Bulunamadıysa veya Yoksa -> İlk Salon (Fallback)
+        if (!targetSalon && SALONS_DATA[cityKey].length > 0) {
+          targetSalon = SALONS_DATA[cityKey][0];
+        }
+
+        if (targetSalon) {
+          setCurrentSalon(targetSalon);
+          if (targetSalon.tables && targetSalon.tables.length > 0) {
+            setSelectedTableId(targetSalon.tables[0].id);
+          }
+        }
+      }
+    };
+
     // 1. Öncelik: Parent component'ten gelen loggedInUser (prop)
     if (loggedInUser) {
       console.log("✅ Giriş Yapan Kullanıcı (prop):", loggedInUser);
       setCurrentUser(loggedInUser);
-      setFilteredPlayers(filterPlayersByCity(names, loggedInUser.city));
+      setupLocationFromUser(loggedInUser);
       return;
     }
 
-    // 2. Öncelik: URL parametrelerinden gelen kullanıcı (live.3cscore.com yönlendirmesi)
+    // 2. Öncelik: URL parametrelerinden gelen kullanıcı
     const urlUser = getUserFromURLParams();
     if (urlUser) {
       console.log("✅ URL'den Gelen Kullanıcı:", urlUser);
       setCurrentUser(urlUser);
-      if (urlUser.city) {
-        setFilteredPlayers(filterPlayersByCity(names, urlUser.city));
-      } else {
-        setFilteredPlayers(names);
-      }
+      setupLocationFromUser(urlUser);
       return;
     }
 
@@ -828,11 +975,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     if (fallbackUser) {
       console.log("ℹ️ Varsayılan kullanıcı atanıyor:", fallbackUser.fullName);
       setCurrentUser(fallbackUser);
-      setFilteredPlayers(filterPlayersByCity(names, fallbackUser.city));
+      setupLocationFromUser(fallbackUser);
     } else {
-      console.log("⚠️ Varsayılan kullanıcı listede bulunamadı, tüm oyuncular gösterilecek.");
+      console.log("⚠️ Varsayılan kullanıcı listede bulunamadı.");
       setCurrentUser(DEFAULT_USER_PROFILE);
-      setFilteredPlayers(names);
     }
   }, [names, loggedInUser, normalizeSearchText]);
 
@@ -921,13 +1067,15 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
       // Masaüstü uygulaması (Tabela) açıldığında ve boşta beklerken masayı IDLE yap
       // Bu sayede önceki oturumdan kalan 'BUSY' durumu temizlenir.
-      updateTableStatus(SALON_INFO.tables[0].id, 'IDLE');
+      if (currentSalon && currentSalon.tables && currentSalon.tables.length > 0) {
+        updateTableStatus(currentSalon.tables[0].id, 'IDLE');
+      }
     }
-  }, [isMobileOnly]);
+  }, [isMobileOnly, currentSalon]);
 
   // Masa durumunu dinle (Mobil/Controller modu için)
   useEffect(() => {
-    if (deviceMode === 'controller') {
+    if (deviceMode === 'controller' && selectedTableId) {
       const targetTableId = selectedTableId;
       const unsubscribe = listenToTableStatus(targetTableId, (data) => {
         console.log('📊 Masa durumu güncellendi:', data);
@@ -945,7 +1093,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
   // TÜM MASALARIN DURUMUNU DİNLE (Masa seçim ekranı için)
   useEffect(() => {
-    const tables = SALON_INFO.tables || [];
+    // SALON_INFO yerine güncel veriyi kullan
+    const tables = currentSalon?.tables || [];
     const unsubscribes = [];
 
     tables.forEach((table) => {
@@ -962,7 +1111,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     return () => {
       unsubscribes.forEach(unsub => unsub());
     };
-  }, []);
+  }, [currentSalon]);
 
   // 3CScore oyun moduna girildiğinde formu sıfırla
   const resetStandardGameForm = () => {
@@ -1559,7 +1708,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     if (!finalPlayer1) finalPlayer1 = "OYUNCU 1";
     if (!finalPlayer2) finalPlayer2 = "OYUNCU 2";
 
-    onStart(finalPlayer1, finalPlayer2, targetScore, targetRack, hasPenalty, hasAso, false);
+    onStart(finalPlayer1, finalPlayer2, targetScore, targetRack, hasPenalty, hasAso, false, 'Masa 1', (currentSalon?.name || SALON_INFO?.name || "SALON 3CSCORE"));
   };
 
   const handleRemoteSend = async () => {
@@ -1615,8 +1764,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             playerIds,
             startedBy,
             allowedControllers,
-            salonId: SALON_INFO?.name || null,
-            salonCity: SALON_INFO?.city || null
+            salonId: currentSalon?.name || SALON_INFO?.name || "SALON 3CSCORE",
+            salonCity: currentSalon?.city || SALON_INFO?.city || "SAMSUN",
+            salonName: currentSalon?.name || SALON_INFO?.name || "SALON 3CSCORE"
           };
 
           await sendRemoteStartCommand({
@@ -2010,6 +2160,30 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     );
   }
 
+  // --- GLOBAL LOADING CHECK ---
+  // Uygulamanın/Verilerin çökmemesi için veri gelmeden render yapma
+  if (!currentSalon && !isScoreboardMode) {
+    return (
+      <div style={{
+        height: '100vh', width: '100vw', background: '#0f172a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#94a3b8', fontFamily: 'Inter, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ marginBottom: '20px', fontSize: '24px' }}>🎱</div>
+          <div>Salon Verileri Yükleniyor...</div>
+          <div style={{ fontSize: '10px', marginTop: '20px', opacity: 0.5 }}>
+            {Object.keys(SALONS_DATA).length} şehir bulundu
+          </div>
+        </div>
+        {/* Debug Div - Update logic çalışsın diye render ediyoruz */}
+        <div id="debug-salon-data" style={{ display: 'none' }}>
+          {debugSalons ? JSON.stringify(debugSalons) : 'LOADING'}
+        </div>
+      </div>
+    );
+  }
+
   // Masaüstü cihaz -> Scoreboard Receiver'a yönlendir
   if (isScoreboardMode) {
     return (
@@ -2038,61 +2212,39 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         position: 'relative',
-        padding: '10px',
-        overflow: 'hidden'
+        padding: '40px 10px',
+        overflowY: 'auto',
+        overflowX: 'hidden'
       }}>
 
         <div style={{
-          maxWidth: '700px',
+          maxWidth: '1200px', // Genişlik artırıldı
           width: '100%',
           textAlign: 'center',
           position: 'relative',
           zIndex: 1,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          height: '100%'
+          justifyContent: 'center', // Dikeyde ortala
+          alignItems: 'center', // Yatayda ortala
+          height: '100vh', // Tam ekran
+          gap: '20px'
         }}>
-          {/* Centered Logo and Subtitle */}
+
+          {/* Subtitle (Logo'suz) */}
           <div style={{
             marginBottom: '30px',
+            marginTop: '50px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0'
           }}>
-            <a
-              href="https://3cscore.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                cursor: 'pointer',
-                transition: 'transform 0.3s ease',
-                position: 'relative',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <img
-                src="/logo.png"
-                alt="3CSCORE Logo"
-                style={{
-                  width: '150px',
-                  height: '150px',
-                  objectFit: 'contain',
-                  animation: 'logoPulse 3s ease-in-out infinite'
-                }}
-              />
-            </a>
             <div style={{
-              marginTop: '5px',
-              fontSize: '16px',
+              fontSize: '24px', // Biraz büyüttüm
               fontWeight: '800',
               color: '#f1f5f9',
               letterSpacing: '1px',
@@ -2101,6 +2253,48 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
               textTransform: 'uppercase'
             }}>
               3 Bant Bilardo Skor Tabela Uygulaması
+            </div>
+          </div>
+
+          {/* Listening Status Card - RESTORED */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            padding: '20px 40px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+            marginBottom: '30px',
+            animation: 'fadeIn 1s ease-out'
+          }}>
+            <div style={{
+              color: '#FFD700',
+              fontSize: '14px',
+              fontWeight: '700',
+              letterSpacing: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                background: '#FFD700',
+                borderRadius: '50%',
+                animation: 'blinkDot 1.5s infinite'
+              }}></div>
+              3CSCORE LISTENING
+            </div>
+            <div style={{
+              color: '#94a3b8',
+              fontSize: '12px',
+              textAlign: 'center'
+            }}>
+              Mobil cihazdan maç başlatma talebi bekleniyor...
             </div>
           </div>
 
@@ -2138,64 +2332,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             }
           `}</style>
 
-          {/* Listening Status Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(26, 29, 46, 0.95), rgba(42, 45, 58, 0.95))',
-            border: '2px solid rgba(255, 215, 0, 0.6)',
-            borderRadius: '20px',
-            padding: '10px 20px',
-            marginBottom: '30px',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 215, 0, 0.2)',
-            backdropFilter: 'blur(20px)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Glow effect */}
-            <div style={{
-              position: 'absolute',
-              top: '-50%',
-              left: '-50%',
-              right: '-50%',
-              bottom: '-50%',
-              background: 'radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%)',
-              animation: 'pulse 3s ease-in-out infinite'
-            }}></div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              marginBottom: '5px',
-              position: 'relative',
-              zIndex: 1
-            }}>
-              <span style={{
-                width: '10px',
-                height: '10px',
-                background: '#FFD700',
-                borderRadius: '50%',
-                animation: 'blinkDot 1.5s ease-in-out infinite',
-                boxShadow: '0 0 15px #FFD700',
-                display: 'inline-block'
-              }}></span>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: '700',
-                color: '#FFD700',
-                letterSpacing: '1px',
-                textShadow: '0 2px 10px rgba(255, 215, 0, 0.5)'
-              }}>3CSCORE LISTENING</span>
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: 'rgba(255, 255, 255, 0.9)',
-              fontWeight: '500',
-              position: 'relative',
-              zIndex: 1
-            }}>
-              Mobil cihazdan maç başlatma talebi bekleniyor...
-            </div>
-          </div>
+
+
+
+
 
           {/* Yerel Maç Başlat Panel */}
           <div style={{
@@ -2206,7 +2346,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             alignItems: 'stretch',
             justifyContent: 'center',
             width: '100%',
-            maxWidth: '700px'
+            maxWidth: '1200px'
           }}>
             <div style={{
               width: '100%',
@@ -2245,19 +2385,26 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
   // Mobil Controller görünümü
   if (showMobileController) {
+    if (!currentSalon || !currentSalon.tables || currentSalon.tables.length === 0) {
+      return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#000', color: '#fff' }}>Yükleniyor...</div>;
+    }
     return (
       <MobileController
         onBack={() => {
           setShowMobileController(false);
           setControllerReadOnly(false);
         }}
-        tableId={SALON_INFO.tables[0].id}
+        tableId={currentSalon.tables[0].id}
         readOnly={controllerReadOnly}
       />
     );
   }
 
   // Controller Mode (Mobil) veya Local Mode (Desktop)
+
+  // Main Render (StartScreen Wrapper)
+  // Veri yükleniyor kontrolü - ARTIK GEREK YOK (Yukarı taşındı)
+  // if (!currentSalon) ...
 
   const showRemoteButton = deviceMode === 'controller';
   const showLocalButton = deviceMode === 'local';
@@ -2280,6 +2427,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       ...START_SCREEN_BACKGROUND_STYLE,
       position: 'relative'
     }}>
+      <div id="debug-salon-data" style={{ opacity: 0, position: 'absolute', pointerEvents: 'none', zIndex: -1 }}>
+        {debugSalons ? JSON.stringify(debugSalons) : 'LOADING'}
+      </div>
+
 
       {/* CANLI İZLE MODAL */}
       {showLiveWatch && liveMatch && (
@@ -2288,7 +2439,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             <div className="live-watch-header">
               <div>
                 <div className="live-watch-title">CANLI MAÇ TAKİP</div>
-                <div className="live-watch-sub">{SALON_INFO.tables[0].name} • İstaka {liveMatch.stats?.inning ?? 0}</div>
+                <div className="live-watch-sub">{currentSalon?.tables?.[0]?.name || 'Masa 1'} • İstaka {liveMatch.stats?.inning ?? 0}</div>
               </div>
               <button className="live-watch-close" onClick={() => setShowLiveWatch(false)}>Kapat</button>
             </div>
@@ -2477,68 +2628,106 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         )}
 
         {/* SALON INFO HEADER */}
-        {deviceMode === 'controller' && (
-          <div style={{
-            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-            borderRadius: '16px',
-            padding: '15px 20px',
-            marginBottom: '20px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{
-                width: '50px',
-                height: '50px',
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                padding: '5px'
-              }}>
-                <img
-                  src={SALON_INFO.logo}
-                  alt="Salon Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ color: '#fff', fontWeight: '700', fontSize: '16px', letterSpacing: '0.5px' }}>
-                  {currentUser.salon || currentUser.city}
-                </div>
-                <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', display: 'flex', gap: '10px' }}>
-                  <span>📍 {currentUser.city}</span>
-                  {currentUser.salon && <span>🎱 {currentUser.salon}</span>}
-                </div>
-              </div>
+
+
+        {/* MOBİL MOD: İL VE SALON SEÇİMİ (Combobox Style) */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          padding: '15px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+          marginBottom: '15px',
+          border: '2px solid #FFD700'
+        }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+
+            {/* Sol: İl Seçimi (Select Box) */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>İL SEÇİNİZ</label>
+              <select
+                value={selectedCity}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  setSelectedCity(key);
+
+                  // Şehir değişince ilk salonu otomatik seç
+                  if (SALONS_DATA[key] && SALONS_DATA[key].length > 0) {
+                    setCurrentSalon(SALONS_DATA[key][0]);
+                    if (SALONS_DATA[key][0].tables[0]) {
+                      setSelectedTableId(SALONS_DATA[key][0].tables[0].id);
+                    }
+                  } else {
+                    setCurrentSalon(null);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  fontWeight: '600',
+                  color: '#334155',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  appearance: 'none',
+                  backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px top 50%',
+                  backgroundSize: '10px auto'
+                }}
+              >
+                {Object.keys(SALONS_DATA).map(cityKey => {
+                  const displayName = cityKey === 'ISTANBUL' ? 'İSTANBUL' : cityKey === 'IZMIR' ? 'İZMİR' : cityKey;
+                  return <option key={cityKey} value={cityKey}>{displayName}</option>;
+                })}
+              </select>
             </div>
 
-            {/* Network Status Indicator */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              gap: '4px'
-            }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: networkStatus === 'MATCHED' ? '#22c55e' : (networkStatus === 'MISMATCH' ? '#ef4444' : '#eab308'),
-                boxShadow: networkStatus === 'MATCHED' ? '0 0 10px #22c55e' : 'none',
-                transition: 'all 0.3s ease'
-              }}></div>
-              <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: '700', letterSpacing: '0.5px' }}>
-                {networkStatus === 'MATCHED' ? 'AYNI AĞ' : (networkStatus === 'MISMATCH' ? 'UZAKTAN' : 'KONTROL')}
-              </span>
+            {/* Sağ: Salon Seçimi (Select) */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>SALON SEÇİNİZ</label>
+              <select
+                value={currentSalon?.id || ""}
+                onChange={(e) => {
+                  const salonId = parseInt(e.target.value);
+                  const salon = SALONS_DATA[selectedCity]?.find(s => s.id === salonId);
+                  if (salon) {
+                    setCurrentSalon(salon);
+                    if (salon.tables[0]) {
+                      setSelectedTableId(salon.tables[0].id);
+                    }
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  fontWeight: '600',
+                  color: '#334155',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  appearance: 'none', // Dropdown okunu özelleştirmek için,
+                  backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px top 50%',
+                  backgroundSize: '10px auto'
+                }}
+              >
+                {!SALONS_DATA[selectedCity] && <option value="">Önce İl Seçin</option>}
+                {SALONS_DATA[selectedCity]?.map(salon => (
+                  <option key={salon.id} value={salon.id}>{salon.name}</option>
+                ))}
+              </select>
             </div>
+
           </div>
-        )}
+        </div>
 
         {/* PANEL 2: CANLI MAÇ BAŞLAT */}
         <div style={{
@@ -2607,7 +2796,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {SALON_INFO.tables.map(table => {
+                    {currentSalon?.tables?.map(table => {
                       // Masa durumunu allTableStatuses'dan al
                       const tableStatusData = allTableStatuses[table.id];
                       const isBusy = tableStatusData?.status === 'BUSY';
@@ -3324,28 +3513,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                                 id="p1-input"
                                 type="text"
                                 autoComplete="off"
-                                readOnly={activeEditableField !== 'p1-manual'}
+                                readOnly={!isMobileOnly && activeEditableField !== 'p1-manual'}
                                 value={manualPlayer1Name}
                                 onChange={e => {
                                   setManualPlayer1Name(e.target.value);
                                   setPlayer1Warning("");
                                 }}
-                                placeholder={activeEditableField === 'p1-manual' ? "İsim yazın..." : "Giriş için OK basın"}
+                                placeholder={isMobileOnly ? "İsim Giriniz" : (activeEditableField === 'p1-manual' ? "İsim yazın..." : "Giriş için OK basın")}
                                 className="player-input modern"
                                 style={{
                                   border: '1px solid rgba(255,255,255,0.1)',
                                   transition: 'box-shadow 0.2s ease, border 0.2s ease',
                                   ...getFocusGlowStyle(2),
-                                  cursor: activeEditableField === 'p1-manual' ? 'text' : 'default'
+                                  cursor: (isMobileOnly || activeEditableField === 'p1-manual') ? 'text' : 'default'
                                 }}
                                 onClick={() => {
                                   setLocalFocusIndex(2);
                                   setActiveEditableField('p1-manual');
-                                  setTimeout(() => p1InputRef.current?.blur(), 0);
+                                  if (!isMobileOnly) setTimeout(() => p1InputRef.current?.blur(), 0);
                                 }}
                                 ref={p1InputRef}
                               />
-                              {renderInlineKeyboard('p1-manual')}
+                              {!isMobileOnly && renderInlineKeyboard('p1-manual')}
                             </>
                           )}
                           {player1Warning && (
@@ -3552,28 +3741,28 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                                 tabIndex={-1}
                                 type="text"
                                 autoComplete="off"
-                                readOnly={activeEditableField !== 'p2-manual'}
+                                readOnly={!isMobileOnly && activeEditableField !== 'p2-manual'}
                                 value={manualPlayer2Name}
                                 onChange={e => {
                                   setManualPlayer2Name(e.target.value);
                                   setPlayer2Warning("");
                                 }}
-                                placeholder={activeEditableField === 'p2-manual' ? "İsim yazın..." : "Giriş için OK basın"}
+                                placeholder={isMobileOnly ? "İsim Giriniz" : (activeEditableField === 'p2-manual' ? "İsim yazın..." : "Giriş için OK basın")}
                                 className="player-input modern"
                                 style={{
                                   border: '1px solid rgba(255,255,255,0.1)',
                                   transition: 'box-shadow 0.2s ease, border 0.2s ease',
                                   ...getFocusGlowStyle(5),
-                                  cursor: activeEditableField === 'p2-manual' ? 'text' : 'default'
+                                  cursor: (isMobileOnly || activeEditableField === 'p2-manual') ? 'text' : 'default'
                                 }}
                                 onClick={() => {
                                   setLocalFocusIndex(5);
                                   setActiveEditableField('p2-manual');
-                                  setTimeout(() => p2InputRef.current?.blur(), 0);
+                                  if (!isMobileOnly) setTimeout(() => p2InputRef.current?.blur(), 0);
                                 }}
                                 ref={p2InputRef}
                               />
-                              {renderInlineKeyboard('p2-manual')}
+                              {!isMobileOnly && renderInlineKeyboard('p2-manual')}
                             </>
                           )}
                           {player2Warning && (

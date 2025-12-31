@@ -71,12 +71,13 @@ export { auth };
 // matchMeta: { playerIds, startedBy, salonId, salonCity } - Multi-user erişim için
 export async function sendRemoteStartCommand(matchData, tableId = 'table_1', matchMeta = {}) {
   try {
+    const finalTableId = tableId || 'table_1';
     const { playerIds = [], startedBy = null, allowedControllers = [], salonId = null, salonCity = null } = matchMeta;
 
-    const matchId = `${tableId}_${Date.now()}`;
+    const matchId = `${finalTableId}_${Date.now()}`;
 
     // 'live_matches' koleksiyonunda belirtilen masa dökümanını güncelliyoruz
-    await setDoc(doc(db, "live_matches", tableId), {
+    await setDoc(doc(db, "live_matches", finalTableId), {
       ...matchData,
       matchId,
       status: 'START',
@@ -127,8 +128,9 @@ export async function sendRemoteStartCommand(matchData, tableId = 'table_1', mat
 // NOT: Client timestamp kullanılıyor (serverTimestamp network round-trip ekliyor)
 export async function sendMatchCommand(commandType, payload = {}, tableId = 'table_1') {
   try {
+    const finalTableId = tableId || 'table_1';
     const now = Date.now();
-    setDoc(doc(db, "live_matches", tableId), {
+    setDoc(doc(db, "live_matches", finalTableId), {
       status: 'COMMAND',
       command: commandType,
       payload: payload,
@@ -143,10 +145,11 @@ export async function sendMatchCommand(commandType, payload = {}, tableId = 'tab
 
 // Maç komutlarını dinler (Raspberry Pi/Scoreboard tarafı)
 export function listenForMatchCommands(onCommandReceived, tableId = 'table_1') {
+  const finalTableId = tableId || 'table_1';
   // 'live_matches' koleksiyonundaki belirtilen masa dökümanını dinle
-  const unsubscribe = onSnapshot(doc(db, "live_matches", tableId), (doc) => {
-    if (doc.exists()) {
-      const data = doc.data();
+  const unsubscribe = onSnapshot(doc(db, "live_matches", finalTableId), (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
       // Sadece yeni komutları işlemek için timestamp kontrolü yapılabilir
       // Şimdilik doğrudan veriyi dönüyoruz
       onCommandReceived(data);
@@ -163,9 +166,9 @@ export function listenForMatchCommands(onCommandReceived, tableId = 'table_1') {
 let tableStatusDebounceTimer = null;
 let pendingTableStatus = null;
 
-// Masanın durumunu günceller (BUSY, IDLE) - Debounced (30ms - ultra hızlı)
+// Masanın durumunu günceller (BUSY, IDLE) - Debounced ve Non-blocking
 // matchMeta: { playerIds, startedBy, allowedControllers } - Multi-user erişim için
-export async function updateTableStatus(tableId, status, matchData = null, matchMeta = null) {
+export function updateTableStatus(tableId, status, matchData = null, matchMeta = null) {
   // Pending durumu kaydet
   pendingTableStatus = { tableId, status, matchData, matchMeta };
 
@@ -174,38 +177,37 @@ export async function updateTableStatus(tableId, status, matchData = null, match
     clearTimeout(tableStatusDebounceTimer);
   }
 
-  // 30ms sonra gönder (ultra hızlı güncelleme için optimize edildi)
-  tableStatusDebounceTimer = setTimeout(async () => {
+  // 600ms sonra gönder (titreme önleme - UI'ı hiç bloklamaz)
+  tableStatusDebounceTimer = setTimeout(() => {
     if (!pendingTableStatus) return;
 
     const { tableId: id, status: st, matchData: md, matchMeta: meta } = pendingTableStatus;
     pendingTableStatus = null;
 
-    try {
-      // Client timestamp kullanarak network round-trip azaltılıyor
-      const statusData = {
-        status: st,
-        currentMatch: md,
-        lastUpdated: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
-      };
+    // Client timestamp kullanarak network round-trip azaltılıyor
+    const statusData = {
+      status: st,
+      currentMatch: md,
+      lastUpdated: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
+    };
 
-      // Multi-user bilgilerini ekle (varsa)
-      if (meta) {
-        statusData.playerIds = meta.playerIds || [];
-        statusData.startedBy = meta.startedBy || null;
-        statusData.allowedControllers = meta.allowedControllers || [];
-      }
-
-      await setDoc(doc(db, "table_status", id), statusData);
-    } catch (error) {
-      console.error("Masa durumu güncellenemedi:", error);
+    // Multi-user bilgilerini ekle (varsa)
+    if (meta) {
+      statusData.playerIds = meta.playerIds || [];
+      statusData.startedBy = meta.startedBy || null;
+      statusData.allowedControllers = meta.allowedControllers || [];
     }
-  }, 30);
+
+    // Fire-and-forget: await yok, UI thread'i bloklanmaz
+    setDoc(doc(db, "table_status", id), statusData)
+      .catch(error => console.error("Masa durumu güncellenemedi:", error));
+  }, 600);
 }
 
 // Masanın durumunu dinler (Mobil tarafı için)
 export function listenToTableStatus(tableId, onStatusChange) {
-  const unsubscribe = onSnapshot(doc(db, "table_status", tableId), (doc) => {
+  const finalTableId = tableId || 'table_1';
+  const unsubscribe = onSnapshot(doc(db, "table_status", finalTableId), (snapshot) => {
     if (doc.exists()) {
       onStatusChange(doc.data());
     } else {
@@ -217,8 +219,8 @@ export function listenToTableStatus(tableId, onStatusChange) {
 
 // --- MATCH RESULT SAVE FUNCTIONS ---
 
-// Maç sonucunu test_records collection'a kaydeder
-export async function saveMatchToTestRecords(matchResult) {
+// Maç sonucunu match_records collection'a kaydeder (Gerçek Kayıtlar)
+export async function saveMatchRecord(matchResult) {
   try {
     const {
       player1,
@@ -268,10 +270,10 @@ export async function saveMatchToTestRecords(matchResult) {
     }
 
     // Yeni döküman ID'si otomatik oluştur
-    const newDocRef = doc(collection(db, "test_records"), `${tableId}_${Date.now()}`); // Doküman ID'sini biraz daha okunabilir yaptım
+    const newDocRef = doc(collection(db, "match_records"), `${tableId}_${Date.now()}`); // match_records koleksiyonuna kaydediyoruz
     await setDoc(newDocRef, recordData);
 
-    console.log("✅ Maç sonucu kaydedildi:", newDocRef.id, "Salon:", salonName);
+    console.log("✅ Maç sonucu kaydedildi (match_records):", newDocRef.id, "Salon:", salonName);
     return { success: true, id: newDocRef.id };
   } catch (error) {
     console.error("❌ Maç sonucu kaydedilemedi:", error);
@@ -632,6 +634,44 @@ export async function triggerMatchNotification(matchId, tableId, playerIds, star
   } catch (error) {
     console.error('Bildirim kuyruğuna eklenemedi:', error);
     return false;
+  }
+}
+
+
+/* --- SALON / VENUE FUNCTIONS --- */
+
+// Tüm salonları getirir
+export async function getSalons() {
+  try {
+    const salonsRef = collection(db, "salons");
+    const snapshot = await getDocs(salonsRef);
+    const salons = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      salons.push({
+        id: doc.id,
+        ...data
+      });
+    });
+
+    console.log("🔥 Salonlar Firebase'den çekildi:", salons);
+    return salons;
+  } catch (error) {
+    console.error("Salonlar çekilirken hata:", error);
+    return [];
+  }
+}
+
+
+// Salon Güncelleme (Debug/Admin)
+export async function updateSalon(salonId, data) {
+  try {
+    const salonRef = doc(db, "salons", salonId);
+    await updateDoc(salonRef, data);
+    console.log(`Salon ${salonId} güncellendi:`, data);
+  } catch (error) {
+    console.error(`Salon ${salonId} güncellenirken hata:`, error);
   }
 }
 

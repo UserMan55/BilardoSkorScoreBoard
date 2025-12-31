@@ -7,7 +7,6 @@ import './MobileHome.css';
  */
 function MobileHome({
     userProfile,
-    onStartVoiceMatch,
     onOpenController
 }) {
     const [activeTab, setActiveTab] = useState('matches');
@@ -118,7 +117,7 @@ function MobileHome({
 
             {/* Fixed Bottom Action */}
             <footer className="mobile-home-footer">
-                <button className="start-match-btn" onClick={onStartVoiceMatch}>
+                <button className="start-match-btn" onClick={onOpenController}>
                     🎱 CANLI MAÇ BAŞLAT
                 </button>
             </footer>

@@ -32,6 +32,7 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
     let lastTimestamp = null;
 
     // Firebase dinleyicisini başlat
+    // Firebase dinleyicisini başlat
     const unsubscribe = listenForMatchCommands((data) => {
       // İlk veri geldiğinde loading'den çık
       // Stale closure warning: status accessed here might be stale, but harmless for transition to 'waiting'
@@ -90,7 +91,7 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
           // console.log("Eski veri - atlandı");
         }
       }
-    });
+    }, tableId);
 
     // Component unmount olduğunda dinlemeyi durdur ve intervali temizle
     return () => {

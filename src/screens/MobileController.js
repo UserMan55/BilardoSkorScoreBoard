@@ -25,14 +25,16 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     // Eğer readOnly prop'u true ise, kesinlikle kontrol yok
     if (readOnly) return false;
 
-    // Eğer allowedControllers listesi boşsa, herkes kontrol edebilir (eski davranış)
+    // Eğer kullanıcı giriş yapmamışsa, kontrol yok (Anonim izleyiciler kontrol edemez)
+    if (!loggedInUser?.uid && !loggedInUser?.id) return false;
+
+    // Eğer allowedControllers listesi boşsa, giriş yapmış herhangi bir kullanıcı kontrol edebilir (Geri uyumluluk)
+    // Ancak ideali, sadece maçı başlatanın kontrol etmesidir.
     if (!allowedControllers || allowedControllers.length === 0) return true;
 
-    // Eğer kullanıcı giriş yapmamışsa, kontrol yok
-    if (!loggedInUser?.id) return false;
-
     // Kullanıcı allowedControllers listesinde mi?
-    return allowedControllers.includes(loggedInUser.id);
+    const userId = loggedInUser.uid || loggedInUser.id;
+    return allowedControllers.includes(userId);
   }, [readOnly, allowedControllers, loggedInUser]);
 
   const isReadOnly = !canControl;
@@ -235,10 +237,8 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
   // Maçtan çıkış onaylandığında
   const handleConfirmExit = () => {
-    // Maçı sonlandır komutu gönder (Sadece yetkili kullanıcı ise)
-    if (!isReadOnly) {
-      sendMatchCommand('END_MATCH', { reason: 'user_exit' }, tableId);
-    }
+    // Maçı sonlandır komutu GÖNDERME - Sadece ekrandan çık
+    // sendMatchCommand('END_MATCH', { reason: 'user_exit' }, tableId);
     handleBackToHome();
   };
 
@@ -556,8 +556,8 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             <div className="exit-confirm-modal">
               <div className="exit-confirm-icon">⚠️</div>
               <div className="exit-confirm-title">Maçtan Çıkış</div>
-              <div className="exit-confirm-message">Maçtan çıkmak istediğinize emin misiniz?</div>
-              <div className="exit-confirm-warning">Bu işlem maçı sonlandıracaktır.</div>
+              <div className="exit-confirm-message">Kumanda ekranından çıkmak istediğinize emin misiniz?</div>
+              <div className="exit-confirm-warning">Maç arka planda devam edecektir.</div>
               <div className="exit-confirm-buttons">
                 <button className="exit-confirm-btn cancel" onClick={handleCancelExit}>Hayır</button>
                 <button className="exit-confirm-btn confirm" onClick={handleConfirmExit}>Evet, Çık</button>

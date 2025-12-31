@@ -3,7 +3,7 @@ import PlayerPanel from '../../components/PlayerPanel';
 import ScorePanel from '../../components/ScorePanel';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import PenaltyScreen from '../../screens/PenaltyScreen';
-import { saveMatchToTestRecords, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount } from '../../services/firebase';
+import { saveMatchRecord, updateTableStatus, listenForMatchCommands, getUserProfiles, listenToViewerCount } from '../../services/firebase';
 
 function StandardGame({
   player1Name,
@@ -40,10 +40,10 @@ function StandardGame({
   const [showPenalty, setShowPenalty] = useState(false); // Penaltı ekranı göster
   const [notification, setNotification] = useState(null); // { message, type: 'info'|'warning'|'success' }
   const [warningMessage, setWarningMessage] = useState(null); // Son X Sayı/İstaka uyarısı
-  
+
   // Menu Overlay State (must be before handlersRef)
   const [showMenuOverlay, setShowMenuOverlay] = useState(false);
-  
+
   // Save Confirmation State
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingSaveData, setPendingSaveData] = useState(null);
@@ -51,19 +51,19 @@ function StandardGame({
   // UNDO için history stack
   const [history, setHistory] = useState([]);
   const MAX_HISTORY_SIZE = 20; // History stack limiti
-  
+
   // Notification cleanup için timeout referansı
   const [notificationTimeout, setNotificationTimeout] = useState(null);
 
   // Handlers ref for remote control
   const handlersRef = React.useRef({});
-  
+
   // onExit ref - her zaman güncel callback'i tutar
   const onExitRef = React.useRef(onExit);
   useEffect(() => {
     onExitRef.current = onExit;
   }, [onExit]);
-  
+
   useEffect(() => {
     handlersRef.current = {
       handlePlusRun,
@@ -93,24 +93,35 @@ function StandardGame({
   useEffect(() => {
     const fetchPhotos = async () => {
       try {
+        console.log('📷 Fotoğraf yükleme başlıyor...');
+        console.log('📷 Aranan oyuncular:', player1Name, player2Name);
+
         const users = await getUserProfiles();
+        console.log('📷 Toplam kullanıcı sayısı:', users.length);
+
         const photos = {};
-        
+
         [player1Name, player2Name].forEach(playerName => {
-          const user = users.find(u => 
-            u.fullName.trim().toLowerCase() === playerName.trim().toLowerCase()
+          const normalizedPlayerName = playerName.trim().toLowerCase();
+          const user = users.find(u =>
+            u.fullName.trim().toLowerCase() === normalizedPlayerName
           );
+
+          console.log(`📷 ${playerName} -> Eşleşme:`, user ? user.fullName : 'BULUNAMADI', '| photoURL:', user?.photoURL ? 'VAR' : 'YOK');
+
           if (user?.photoURL) {
             photos[playerName] = user.photoURL;
+            console.log(`📷 ${playerName} fotoğrafı yüklendi:`, user.photoURL.substring(0, 50) + '...');
           }
         });
-        
+
+        console.log('📷 Yüklenen fotoğraflar:', Object.keys(photos));
         setPlayerPhotos(photos);
       } catch (error) {
-        console.error('Fotoğraflar yüklenemedi:', error);
+        console.error('📷 Fotoğraflar yüklenemedi:', error);
       }
     };
-    
+
     fetchPhotos();
   }, [player1Name, player2Name]);
 
@@ -129,11 +140,11 @@ function StandardGame({
     const unsubscribe = listenForMatchCommands((data) => {
       if (data && data.status === 'COMMAND') {
         const currentTimestamp = data.timestamp?.seconds || 0;
-        
+
         // Sadece yeni komutları işle
         if (currentTimestamp > lastProcessedTimestamp) {
           lastProcessedTimestamp = currentTimestamp;
-          
+
           switch (data.command) {
             case 'PLUS':
               handlersRef.current.handlePlusRun();
@@ -174,6 +185,15 @@ function StandardGame({
             case 'NAV':
               // Navigasyon komutları - gelecekte menü navigasyonu için
               break;
+            case 'END_MATCH':
+              // Mobil taraftan maç sonlandırma komutu
+              console.log('📱 END_MATCH komutu alındı - Maç sonlandırılıyor...');
+              // Masa durumunu IDLE yap ve çıkış fonksiyonunu çağır
+              updateTableStatus('table_1', 'IDLE');
+              if (onExitRef.current) {
+                onExitRef.current();
+              }
+              break;
             default:
               break;
           }
@@ -213,75 +233,62 @@ function StandardGame({
   const player1Stats = useMemo(() => calculateHRStats(player1Runs), [player1Runs]);
   const player2Stats = useMemo(() => calculateHRStats(player2Runs), [player2Runs]);
   const player1AVG = useMemo(() => calculateAVG(player1Score, inning), [player1Score, inning]);
-  
+
   // 2. oyuncu için istaka hesaplaması:
   // 2. oyuncunun gerçek istaka sayısı = kaç kez run eklediği
   // player2Runs dizisinin uzunluğu bize 2. oyuncunun kaç istaka oynadığını verir
   const player2Inning = useMemo(() => {
     return player2Runs.length;
   }, [player2Runs.length]);
-  
+
   const player2AVG = useMemo(() => calculateAVG(player2Score, player2Inning), [player2Score, player2Inning]);
 
-  // Masa durumunu canlı olarak güncelle (Live Sync)
-  useEffect(() => {
-    const liveStats = {
-      mode: '2vs2',
-      players: [player1Name, player2Name],
-      settings: { targetScore, targetRack, hasPenalty, hasAso },
-      stats: {
-        score1: player1Score,
-        score2: player2Score,
-        inning: inning,
-        run: runCount,
-        currentTurn: currentTurn,
-        hr1: player1Stats.hr1,
-        hr2: player2Stats.hr1, // Player 2 HR1
-        isTimerRunning: isTimerRunning,
-        timerPhase: timerPhase,
-        timerResetTrigger: timerResetTrigger,
-        isTimerPaused: isTimerPaused,
-        player1TimeoutLeft: player1TimeoutLeft,
-        player2TimeoutLeft: player2TimeoutLeft,
-        notification: notification,
-        warningMessage: warningMessage,
-        showMenuOverlay: showMenuOverlay,
-        gameEnded: gameEnded,
-        showSaveConfirm: showSaveConfirm
-      }
-    };
+  // Masa durumunu canlı olarak güncelle (Live Sync) - Interval tabanlı (titreme önleme)
+  // State değişikliklerine bağlı değil, her 1 saniyede bir günceller
+  const liveStatsRef = React.useRef(null);
 
-    // Her durumda güncelle (gameEnded sonrası da mobil tarafın yeni maç/aynı maç ekranını görebilmesi için)
-    // Serbest mod dahil tüm modlar için masa durumunu güncelle
-    updateTableStatus('table_1', 'BUSY', liveStats);
-  }, [
-    player1Score,
-    player2Score,
-    inning,
-    runCount,
-    currentTurn,
-    gameEnded,
-    isFreeMode,
-    player1Name,
-    player2Name,
-    targetScore,
-    targetRack,
-    hasPenalty,
-    hasAso,
-    player1Stats.hr1,
-    player2Stats.hr1,
-    isTimerRunning,
-    timerPhase,
-    timerResetTrigger,
-    isTimerPaused,
-    player1TimeoutLeft,
-    player2TimeoutLeft,
-    notification,
-    warningMessage,
-    showMenuOverlay,
-    gameEnded,
-    showSaveConfirm
-  ]);
+  // Her render'da liveStats ref'ini güncelle (ucuz işlem, Firebase çağrısı yok)
+  liveStatsRef.current = {
+    mode: '2vs2',
+    players: [player1Name, player2Name],
+    settings: { targetScore, targetRack, hasPenalty, hasAso },
+    stats: {
+      score1: player1Score,
+      score2: player2Score,
+      inning: inning,
+      run: runCount,
+      currentTurn: currentTurn,
+      hr1: currentTurn === 0 ? Math.max(player1Stats.hr1, runCount) : player1Stats.hr1,
+      hr2: currentTurn === 1 ? Math.max(player2Stats.hr1, runCount) : player2Stats.hr1,
+      isTimerRunning: isTimerRunning,
+      timerPhase: timerPhase,
+      timerResetTrigger: timerResetTrigger,
+      isTimerPaused: isTimerPaused,
+      player1TimeoutLeft: player1TimeoutLeft,
+      player2TimeoutLeft: player2TimeoutLeft,
+      notification: notification,
+      warningMessage: warningMessage,
+      showMenuOverlay: showMenuOverlay,
+      gameEnded: gameEnded,
+      showSaveConfirm: showSaveConfirm
+    }
+  };
+
+  // Interval ile Firebase'i güncelle (React render döngüsünden bağımsız)
+  useEffect(() => {
+    const syncInterval = setInterval(() => {
+      if (liveStatsRef.current) {
+        updateTableStatus('table_1', 'BUSY', liveStatsRef.current);
+      }
+    }, 1000); // Her 1 saniyede bir güncelle
+
+    // İlk güncellemeyi hemen yap
+    if (liveStatsRef.current) {
+      updateTableStatus('table_1', 'BUSY', liveStatsRef.current);
+    }
+
+    return () => clearInterval(syncInterval);
+  }, []); // Sadece mount/unmount'ta çalış
 
   // Birleşik uyarı mesajı oluştur (istaka + skor)
   const checkWarnings = (currentInning, currentScore) => {
@@ -289,10 +296,10 @@ function StandardGame({
 
     const remainingInning = targetRack - currentInning;
     const remainingScore = targetScore - currentScore;
-    
+
     let istakaWarning = null;
     let skorWarning = null;
-    
+
     // İstaka kontrolü
     if (remainingInning === 1) {
       istakaWarning = '⚠️ SON İSTAKA';
@@ -301,7 +308,7 @@ function StandardGame({
     } else if (remainingInning === 3) {
       istakaWarning = '⚠️ SON 3 İSTAKA';
     }
-    
+
     // Skor kontrolü
     if (remainingScore <= 0) {
       skorWarning = '🎯 HEDEF SKORA ULAŞILDI';
@@ -312,7 +319,7 @@ function StandardGame({
     } else if (remainingScore === 3) {
       skorWarning = '⚠️ SON 3 SAYI';
     }
-    
+
     // Mesajları birleştir
     if (istakaWarning && skorWarning) {
       return `${istakaWarning} ve ${skorWarning}!`;
@@ -321,7 +328,7 @@ function StandardGame({
     } else if (skorWarning) {
       return `${skorWarning}!`;
     }
-    
+
     return null;
   };
 
@@ -335,9 +342,9 @@ function StandardGame({
 
     // matchWinner: player1Name, player2Name, veya 'draw'
     // penaltyWinner: sadece berabere maçlarda - 'player1' veya 'player2'
-    
+
     const totalShots = player1Runs.length + player2Runs.length;
-    
+
     const matchData = {
       player1: player1Name,
       player2: player2Name,
@@ -347,16 +354,16 @@ function StandardGame({
       eys1: player1Stats.hr1,
       eys2: player2Stats.hr1
     };
-    
+
     // Berabere ve penaltı varsa, penaltyWinner ekle
     if (matchWinner === 'draw' && penaltyWinner) {
       matchData.penaltyWinner = penaltyWinner;
     }
-    
+
     console.log("📤 Maç sonucu kaydediliyor:", matchData);
-    
-    const result = await saveMatchToTestRecords(matchData);
-    
+
+    const result = await saveMatchRecord(matchData);
+
     if (result.success) {
       console.log("✅ Maç başarıyla kaydedildi! ID:", result.id);
       showNotification("✅ Maç verileri kaydedildi!", 'success', 3000);
@@ -396,17 +403,17 @@ function StandardGame({
   const handlePlusRun = () => {
     const currentScore = currentTurn === 0 ? player1Score : player2Score;
     const newTotalScore = currentScore + runCount + 1;
-    
+
     // Hedef skordan fazlasına izin verme (Serbest mod hariç)
     if (!isFreeMode && newTotalScore > targetScore) {
       return; // Plus butonu zaten pasif olacak, ama yine de kontrol
     }
-    
+
     // History'ye kaydet
     saveToHistory();
-    
+
     setRunCount(runCount + 1);
-    
+
     // Plus'ta istaka ve skor uyarılarını birlikte kontrol et
     const warning = checkWarnings(inning, newTotalScore);
     setWarningMessage(warning);
@@ -416,13 +423,13 @@ function StandardGame({
     if (runCount > 0) {
       // History'ye kaydet
       saveToHistory();
-      
+
       setRunCount(runCount - 1);
-      
+
       // Minus yapıldığında uyarıyı güncelle
       const currentScore = currentTurn === 0 ? player1Score : player2Score;
       const newTotalScore = currentScore + runCount - 1;
-      
+
       // Minus'ta istaka ve skor uyarılarını birlikte kontrol et
       const warning = checkWarnings(inning, newTotalScore);
       setWarningMessage(warning);
@@ -431,10 +438,10 @@ function StandardGame({
 
   const handleToggleTimer = () => {
     console.log('🕐 Timer toggle called! Current state:', isTimerRunning);
-    
+
     // History'ye kaydet
     saveToHistory();
-    
+
     // Timer durdurulduğu zaman (isTimerRunning true ise, başlatılı demek)
     if (isTimerRunning) {
       // Timer durdurma işlemi (PAUSE)
@@ -453,10 +460,10 @@ function StandardGame({
 
   const handleTimerFinished = () => {
     // Timer 40 sn bittiğinde çalışacak fonksiyon
-    
+
     // Timeout hakkını kontrol et
     const currentTimeoutLeft = currentTurn === 0 ? player1TimeoutLeft : player2TimeoutLeft;
-    
+
     if (currentTimeoutLeft > 0) {
       // ASO durumu kontrolü: 2. oyuncu ASO vuruşunda timeout kullanırsa maç biter
       if (lastTurnBeforeEnd && currentTurn === 1) {
@@ -466,14 +473,14 @@ function StandardGame({
           setPlayer2Runs([...player2Runs, runCount]);
           setPlayer2Score(newPlayer2Score);
         }
-        
+
         const currentPlayerName = player2Name;
         showNotification(`⏱️ ${currentPlayerName} ASO'da TIMEOUT kullandı!\nMaç skorları ile bitiyor...`, 'warning', 4000);
-        
+
         // Timer'ı durdur
         setIsTimerRunning(false);
         setTimerPhase('idle');
-        
+
         // Oyunu bitir - Kazananı belirle
         setTimeout(() => {
           if (player1Score > newPlayer2Score) {
@@ -491,17 +498,17 @@ function StandardGame({
         }, 1000);
         return;
       }
-      
+
       // Normal timeout kullanımı
       if (currentTurn === 0) {
         setPlayer1TimeoutLeft(currentTimeoutLeft - 1);
       } else {
         setPlayer2TimeoutLeft(currentTimeoutLeft - 1);
       }
-      
+
       const currentPlayerName = currentTurn === 0 ? player1Name : player2Name;
       showNotification(`⏱️ ${currentPlayerName} TIMEOUT kullanıyor! (Kalan: ${currentTimeoutLeft - 1})`, 'info', 2000);
-      
+
       // Timer'ı reset et ve otomatik olarak yeniden başlat
       setTimerResetTrigger(prev => prev + 1);
       setTimeout(() => {
@@ -512,7 +519,7 @@ function StandardGame({
       // Timeout hakkı yoksa, FAUL ve sırayı değiştir
       const currentPlayerName = currentTurn === 0 ? player1Name : player2Name;
       showNotification(`⚠️ ${currentPlayerName} FAUL! Timeout hakkı yok, sıra değişiyor...`, 'warning', 3000);
-      
+
       if (currentTurn === 0) {
         setCurrentTurn(1);
       } else {
@@ -529,7 +536,7 @@ function StandardGame({
     if (notificationTimeout) {
       clearTimeout(notificationTimeout);
     }
-    
+
     setNotification({ message, type });
     if (duration > 0) {
       const timeout = setTimeout(() => {
@@ -656,68 +663,68 @@ function StandardGame({
       if (e.key === 'ContextMenu' || e.code === 'ContextMenu') {
         e.preventDefault();
         if (!gameEnded && !showSaveConfirm && !showPenalty) {
-           setShowMenuOverlay(prev => !prev);
+          setShowMenuOverlay(prev => !prev);
         }
         return;
       }
 
       // Mute Toggle (AudioVolumeMute or 'm')
       if (e.key === 'AudioVolumeMute' || e.key === 'm' || e.key === 'M') {
-         setIsMuted(prev => !prev);
-         return;
+        setIsMuted(prev => !prev);
+        return;
       }
 
       // Play/Pause tuşu - Timer başlat/durdur
       if (e.key === 'MediaPlayPause') {
-         callHandler('handleToggleTimer');
-         return;
+        callHandler('handleToggleTimer');
+        return;
       }
 
       // 1. Modal / Dialog Navigation (Maç sonu veya onay ekranları)
       if (showSaveConfirm || gameEnded || showPenalty || showMenuOverlay) {
-         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-            setModalFocusIndex(1);
-         } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-            setModalFocusIndex(0);
-         } else if (e.key === 'Enter') {
-            console.log('🔴 ENTER pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
-            // showSaveConfirm önce kontrol edilmeli çünkü zIndex'te daha üstte
-            if (showSaveConfirm) {
-              if (modalFocusIndex === 1) callHandler('handleConfirmSave');
-              else callHandler('handleCancelSave');
-            } else if (gameEnded) {
-              if (modalFocusIndex === 1) callHandler('handleNewMatch');
-              else callHandler('handleRematch');
-            } else if (showMenuOverlay) {
-               if (modalFocusIndex === 1) {
-                  // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
-                  e.stopPropagation();
-                  e.stopImmediatePropagation();
-                  setShowMenuOverlay(false);
-                  // Kısa gecikme ile çık (event döngüsü tamamlansın)
-                  setTimeout(() => {
-                    if (onExitRef.current) onExitRef.current();
-                  }, 50);
-               } else {
-                  // VAZGEÇ
-                  setShowMenuOverlay(false);
-               }
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          setModalFocusIndex(1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          setModalFocusIndex(0);
+        } else if (e.key === 'Enter') {
+          console.log('🔴 ENTER pressed! gameEnded:', gameEnded, 'showSaveConfirm:', showSaveConfirm, 'showMenuOverlay:', showMenuOverlay, 'modalFocusIndex:', modalFocusIndex);
+          // showSaveConfirm önce kontrol edilmeli çünkü zIndex'te daha üstte
+          if (showSaveConfirm) {
+            if (modalFocusIndex === 1) callHandler('handleConfirmSave');
+            else callHandler('handleCancelSave');
+          } else if (gameEnded) {
+            if (modalFocusIndex === 1) callHandler('handleNewMatch');
+            else callHandler('handleRematch');
+          } else if (showMenuOverlay) {
+            if (modalFocusIndex === 1) {
+              // MAÇTAN ÇIK - Event'i durdur ki StartScreen'e geçmesin
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              setShowMenuOverlay(false);
+              // Kısa gecikme ile çık (event döngüsü tamamlansın)
+              setTimeout(() => {
+                if (onExitRef.current) onExitRef.current();
+              }, 50);
+            } else {
+              // VAZGEÇ
+              setShowMenuOverlay(false);
             }
-         } else if (e.key === 'Backspace' || e.key === 'Escape') {
-            // Cancel modal if possible
-            if (showSaveConfirm) callHandler('handleCancelSave');
-            if (showMenuOverlay) setShowMenuOverlay(false);
-         }
-         return; // Oyun aksiyonlarını engelle
+          }
+        } else if (e.key === 'Backspace' || e.key === 'Escape') {
+          // Cancel modal if possible
+          if (showSaveConfirm) callHandler('handleCancelSave');
+          if (showMenuOverlay) setShowMenuOverlay(false);
+        }
+        return; // Oyun aksiyonlarını engelle
       }
 
       // 2. Game Actions
-      switch(e.key) {
+      switch (e.key) {
         case 'ArrowRight': // Sayı Artır (Yeni Mapping)
-           callHandler('handlePlusRun');
+          callHandler('handlePlusRun');
           break;
         case 'ArrowLeft': // Sayı Azalt (Yeni Mapping)
-           callHandler('handleMinusRun');
+          callHandler('handleMinusRun');
           break;
         /* ArrowUp ve ArrowDown iptal edildi
         case 'ArrowUp': // Timer Başlat/Durdur (Yeni Mapping)
@@ -800,12 +807,12 @@ function StandardGame({
       setNotification(null); // Bildirimleri temizle
       return;
     }
-    
+
     setGameEnded(true);
     setWinner(winnerName);
     setIsTimerRunning(false);
     setTimerPhase('idle');
-    
+
     // Maç sonucunu kaydetme mantığı (Onaylı)
     if (isFreeMode) {
       // Serbest modda kayıt yok
@@ -844,7 +851,7 @@ function StandardGame({
     setShowPenalty(false);
     setGameEnded(true);
     setWinner(penaltyWinner);
-    
+
     // Maç sonucunu kaydetme mantığı (Onaylı)
     if (isFreeMode) {
       saveMatchResult('draw', penaltyWinner);
@@ -882,7 +889,7 @@ function StandardGame({
       onExit();
       return;
     }
-    
+
     // Lokal klavye ile çağrıldıysa menü overlay'i aç
     setShowMenuOverlay(true);
   };
@@ -890,11 +897,11 @@ function StandardGame({
   const handleOk = () => {
     // History'ye kaydet
     saveToHistory();
-    
+
     // Skorları güncelle
     let newPlayer1Score = player1Score;
     let newPlayer2Score = player2Score;
-    
+
     // Run'ı her zaman kaydet (0 dahil) - AVG hesaplaması için gerekli
     if (currentTurn === 0) {
       setPlayer1Runs([...player1Runs, runCount]);
@@ -967,14 +974,14 @@ function StandardGame({
     if (currentTurn === 0) {
       // 1. oyuncudan 2. oyuncuya geçiş - İstaka artır
       const nextInning = inning + 1;
-      
+
       // Hedef istaka kontrolü: 1. oyuncu hedef istakaya ulaştı mı?
       // NOT: İstaka kontrolünde ASO olsun ya da olmasın, 2. oyuncuya son seri hakkı verilir
       if (!isFreeMode && nextInning >= targetRack) {
         setInning(nextInning);
         setCurrentTurn(1);
         setLastTurnBeforeEnd(true);
-        
+
         if (hasAso) {
           // ASO varsa ASO vuruşu olarak göster
           setAsoReason('rack'); // İstaka nedeniyle ASO
@@ -987,16 +994,16 @@ function StandardGame({
         setRunCount(0);
         return;
       }
-      
+
       setInning(nextInning);
       setCurrentTurn(1);
-      
+
       // Eğer mevcut uyarı mesajı varsa, 2. oyuncu için de devam ettir
       // (2. oyuncu aynı istakayı oynayacak)
     } else {
       // 2. oyuncudan 1. oyuncuya geçiş
       setCurrentTurn(0);
-      
+
       // 2. oyuncu OK'ladıktan sonra, 1. oyuncu için istaka ve skor kontrolü yap
       // (1. oyuncu yeni istakaya giriyor)
       const warning = checkWarnings(inning, newPlayer1Score);
@@ -1030,16 +1037,17 @@ function StandardGame({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
-        boxSizing: 'border-box'
+        padding: '10px',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
       }}>
         {/* Notification Overlay */}
         {notification && (
           <div style={{
             pointerEvents: 'auto',
             background: notification.type === 'warning' ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)' :
-                        notification.type === 'success' ? 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)' :
-                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              notification.type === 'success' ? 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)' :
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
             padding: '30px 50px',
             borderRadius: '15px',
@@ -1061,7 +1069,7 @@ function StandardGame({
 
       {/* Save Confirmation Overlay */}
       {showSaveConfirm && (
-        <div 
+        <div
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
@@ -1076,19 +1084,19 @@ function StandardGame({
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
               padding: '40px',
               borderRadius: '20px',
-            border: '2px solid #3b82f6',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            textAlign: 'center',
-            maxWidth: '500px',
-            width: '90%',
-            animation: 'slideIn 0.3s ease-out'
-          }}>
+              border: '2px solid #3b82f6',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+              textAlign: 'center',
+              maxWidth: '500px',
+              width: '90%',
+              animation: 'slideIn 0.3s ease-out'
+            }}>
             <div style={{ fontSize: '48px', marginBottom: '20px' }}>💾</div>
             <h2 style={{ color: 'white', marginBottom: '15px', fontSize: '24px' }}>Maç Sonucu Kaydedilsin mi?</h2>
             <p style={{ color: '#cbd5e1', marginBottom: '30px', fontSize: '16px' }}>
@@ -1204,8 +1212,8 @@ function StandardGame({
                 animation: 'pulse 2s ease-in-out infinite'
               }}>
                 🏆 KAZANAN 🏆
-                <div style={{ 
-                  fontSize: '42px', 
+                <div style={{
+                  fontSize: '42px',
                   marginTop: '10px',
                   textShadow: '2px 2px 4px rgba(0, 0, 0, 0.3)'
                 }}>
@@ -1351,7 +1359,7 @@ function StandardGame({
                 </div>
               </div>
             </div>
-            
+
             {/* Butonlar */}
             <div style={{
               display: 'flex',
@@ -1361,7 +1369,7 @@ function StandardGame({
               justifyContent: 'center'
             }}>
               {/* Aynı Maçı Tekrar Ayarla Butonu */}
-              <button 
+              <button
                 onClick={handleRematch}
                 style={{
                   background: 'linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%)',
@@ -1382,7 +1390,7 @@ function StandardGame({
               </button>
 
               {/* Yeni Maç Butonu */}
-              <button 
+              <button
                 onClick={handleNewMatch}
                 style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1432,206 +1440,199 @@ function StandardGame({
       )}
 
       <div style={{
-        padding: '5px 20px 5px 20px',
+        padding: '50px 20px 10px 20px', // Simetrik padding
         borderRadius: '25px',
         textAlign: 'center',
-        border: currentTurn === 0 ? '3px solid #FFFFFF' : '3px solid #FFD700',
-        boxShadow: currentTurn === 0 
-          ? '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(255, 255, 255, 0.2)' 
-          : '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(255, 215, 0, 0.3)',
-        width: '95%',
-        maxWidth: '1600px',
+        border: 'none',
+        boxShadow: 'none',
+        width: '100%',
+        height: '100%',
+        maxWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '2px',
-        transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
+        justifyContent: 'space-between',
+        gap: '5px',
+        boxSizing: 'border-box',
+        transform: 'translateX(-25px)' // İçeriği 25px sola kaydır
       }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '5px',
-        gap: '10px',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        <PlayerPanel
-          name={player1Name}
-          score={player1Score}
-          hr1={player1Stats.hr1}
-          hr2={player1Stats.hr2}
-          avg={player1AVG}
-          bg="#3b3b3b"
-          playerIndex={0}
-          isActive={currentTurn === 0}
-          borderColor={currentTurn === 0 ? '#FFFFFF' : 'transparent'}
-          timeoutLeft={player1TimeoutLeft}
-          photoURL={playerPhotos[player1Name]}
-        />
-        
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-          {/* Son X Sayı/İstaka Uyarısı (her zaman göster) */}
-          {warningMessage && (
-            <div style={{
-              background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
-              color: 'white',
-              padding: '15px 30px',
-              borderRadius: '12px',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              boxShadow: '0 8px 25px rgba(255, 107, 107, 0.5)',
-              border: '3px solid rgba(255, 255, 255, 0.3)',
-              animation: 'pulse 1.5s ease-in-out infinite',
-              minWidth: '250px'
-            }}>
-              {warningMessage}
-            </div>
-          )}
-          
-          <ScorePanel 
-            inning={inning} 
-            run={runCount} 
-            runColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'} 
-            onShowController={() => {}} // Controller açılmasını engelle
-            isControllerHidden={false} // Ayar butonu kaldırıldı
-            targetScore={targetScore}
-            targetRack={targetRack}
-            hasPenalty={hasPenalty}
-            hasAso={hasAso}
-            isFreeMode={isFreeMode}
-            tableName={tableName}
-            salonName={salonName}
-            viewerCount={viewerCount}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center', // Ortala
+          width: '100%',
+          gap: '20px', // Boşluğu artır
+          flex: 1, // Dikeyde yer kapla,
+          boxSizing: 'border-box'
+        }}>
+          <PlayerPanel
+            name={player1Name}
+            score={player1Score}
+            hr1={player1Stats.hr1}
+            hr2={player1Stats.hr2}
+            avg={player1AVG}
+            bg="#3b3b3b"
+            playerIndex={0}
+            isActive={currentTurn === 0}
+            borderColor={currentTurn === 0 ? '#FFFFFF' : 'transparent'}
+            timeoutLeft={player1TimeoutLeft}
+            photoURL={playerPhotos[player1Name]}
+          />
+
+          <div style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px',
+            width: '280px', // Daraltıldı - oyuncu panellerine yer açıldı
+            flexShrink: 0,
+          }}>
+            {/* Son X Sayı/İstaka Uyarısı - Floating overlay */}
+            {warningMessage && (
+              <div style={{
+                position: 'absolute',
+                top: '-80px', // Orta panelin üstünde
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'linear-gradient(135deg, rgba(255, 107, 107, 0.85) 0%, rgba(255, 142, 83, 0.85) 100%)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                boxShadow: '0 8px 25px rgba(255, 107, 107, 0.5)',
+                border: '2px solid rgba(255, 255, 255, 0.4)',
+                animation: 'pulse 1.5s ease-in-out infinite',
+                zIndex: 100,
+                whiteSpace: 'nowrap'
+              }}>
+                {warningMessage}
+              </div>
+            )}
+
+            <ScorePanel
+              inning={inning}
+              run={runCount}
+              runColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
+              onShowController={() => { }} // Controller açılmasını engelle
+              isControllerHidden={false} // Ayar butonu kaldırıldı
+              targetScore={targetScore}
+              targetRack={targetRack}
+              hasPenalty={hasPenalty}
+              hasAso={hasAso}
+              isFreeMode={isFreeMode}
+              tableName={tableName}
+              salonName={salonName}
+              viewerCount={viewerCount}
+            />
+          </div>
+          <PlayerPanel
+            name={player2Name}
+            score={player2Score}
+            hr1={player2Stats.hr1}
+            hr2={player2Stats.hr2}
+            avg={player2AVG}
+            bg="#22283e"
+            playerIndex={1}
+            isActive={currentTurn === 1}
+            borderColor={currentTurn === 1 ? '#FFD700' : 'transparent'}
+            timeoutLeft={player2TimeoutLeft}
+            photoURL={playerPhotos[player2Name]}
           />
         </div>
-        <PlayerPanel
-          name={player2Name}
-          score={player2Score}
-          hr1={player2Stats.hr1}
-          hr2={player2Stats.hr2}
-          avg={player2AVG}
-          bg="#22283e"
-          playerIndex={1}
-          isActive={currentTurn === 1}
-          borderColor={currentTurn === 1 ? '#FFD700' : 'transparent'}
-          timeoutLeft={player2TimeoutLeft}
-          photoURL={playerPhotos[player2Name]}
-        />
-      </div>
-      <div style={{ width: '100%' }}>
-      <TimerProgressBar 
-        isTimerRunning={isTimerRunning}
-        currentTurn={currentTurn}
-        timerPhase={timerPhase}
-        onTimerFinished={handleTimerFinished}
-        resetTrigger={timerResetTrigger}
-        isTimerPaused={isTimerPaused}
-        activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
-        duration={40}
-      />
-      </div>
-      
-      {/* Menu Overlay */}
-      {showMenuOverlay && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(10px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
+        <div style={{ width: '100%', minHeight: '65px', flexShrink: 0 }}>
+          <TimerProgressBar
+            isTimerRunning={isTimerRunning}
+            currentTurn={currentTurn}
+            timerPhase={timerPhase}
+            onTimerFinished={handleTimerFinished}
+            resetTrigger={timerResetTrigger}
+            isTimerPaused={isTimerPaused}
+            activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
+            duration={40}
+          />
+        </div>
+
+        {/* Menu Overlay */}
+        {showMenuOverlay && (
           <div style={{
-            background: '#1e293b',
-            padding: '40px',
-            borderRadius: '20px',
-            textAlign: 'center',
-            border: '2px solid #475569',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-            maxWidth: '600px',
-            width: '90%'
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
           }}>
-            <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'white', marginBottom: '10px' }}>
-              ⏸️ OYUN MENÜSÜ
-            </div>
-            <div style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '40px' }}>
-              Maçtan çıkmak istiyor musunuz?
-            </div>
-            <div style={{ display: 'flex', gap: '30px', justifyContent: 'center' }}>
-              <button
-                onClick={() => setShowMenuOverlay(false)}
-                style={{
-                  padding: '20px 40px',
-                  borderRadius: '15px',
-                  border: modalFocusIndex === 0 ? '4px solid white' : 'none',
-                  background: '#3b82f6',
-                  color: 'white',
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transform: modalFocusIndex === 0 ? 'scale(1.1)' : 'scale(1)',
-                  boxShadow: modalFocusIndex === 0 ? '0 0 30px rgba(59, 130, 246, 0.6)' : 'none',
-                  transition: 'all 0.2s',
-                  minWidth: '200px'
-                }}
-              >
-                VAZGEÇ
-              </button>
-              <button
-                onClick={() => { setShowMenuOverlay(false); onExit(); }}
-                style={{
-                  padding: '20px 40px',
-                  borderRadius: '15px',
-                  border: modalFocusIndex === 1 ? '4px solid white' : 'none',
-                  background: '#ef4444',
-                  color: 'white',
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transform: modalFocusIndex === 1 ? 'scale(1.1)' : 'scale(1)',
-                  boxShadow: modalFocusIndex === 1 ? '0 0 30px rgba(239, 68, 68, 0.6)' : 'none',
-                  transition: 'all 0.2s',
-                  minWidth: '200px'
-                }}
-              >
-                MAÇTAN ÇIK
-              </button>
+            <div style={{
+              background: '#1e293b',
+              padding: '40px',
+              borderRadius: '20px',
+              textAlign: 'center',
+              border: '2px solid #475569',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              maxWidth: '600px',
+              width: '90%'
+            }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'white', marginBottom: '10px' }}>
+                ⏸️ OYUN MENÜSÜ
+              </div>
+              <div style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '40px' }}>
+                Maçtan çıkmak istiyor musunuz?
+              </div>
+              <div style={{ display: 'flex', gap: '30px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowMenuOverlay(false)}
+                  style={{
+                    padding: '20px 40px',
+                    borderRadius: '15px',
+                    border: modalFocusIndex === 0 ? '4px solid white' : 'none',
+                    background: '#3b82f6',
+                    color: 'white',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transform: modalFocusIndex === 0 ? 'scale(1.1)' : 'scale(1)',
+                    boxShadow: modalFocusIndex === 0 ? '0 0 30px rgba(59, 130, 246, 0.6)' : 'none',
+                    transition: 'all 0.2s',
+                    minWidth: '200px'
+                  }}
+                >
+                  VAZGEÇ
+                </button>
+                <button
+                  onClick={() => { setShowMenuOverlay(false); onExit(); }}
+                  style={{
+                    padding: '20px 40px',
+                    borderRadius: '15px',
+                    border: modalFocusIndex === 1 ? '4px solid white' : 'none',
+                    background: '#ef4444',
+                    color: 'white',
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transform: modalFocusIndex === 1 ? 'scale(1.1)' : 'scale(1)',
+                    boxShadow: modalFocusIndex === 1 ? '0 0 30px rgba(239, 68, 68, 0.6)' : 'none',
+                    transition: 'all 0.2s',
+                    minWidth: '200px'
+                  }}
+                >
+                  MAÇTAN ÇIK
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Sound Indicator */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        zIndex: 100,
-        fontSize: '32px',
-        color: isMuted ? '#ef4444' : '#10b981',
-        background: 'rgba(0,0,0,0.5)',
-        padding: '10px',
-        borderRadius: '50%',
-        width: '50px',
-        height: '50px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: '2px solid rgba(255,255,255,0.2)',
-        transition: 'all 0.3s ease'
-      }}>
-        {isMuted ? '🔇' : '🔊'}
+        {/* Sound Indicator kaldırıldı */}
       </div>
-    </div>
     </div>
   );
 }

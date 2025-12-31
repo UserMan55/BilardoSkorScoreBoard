@@ -10,19 +10,20 @@ function PlayerPanel({
   photoURL = null
 }) {
   const formattedAvg = Number(avg).toFixed(3);
-  
+
   // Aktif oyuncu için fotoğraf boyutu büyük
-  const photoSize = isActive ? 100 : 70;
+  const photoSize = isActive ? 180 : 80;
   const photoBorder = isActive ? `4px solid ${borderColor}` : '3px solid #333';
-  const photoShadow = isActive 
-    ? `0 0 20px ${borderColor}, 0 4px 15px rgba(0,0,0,0.4)` 
+  const photoShadow = isActive
+    ? `0 0 20px ${borderColor}, 0 4px 15px rgba(0,0,0,0.4)`
     : '0 2px 8px rgba(0,0,0,0.3)';
 
   return (
     <div style={{
       flex: 1,
-      minWidth: 320,
-      maxWidth: 500,
+      minWidth: '400px', // Genişletildi
+      maxWidth: '100%',
+      minHeight: '500px', // Dikey yüksekliği azalttık
       background: "#22283e",
       color: 'white',
       margin: '0 0',
@@ -32,36 +33,37 @@ function PlayerPanel({
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      boxShadow: isActive ? `0 0 50px ${borderColor}, 0 0 25px ${borderColor}, 0 8px 36px #0006` : '0 8px 36px #0006',
+      boxShadow: isActive ? '0 12px 40px rgba(0,0,0,0.5)' : '0 8px 36px rgba(0,0,0,0.4)',
       border: isActive ? `4px solid ${borderColor}` : '4px solid transparent',
       fontFamily: "Arial, sans-serif",
       position: 'relative',
-      transition: 'all 0.3s ease',
       overflow: 'visible'
+      // contain kaldırıldı - resim taşması engelleniyordu
     }}>
       {/* Oyuncu Fotoğrafı - Panelin köşesinde, dışarı taşacak şekilde */}
       <div style={{
         position: 'absolute',
-        top: isActive ? -30 : -15,
-        right: playerIndex === 0 ? (isActive ? -20 : -10) : 'auto',
-        left: playerIndex === 1 ? (isActive ? -20 : -10) : 'auto',
-        width: photoSize,
-        height: photoSize,
+        top: isActive ? -60 : -20,
+        right: playerIndex === 0 ? (isActive ? -30 : -10) : 'auto',
+        left: playerIndex === 1 ? (isActive ? -30 : -10) : 'auto',
+        width: isActive ? 180 : 80,
+        height: isActive ? 180 : 80,
         borderRadius: '50%',
         overflow: 'hidden',
         border: photoBorder,
         flexShrink: 0,
         boxShadow: photoShadow,
         background: '#1e293b',
-        zIndex: 10,
-        transition: 'all 0.3s ease',
+        zIndex: 20, // Resim üstte
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        transition: 'all 0.3s ease',
+        opacity: isActive ? 0.7 : 0.5 // Daha fazla transparent
       }}>
         {photoURL ? (
-          <img 
-            src={photoURL} 
+          <img
+            src={photoURL}
             alt={name}
             onError={(e) => {
               e.target.onerror = null;
@@ -77,8 +79,8 @@ function PlayerPanel({
             }}
           />
         ) : (
-          <img 
-            src="/logo.png" 
+          <img
+            src="/logo.png"
             alt="3CScore"
             style={{
               width: '80%',
@@ -100,15 +102,20 @@ function PlayerPanel({
         borderRadius: 12,
         padding: '8px 16px',
         width: '96%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        position: 'relative',
+        zIndex: 5 // İsim altta
       }}>
         <div style={{
           fontFamily: "Arial, sans-serif",
-          fontSize: 24,
+          fontSize: 'clamp(20px, 2.5vw, 36px)',
           fontWeight: 800,
           color: '#222',
           textAlign: 'center',
-          flex: 1
+          flex: 1,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
         }}>
           {name}
         </div>
@@ -116,19 +123,22 @@ function PlayerPanel({
       {/* Skor Kutusu ve Timeout */}
       <div style={{
         fontFamily: "Arial, sans-serif",
-        fontSize: 180,
+        fontSize: 'clamp(140px, 16vw, 320px)', // Büyütüldü
         fontWeight: 'bold',
-        marginBottom: 12,
+        // marginBottom: 12, // Kaldırıldı
         background: '#222',
         borderRadius: 18,
         width: '96%',
-        height: '62%',
+        flex: 1, // height yerine flex kullanarak alanı doldurmasını sağla
+        minHeight: '200px', // Minimum yükseklik
         textAlign: 'center',
         border: '6px solid #111',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
+        lineHeight: 1, // Satır yüksekliğini sabitle
+        fontVariantNumeric: 'tabular-nums', // Rakamların genişliğini sabitle
         color: playerIndex === 0 ? '#fff' : '#FFD700'
       }}>
         {score}
@@ -142,22 +152,22 @@ function PlayerPanel({
         }}>
           {timeoutLeft >= 1 && (
             <div style={{
-              width: 48,
-              height: 20,
+              width: 'clamp(24px, 2.5vw, 36px)',
+              height: 'clamp(10px, 0.8vw, 14px)',
               background: '#48d84d',
-              borderRadius: 8,
+              borderRadius: 4,
               boxShadow: '0 0 6px #0003',
-              border: '3px solid #185d26'
+              border: '2px solid #185d26'
             }} />
           )}
           {timeoutLeft >= 2 && (
             <div style={{
-              width: 48,
-              height: 20,
+              width: 'clamp(24px, 2.5vw, 36px)',
+              height: 'clamp(10px, 0.8vw, 14px)',
               background: '#48d84d',
-              borderRadius: 8,
+              borderRadius: 4,
               boxShadow: '0 0 6px #0003',
-              border: '3px solid #185d26'
+              border: '2px solid #185d26'
             }} />
           )}
         </div>
@@ -177,8 +187,9 @@ function PlayerPanel({
           padding: '12px 0',
           flex: 1,
           textAlign: 'center',
-          fontSize: 38, 
+          fontSize: 'clamp(28px, 3vw, 52px)',
           fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums',
           boxShadow: '0 0 10px #0002',
           position: 'relative'
         }}>
@@ -186,7 +197,7 @@ function PlayerPanel({
             position: 'absolute',
             left: 14,
             top: 8,
-            fontSize: 12, 
+            fontSize: 12,
             fontWeight: 600,
             color: '#ccc'
           }}>HR1</span>
@@ -199,8 +210,9 @@ function PlayerPanel({
           padding: '12px 0',
           flex: 1,
           textAlign: 'center',
-          fontSize: 38,
+          fontSize: 'clamp(28px, 3vw, 52px)',
           fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums',
           boxShadow: '0 0 10px #0002',
           position: 'relative'
         }}>
@@ -223,7 +235,8 @@ function PlayerPanel({
         borderRadius: 12,
         padding: '14px 0 8px 0',
         fontWeight: 'bold',
-        fontSize: 42,
+        fontSize: 'clamp(32px, 3.5vw, 56px)',
+        fontVariantNumeric: 'tabular-nums', // Rakamların genişliğini sabitle
         color: '#222',
         textAlign: 'center',
         marginTop: 8,

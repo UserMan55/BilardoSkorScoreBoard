@@ -1,10 +1,10 @@
 import React from 'react';
 
-function ScorePanel({ 
-  inning, 
-  run, 
-  runColor = '#fff', 
-  onShowController, 
+function ScorePanel({
+  inning,
+  run,
+  runColor = '#fff',
+  onShowController,
   isControllerHidden = false,
   // Maç bilgileri (logo yerine)
   targetScore,
@@ -18,8 +18,8 @@ function ScorePanel({
 }) {
   return (
     <div style={{
-      width: 240,
-      minWidth: 200,
+      width: 'clamp(240px, 20vw, 320px)',
+      minWidth: '240px',
       background: '#181c22',
       color: '#e6fdfe',
       borderRadius: 18,
@@ -30,6 +30,7 @@ function ScorePanel({
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center'
+      // contain kaldırıldı - görünürlük sorunu
     }}>
       {/* RUN başlığı ve kutusu */}
       <div style={{
@@ -41,7 +42,7 @@ function ScorePanel({
         marginBottom: 4
       }}>
         <div style={{
-          fontSize: 22,
+          fontSize: 32,
           color: runColor,
           fontWeight: 700,
           letterSpacing: 1,
@@ -49,16 +50,24 @@ function ScorePanel({
           transition: 'color 0.3s ease'
         }}>RUN</div>
         <div style={{
-          fontSize: 110,
+          fontSize: '140px', // Clamp yerine sabit büyük font (32 inç için)
+          height: '180px', // Sabit yükseklik
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           background: '#222',
           borderRadius: 36,
-          padding: '10px 30px',
           color: runColor,
-          textAlign: 'center',
           fontWeight: 'bold',
           letterSpacing: 2,
+          fontFamily: "Arial, sans-serif",
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: '1',
+          padding: 0,
+          margin: 0,
           boxShadow: `0 0 20px ${runColor}40`,
-          transition: 'all 0.3s ease'
+          transition: 'color 0.3s ease, box-shadow 0.3s ease'
         }}>
           {run}
         </div>
@@ -71,7 +80,7 @@ function ScorePanel({
           padding: '8px 12px',
           borderRadius: '8px',
           margin: '8px 0',
-          fontSize: '11px',
+          fontSize: '16px',
           fontWeight: '600',
           border: '1px solid rgba(102, 126, 234, 0.5)',
           width: '90%',
@@ -79,11 +88,11 @@ function ScorePanel({
         }}>
           {/* Salon Adı */}
           {salonName && (
-            <div style={{ 
-              textAlign: 'center', 
+            <div style={{
+              textAlign: 'center',
               marginBottom: '4px',
               color: '#FFD700',
-              fontSize: '11px',
+              fontSize: '18px',
               fontWeight: '700',
               letterSpacing: '0.5px'
             }}>
@@ -92,36 +101,19 @@ function ScorePanel({
           )}
           {/* Masa Adı */}
           {tableName && (
-            <div style={{ 
-              textAlign: 'center', 
-              marginBottom: '6px', 
-              paddingBottom: '4px', 
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '6px',
+              paddingBottom: '4px',
               borderBottom: '1px solid rgba(102, 126, 234, 0.3)',
               color: '#4ECDC4',
-              fontSize: '12px',
+              fontSize: '18px',
               fontWeight: '700'
             }}>
               📍 {tableName}
             </div>
           )}
-          {/* İzleyici Sayısı */}
-          {viewerCount > 0 && (
-            <div style={{ 
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: (!isFreeMode && targetScore !== undefined) ? '6px' : '0',
-              paddingBottom: (!isFreeMode && targetScore !== undefined) ? '4px' : '0',
-              borderBottom: (!isFreeMode && targetScore !== undefined) ? '1px solid rgba(102, 126, 234, 0.3)' : 'none',
-              color: '#FF6B6B',
-              fontSize: '12px',
-              fontWeight: '700'
-            }}>
-              <span style={{ fontSize: '14px' }}>👁️</span>
-              <span>{viewerCount} İzleyici</span>
-            </div>
-          )}
+          {/* İzleyici Sayısı kaldırıldı */}
           {!isFreeMode && targetScore !== undefined && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -155,21 +147,28 @@ function ScorePanel({
         marginTop: 4
       }}>
         <div style={{
-          fontSize: 22,
+          fontSize: 32,
           color: 'white',
           marginBottom: 4,
           fontWeight: 700,
           letterSpacing: 1
         }}>INNING</div>
         <div style={{
-          fontSize: 60,
+          fontSize: 'clamp(50px, 5vw, 100px)',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: 20,
-          padding: '8px 25px',
+          width: '80%',
+          height: 'clamp(70px, 7vw, 120px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
           color: '#FFD700',
           textAlign: 'center',
           fontWeight: 'bold',
           letterSpacing: 2,
+          fontVariantNumeric: 'tabular-nums', // Rakamların genişliğini sabitle
+          // fontFamily kaldırıldı
           marginBottom: 4,
           boxShadow: '0 0 16px #0005'
         }}>
