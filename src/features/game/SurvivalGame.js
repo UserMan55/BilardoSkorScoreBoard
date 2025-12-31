@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TimerProgressBar from '../../components/TimerProgressBar';
 import { getUserProfiles, updateTableStatus, listenForMatchCommands } from '../../services/firebase';
 
