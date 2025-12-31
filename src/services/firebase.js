@@ -208,8 +208,8 @@ export function updateTableStatus(tableId, status, matchData = null, matchMeta =
 export function listenToTableStatus(tableId, onStatusChange) {
   const finalTableId = tableId || 'table_1';
   const unsubscribe = onSnapshot(doc(db, "table_status", finalTableId), (snapshot) => {
-    if (doc.exists()) {
-      onStatusChange(doc.data());
+    if (snapshot.exists()) {
+      onStatusChange(snapshot.data());
     } else {
       onStatusChange(null);
     }
@@ -444,9 +444,9 @@ export async function updateNetworkInfo(tableId, ipInfo) {
 
 // Masanın ağ bilgilerini dinler (Mobil tarafı)
 export function listenToNetworkInfo(tableId, onInfoChange) {
-  const unsubscribe = onSnapshot(doc(db, "table_connection", tableId), (doc) => {
-    if (doc.exists()) {
-      onInfoChange(doc.data());
+  const unsubscribe = onSnapshot(doc(db, "table_connection", tableId), (snapshot) => {
+    if (snapshot.exists()) {
+      onInfoChange(snapshot.data());
     } else {
       onInfoChange(null);
     }
