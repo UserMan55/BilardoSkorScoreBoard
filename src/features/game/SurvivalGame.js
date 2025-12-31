@@ -11,7 +11,7 @@ function SurvivalGame({
   // Game Constants
   const STARTING_SCORE = 10;
   const HALF_DURATION = 25; // TEST: 25 seconds (Original: 45 * 60)
-  
+
   // State
   const [players, setPlayers] = useState(
     initialPlayers.map(name => ({
@@ -23,22 +23,22 @@ function SurvivalGame({
       isDisqualified: false
     }))
   );
-  
+
   const [currentTurn, setCurrentTurn] = useState(0); // Index of current player
   const [inning, setInning] = useState(0); // Start from inning 0
-  
+
   // Shot Timer State
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPhase, setTimerPhase] = useState('idle');
   const [timerResetTrigger, setTimerResetTrigger] = useState(0);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
-  
+
   // Game Clock State
   const [gameTimeLeft, setGameTimeLeft] = useState(HALF_DURATION);
   const [gameHalf, setGameHalf] = useState(1); // 1 or 2
   const [isGameClockRunning, setIsGameClockRunning] = useState(false); // Starts false, user must start? Or auto start? Let's auto start on first action or have a start button.
   // Let's make it run if the match is active and not paused.
-  
+
   const [gameEnded, setGameEnded] = useState(false);
   const [winner, setWinner] = useState(null);
   const [notification, setNotification] = useState(null); // { message, type: 'info'|'warning'|'success' }
@@ -46,10 +46,10 @@ function SurvivalGame({
 
   // History for Undo
   const [history, setHistory] = useState([]);
-  
+
   // Score Feedback State
   const [scoreFeedback, setScoreFeedback] = useState({});
-  
+
   // Turn Color State (Strict Alternation)
   const [currentColor, setCurrentColor] = useState('#FFFFFF');
 
@@ -75,7 +75,7 @@ function SurvivalGame({
   const currentPlayerColor = currentColor;
 
   const handlersRef = React.useRef({});
-  const timerFinishRef = React.useRef(() => {});
+  const timerFinishRef = React.useRef(() => { });
   const onExitRef = React.useRef(onExit);
 
   // onExit ref'ini güncel tut
@@ -110,27 +110,27 @@ function SurvivalGame({
       try {
         const playerNames = initialPlayers || [];
         if (playerNames.length === 0) return;
-        
+
         const profiles = await getUserProfiles();
         const photosMap = {};
-        
+
         playerNames.forEach(name => {
           // fullName ile case-insensitive karşılaştırma
-          const profile = profiles.find(p => 
+          const profile = profiles.find(p =>
             p.fullName && p.fullName.trim().toLowerCase() === name.trim().toLowerCase()
           );
           if (profile && profile.photoURL) {
             photosMap[name] = profile.photoURL;
           }
         });
-        
+
         setPlayerPhotos(photosMap);
         console.log('[SurvivalGame] Oyuncu fotoğrafları yüklendi:', photosMap);
       } catch (error) {
         console.error('[SurvivalGame] Fotoğraf yükleme hatası:', error);
       }
     };
-    
+
     fetchPlayerPhotos();
   }, [initialPlayers]);
 
@@ -279,7 +279,7 @@ function SurvivalGame({
     // For now: It runs if !gameEnded and !showHalfTimeModal and !isTimerPaused (assuming pause stops everything)
     // But shot timer stops between turns. Game clock should NOT stop between turns.
     // So we only pause Game Clock if isTimerPaused is TRUE (explicit pause).
-    
+
     const shouldRun = !gameEnded && !showHalfTimeModal && !isTimerPaused && isGameClockRunning;
 
     if (shouldRun && gameTimeLeft > 0) {
@@ -300,7 +300,7 @@ function SurvivalGame({
   const handleGameTimerFinished = () => {
     setIsGameClockRunning(false);
     setIsTimerRunning(false); // Stop shot timer too
-    
+
     if (gameHalf === 1) {
       setShowHalfTimeModal(true);
       // Sound effect could go here
@@ -319,7 +319,7 @@ function SurvivalGame({
     setShowHalfTimeModal(false);
     setHalfTimeModalSelectedBtn(0); // Reset selection
     setIsGameClockRunning(true);
-    
+
     // Add starting score to all players for the new set
     setPlayers(prevPlayers => prevPlayers.map(p => ({
       ...p,
@@ -341,7 +341,7 @@ function SurvivalGame({
     setGameEnded(true);
     setIsGameClockRunning(false);
     setIsTimerRunning(false);
-    
+
     // Determine winner (highest score)
     const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
     const winnerPlayer = sortedPlayers[0];
@@ -355,15 +355,17 @@ function SurvivalGame({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Masa durumunu canlı olarak güncelle (Firebase Live Sync)
+  // Masa durumunu canlı olarak güncelle (Firebase Akıllı Sync)
+  const currentLiveStatsRef = useRef(null);
+
+  // Her render'da stats objesini hazırla
   useEffect(() => {
-    // Aktif oyuncuların en yüksek run değerlerini hesapla
     const calculatePlayerHR = (runs) => {
       if (!runs || runs.length === 0) return 0;
       return Math.max(...runs);
     };
 
-    const liveStats = {
+    currentLiveStatsRef.current = {
       mode: 'survival',
       players: players.map(p => p.name),
       settings: {
@@ -372,7 +374,6 @@ function SurvivalGame({
         startingScore: STARTING_SCORE
       },
       stats: {
-        // Tüm oyuncuların verileri
         survivalPlayers: players.map((p, idx) => ({
           name: p.name,
           score: p.score,
@@ -399,26 +400,53 @@ function SurvivalGame({
         showHalfTimeModal: showHalfTimeModal
       }
     };
+  });
 
-    updateTableStatus('table_1', 'BUSY', liveStats);
-  }, [
-    players,
-    currentTurn,
-    inning,
-    gameTimeLeft,
-    gameHalf,
-    isTimerRunning,
-    timerPhase,
-    timerResetTrigger,
-    isTimerPaused,
-    isGameClockRunning,
-    notification,
-    gameEnded,
-    winner,
-    showHalfTimeModal,
-    HALF_DURATION,
-    STARTING_SCORE
-  ]);
+  // Akıllı Senkronizasyon Döngüsü
+  useEffect(() => {
+    let lastStatsJson = "";
+
+    const syncTable = (force = false) => {
+      const currentStats = currentLiveStatsRef.current;
+      if (!currentStats) return;
+
+      const statsJson = JSON.stringify(currentStats.stats);
+
+      // Değişiklik varsa veya heartbeat (force) ise gönder
+      if (force || statsJson !== lastStatsJson) {
+        lastStatsJson = statsJson;
+        updateTableStatus('table_1', 'BUSY', currentStats);
+      }
+    };
+
+    // Değişiklik kontrolü (2s)
+    const syncInterval = setInterval(() => {
+      if (document.hidden) return;
+      syncTable(false);
+    }, 2000);
+
+    // Heartbeat (30s)
+    const heartbeatInterval = setInterval(() => {
+      if (document.hidden) return;
+      syncTable(true);
+    }, 30000);
+
+    // Sekme Kapanırken Temizlik
+    const handleUnload = () => {
+      if (!gameEnded) {
+        updateTableStatus('table_1', 'IDLE');
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    syncTable(true); // İlk sync
+
+    return () => {
+      clearInterval(syncInterval);
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [gameEnded]);
 
   // Timer reset on turn change
   useEffect(() => {
@@ -426,10 +454,10 @@ function SurvivalGame({
     setIsTimerRunning(false); // Shot timer resets and waits for start? Or auto start? StandardGame waits.
     setTimerPhase('idle');
     setIsTimerPaused(false);
-    
+
     // Auto-start game clock on first turn change if not started?
     if (!isGameClockRunning && !gameEnded && !showHalfTimeModal) {
-       setIsGameClockRunning(true);
+      setIsGameClockRunning(true);
     }
   }, [currentTurn, isGameClockRunning, gameEnded, showHalfTimeModal]);
 
@@ -447,10 +475,10 @@ function SurvivalGame({
 
   const handleUndo = () => {
     if (history.length === 0) return;
-    
+
     const previousState = history[history.length - 1];
     setHistory(prev => prev.slice(0, -1));
-    
+
     setPlayers(previousState.players);
     setCurrentTurn(previousState.currentTurn);
     setInning(previousState.inning);
@@ -462,7 +490,7 @@ function SurvivalGame({
 
   const handlePlusRun = () => {
     saveToHistory();
-    
+
     const pointsGain = activePlayerCount - 1;
     const pointsLoss = 1;
 
@@ -475,27 +503,27 @@ function SurvivalGame({
       }
     });
     setScoreFeedback(newFeedback);
-    
+
     // Clear feedback after 3 seconds
     setTimeout(() => {
       setScoreFeedback({});
     }, 3000);
-    
+
     setPlayers(prevPlayers => {
       const newPlayers = [...prevPlayers];
-      
+
       // Update current player
       newPlayers[currentTurn] = {
         ...newPlayers[currentTurn],
         score: newPlayers[currentTurn].score + pointsGain,
         currentRun: newPlayers[currentTurn].currentRun + 1
       };
-      
+
       // Update other players
       newPlayers.forEach((player, index) => {
         if (index !== currentTurn && !player.isDisqualified) {
           const newScore = player.score - pointsLoss;
-          
+
           // Check if player dropped to negative (and wasn't already negative)
           if (newScore < 0 && player.score >= 0) {
             setNegativeScorePlayerIndex(index);
@@ -503,34 +531,34 @@ function SurvivalGame({
             setIsTimerRunning(false); // Pause timer
             setTimerPhase('idle');
           }
-          
+
           newPlayers[index] = {
             ...player,
             score: newScore
           };
         }
       });
-      
+
       return newPlayers;
     });
   };
 
   const handleDisqualify = () => {
     if (negativeScorePlayerIndex === null) return;
-    
+
     setPlayers(prev => {
       const newPlayers = [...prev];
       newPlayers[negativeScorePlayerIndex].isDisqualified = true;
       return newPlayers;
     });
-    
+
     setShowNegativeScoreModal(false);
     setNegativeScorePlayerIndex(null);
     setNegativeModalSelectedBtn(0);
-    
+
     // If current player was somehow disqualified (unlikely in this flow but possible), pass turn
     if (negativeScorePlayerIndex === currentTurn) {
-       handleOk();
+      handleOk();
     }
   };
 
@@ -543,22 +571,22 @@ function SurvivalGame({
 
   const handleMinusRun = () => {
     if (players[currentTurn].currentRun <= 0) return;
-    
+
     saveToHistory();
-    
+
     setPlayers(prevPlayers => {
       const newPlayers = [...prevPlayers];
-      
+
       const pointsGain = playerCount - 1;
       const pointsLoss = 1;
-      
+
       // Revert current player
       newPlayers[currentTurn] = {
         ...newPlayers[currentTurn],
         score: newPlayers[currentTurn].score - pointsGain,
         currentRun: newPlayers[currentTurn].currentRun - 1
       };
-      
+
       // Revert other players
       newPlayers.forEach((player, index) => {
         if (index !== currentTurn) {
@@ -568,28 +596,28 @@ function SurvivalGame({
           };
         }
       });
-      
+
       return newPlayers;
     });
   };
 
   const handleOk = () => {
     saveToHistory();
-    
+
     // Commit the run to history for the player
     setPlayers(prevPlayers => {
       const newPlayers = [...prevPlayers];
       const player = newPlayers[currentTurn];
-      
+
       if (player.currentRun > 0) {
         player.runs.push(player.currentRun);
       } else {
         player.runs.push(0);
       }
-      
+
       // Reset current run for next turn (though logic might differ if we want to keep it visible)
       player.currentRun = 0;
-      
+
       return newPlayers;
     });
 
@@ -600,12 +628,12 @@ function SurvivalGame({
       // Safety break if all disqualified (shouldn't happen)
       if (nextTurn === currentTurn) break;
     }
-    
+
     setCurrentTurn(nextTurn);
-    
+
     // Toggle Color strictly on turn change
     setCurrentColor(prev => prev === '#FFFFFF' ? '#FFD700' : '#FFFFFF');
-    
+
     // Increment inning if we completed a full round (back to 0 or passed 0)
     // Simplified: if nextTurn < currentTurn, we wrapped around
     if (nextTurn < currentTurn) {
@@ -628,7 +656,7 @@ function SurvivalGame({
   const handleTimerFinished = () => {
     // Handle timeout logic
     const player = players[currentTurn];
-    
+
     if (player.timeoutLeft > 0) {
       // Decrement timeout
       setPlayers(prev => {
@@ -636,9 +664,9 @@ function SurvivalGame({
         newPlayers[currentTurn].timeoutLeft -= 1;
         return newPlayers;
       });
-      
+
       showNotification(`${player.name} Mola Kullandı!`, 'info', 2000);
-      
+
       // Reset and restart timer automatically
       setTimerResetTrigger(prev => prev + 1);
       setIsTimerRunning(true);
@@ -670,8 +698,8 @@ function SurvivalGame({
           transform: 'translateX(-50%)',
           zIndex: 999,
           background: notification.type === 'warning' ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)' :
-                      notification.type === 'success' ? 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)' :
-                      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            notification.type === 'success' ? 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)' :
+              'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           padding: '20px 40px',
           borderRadius: '15px',
@@ -807,9 +835,9 @@ function SurvivalGame({
         </div>
 
         {/* Game Timer Display */}
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           background: 'rgba(0,0,0,0.5)',
           padding: '5px 20px',
@@ -819,9 +847,9 @@ function SurvivalGame({
           <div style={{ fontSize: '12px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px' }}>
             {gameHalf}. SET
           </div>
-          <div style={{ 
-            fontSize: '42px', 
-            fontWeight: 'bold', 
+          <div style={{
+            fontSize: '42px',
+            fontWeight: 'bold',
             fontFamily: 'monospace',
             color: gameTimeLeft < 60 ? '#FF6B6B' : '#fff'
           }}>
@@ -830,9 +858,9 @@ function SurvivalGame({
         </div>
 
         {/* Inning Display */}
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           background: 'rgba(0,0,0,0.5)',
           padding: '5px 20px',
@@ -842,9 +870,9 @@ function SurvivalGame({
           <div style={{ fontSize: '12px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px' }}>
             ISTAKA
           </div>
-          <div style={{ 
-            fontSize: '42px', 
-            fontWeight: 'bold', 
+          <div style={{
+            fontSize: '42px',
+            fontWeight: 'bold',
             fontFamily: 'monospace',
             color: '#FFFFFF'
           }}>
@@ -893,7 +921,7 @@ function SurvivalGame({
                 border: halfTimeModalSelectedBtn === 0 ? '4px solid #FFD700' : '4px solid transparent',
                 borderRadius: '15px',
                 cursor: 'pointer',
-                boxShadow: halfTimeModalSelectedBtn === 0 
+                boxShadow: halfTimeModalSelectedBtn === 0
                   ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(78, 205, 196, 0.4)'
                   : '0 10px 30px rgba(78, 205, 196, 0.4)',
                 transform: halfTimeModalSelectedBtn === 0 ? 'scale(1.05)' : 'scale(1)',
@@ -913,7 +941,7 @@ function SurvivalGame({
                 border: halfTimeModalSelectedBtn === 1 ? '4px solid #FFD700' : '4px solid transparent',
                 borderRadius: '15px',
                 cursor: 'pointer',
-                boxShadow: halfTimeModalSelectedBtn === 1 
+                boxShadow: halfTimeModalSelectedBtn === 1
                   ? '0 0 20px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(255, 107, 107, 0.4)'
                   : '0 10px 30px rgba(255, 107, 107, 0.4)',
                 transform: halfTimeModalSelectedBtn === 1 ? 'scale(1.05)' : 'scale(1)',
@@ -951,7 +979,7 @@ function SurvivalGame({
           }}>
             MAÇ SONUCU
           </div>
-          
+
           <div style={{
             fontSize: '32px',
             color: '#fff',
@@ -1037,9 +1065,9 @@ function SurvivalGame({
           </div>
           <div style={{ fontSize: '24px', color: '#fff', marginBottom: '40px', textAlign: 'center' }}>
             <span style={{ fontWeight: 'bold', color: '#FFD700' }}>{players[negativeScorePlayerIndex].name}</span>
-            <br/>
+            <br />
             negatif puana düşmüştür ({players[negativeScorePlayerIndex].score}).
-            <br/>
+            <br />
             Ne yapmak istersiniz?
           </div>
           <div style={{ display: 'flex', gap: '20px' }}>
@@ -1095,274 +1123,274 @@ function SurvivalGame({
         {players.map((player, index) => {
           const isActive = index === currentTurn;
           const playerColor = isActive ? currentColor : '#444444'; // Only active player needs the specific color
-          
+
           // Determine styles based on active state
           // If active, background matches player color (White/Yellow)
           // If inactive, background is dark transparent
           const panelBackground = isActive ? playerColor : 'rgba(255, 255, 255, 0.05)';
-          
+
           // Text colors: Black if active (on light bg), White if inactive (on dark bg)
           const scoreColor = isActive ? '#000000' : '#FFFFFF';
           const nameColor = isActive ? '#000000' : '#FFFFFF';
-          
+
           // Stats Panel Styles
           const statsBg = isActive ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0.6)';
           const statsBorder = isActive ? '1px solid rgba(0, 0, 0, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)';
           const statsBigBorder = isActive ? '2px solid rgba(0, 0, 0, 0.5)' : '2px solid rgba(255, 255, 255, 0.5)';
           const statsTextColor = isActive ? '#000000' : '#FFFFFF';
           const statsLabelColor = isActive ? '#444444' : '#aaaaaa';
-          
-          return (
-          <div key={index} style={{
-            background: panelBackground,
-            border: isActive ? `3px solid ${playerColor}` : '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '15px',
-            padding: '20px',
-            paddingTop: '50px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            position: 'relative',
-            boxShadow: isActive ? `0 0 20px ${playerColor}40` : 'none',
-            transition: 'background 0.3s, color 0.3s',
-            filter: player.isDisqualified ? 'blur(5px) grayscale(100%)' : 'none',
-            opacity: player.isDisqualified ? 0.5 : 1,
-            pointerEvents: player.isDisqualified ? 'none' : 'auto'
-          }}>
-            {/* Disqualified Overlay */}
-            {player.isDisqualified && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                fontSize: '48px',
-                fontWeight: 'bold',
-                color: '#FF0000',
-                textShadow: '0 0 20px black',
-                zIndex: 10,
-                transform: 'translate(-50%, -50%) rotate(-15deg)',
-                border: '5px solid red',
-                padding: '10px 20px',
-                borderRadius: '10px'
-              }}>
-                ELENDİ
-              </div>
-            )}
 
-            {/* Player Name with Photo */}
-            <div style={{ 
+          return (
+            <div key={index} style={{
+              background: panelBackground,
+              border: isActive ? `3px solid ${playerColor}` : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '15px',
+              padding: '20px',
+              paddingTop: '50px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '15px',
-              marginBottom: '20px'
-            }}>
-              {/* Player Photo */}
-              {playerPhotos[player.name] ? (
-                <div style={{
-                  width: 140,
-                  height: 140,
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
-                  flexShrink: 0,
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
-                }}>
-                  <img 
-                    src={playerPhotos[player.name]} 
-                    alt={player.name}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = '/logo.png';
-                      e.target.style.objectFit = 'contain';
-                      e.target.style.padding = '10%';
-                      e.target.style.background = '#1e293b';
-                    }}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                </div>
-              ) : (
-                <div style={{
-                  width: 140,
-                  height: 140,
-                  borderRadius: '50%',
-                  background: '#1e293b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
-                  overflow: 'hidden'
-                }}>
-                  <img 
-                    src="/logo.png" 
-                    alt="3CScore"
-                    style={{
-                      width: '80%',
-                      height: '80%',
-                      objectFit: 'contain'
-                    }}
-                  />
-                </div>
-              )}
-              {/* Player Name */}
-              <span style={{ 
-                fontSize: '32px', 
-                fontWeight: 'bold', 
-                color: nameColor,
-                textAlign: 'center'
-              }}>
-                {player.name}
-              </span>
-            </div>
-            
-            {/* Score */}
-            <div style={{ 
+              justifyContent: 'flex-start',
               position: 'relative',
-              marginTop: '-10px',
-              marginBottom: 'auto',
+              boxShadow: isActive ? `0 0 20px ${playerColor}40` : 'none',
+              transition: 'background 0.3s, color 0.3s',
+              filter: player.isDisqualified ? 'blur(5px) grayscale(100%)' : 'none',
+              opacity: player.isDisqualified ? 0.5 : 1,
+              pointerEvents: player.isDisqualified ? 'none' : 'auto'
             }}>
-              <div style={{ 
-                fontSize: '160px', 
-                fontWeight: 'bold', 
-                color: scoreColor,
-                textShadow: isActive ? 'none' : '0 0 20px rgba(0,0,0,0.5)'
-              }}>
-                {player.score}
-              </div>
-              
-              {/* Score Feedback Overlay */}
-              {scoreFeedback[index] !== undefined && (
+              {/* Disqualified Overlay */}
+              {player.isDisqualified && (
                 <div style={{
                   position: 'absolute',
-                  top: '-10px',
-                  right: '-80px',
-                  fontSize: '32px',
+                  top: '50%',
+                  left: '50%',
+                  fontSize: '48px',
                   fontWeight: 'bold',
-                  color: scoreFeedback[index] > 0 ? '#48d84d' : '#ff4d4d',
-                  textShadow: '0 0 10px rgba(0,0,0,0.8)',
-                  background: 'rgba(0,0,0,0.6)',
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  border: `2px solid ${scoreFeedback[index] > 0 ? '#48d84d' : '#ff4d4d'}`,
+                  color: '#FF0000',
+                  textShadow: '0 0 20px black',
                   zIndex: 10,
-                  animation: 'fadeInOut 3s ease-in-out'
+                  transform: 'translate(-50%, -50%) rotate(-15deg)',
+                  border: '5px solid red',
+                  padding: '10px 20px',
+                  borderRadius: '10px'
                 }}>
-                  {scoreFeedback[index] > 0 ? '+' : ''}{scoreFeedback[index]}
+                  ELENDİ
                 </div>
               )}
-            </div>
 
-            {/* Timeout Indicators */}
-            <div style={{
-              position: 'absolute',
-              bottom: '20px',
-              left: '20px',
-              display: 'flex',
-              gap: '8px'
-            }}>
-              {[...Array(player.timeoutLeft)].map((_, i) => (
-                <div key={i} style={{
-                  width: 48,
-                  height: 20,
-                  background: '#48d84d',
-                  borderRadius: 8,
-                  boxShadow: '0 0 6px #0003',
-                  border: '3px solid #185d26'
-                }} />
-              ))}
-            </div>
-
-            {/* Big RUN Panel */}
-            <div style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              bottom: '180px',
-              background: statsBg,
-              padding: '8px 20px',
-              borderRadius: '12px',
-              border: statsBigBorder,
-              textAlign: 'center',
-              minWidth: '100px'
-            }}>
-              <div style={{ fontSize: '14px', color: statsLabelColor, marginBottom: '2px' }}>RUN</div>
-              <div style={{ fontSize: '36px', fontWeight: 'bold', color: statsTextColor }}>
-                {player.currentRun}
-              </div>
-            </div>
-
-            {/* Small Stats Row (HR, AVG, TOTAL) */}
-            <div style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              bottom: '80px',
-              display: 'flex',
-              gap: '10px'
-            }}>
-              {/* HR */}
+              {/* Player Name with Photo */}
               <div style={{
-                background: statsBg,
-                padding: '5px 15px',
-                borderRadius: '10px',
-                border: statsBorder,
-                textAlign: 'center',
-                minWidth: '70px'
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '15px',
+                marginBottom: '20px'
               }}>
-                <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>HR</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
-                  {Math.max(...player.runs, player.currentRun, 0)}
+                {/* Player Photo */}
+                {playerPhotos[player.name] ? (
+                  <div style={{
+                    width: 140,
+                    height: 140,
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                    flexShrink: 0,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.4)'
+                  }}>
+                    <img
+                      src={playerPhotos[player.name]}
+                      alt={player.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/logo.png';
+                        e.target.style.objectFit = 'contain';
+                        e.target.style.padding = '10%';
+                        e.target.style.background = '#1e293b';
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: 140,
+                    height: 140,
+                    borderRadius: '50%',
+                    background: '#1e293b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    border: `4px solid ${isActive ? playerColor : 'rgba(255,255,255,0.3)'}`,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+                    overflow: 'hidden'
+                  }}>
+                    <img
+                      src="/logo.png"
+                      alt="3CScore"
+                      style={{
+                        width: '80%',
+                        height: '80%',
+                        objectFit: 'contain'
+                      }}
+                    />
+                  </div>
+                )}
+                {/* Player Name */}
+                <span style={{
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                  color: nameColor,
+                  textAlign: 'center'
+                }}>
+                  {player.name}
+                </span>
+              </div>
+
+              {/* Score */}
+              <div style={{
+                position: 'relative',
+                marginTop: '-10px',
+                marginBottom: 'auto',
+              }}>
+                <div style={{
+                  fontSize: '160px',
+                  fontWeight: 'bold',
+                  color: scoreColor,
+                  textShadow: isActive ? 'none' : '0 0 20px rgba(0,0,0,0.5)'
+                }}>
+                  {player.score}
+                </div>
+
+                {/* Score Feedback Overlay */}
+                {scoreFeedback[index] !== undefined && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '-80px',
+                    fontSize: '32px',
+                    fontWeight: 'bold',
+                    color: scoreFeedback[index] > 0 ? '#48d84d' : '#ff4d4d',
+                    textShadow: '0 0 10px rgba(0,0,0,0.8)',
+                    background: 'rgba(0,0,0,0.6)',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    border: `2px solid ${scoreFeedback[index] > 0 ? '#48d84d' : '#ff4d4d'}`,
+                    zIndex: 10,
+                    animation: 'fadeInOut 3s ease-in-out'
+                  }}>
+                    {scoreFeedback[index] > 0 ? '+' : ''}{scoreFeedback[index]}
+                  </div>
+                )}
+              </div>
+
+              {/* Timeout Indicators */}
+              <div style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '20px',
+                display: 'flex',
+                gap: '8px'
+              }}>
+                {[...Array(player.timeoutLeft)].map((_, i) => (
+                  <div key={i} style={{
+                    width: 48,
+                    height: 20,
+                    background: '#48d84d',
+                    borderRadius: 8,
+                    boxShadow: '0 0 6px #0003',
+                    border: '3px solid #185d26'
+                  }} />
+                ))}
+              </div>
+
+              {/* Big RUN Panel */}
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                bottom: '180px',
+                background: statsBg,
+                padding: '8px 20px',
+                borderRadius: '12px',
+                border: statsBigBorder,
+                textAlign: 'center',
+                minWidth: '100px'
+              }}>
+                <div style={{ fontSize: '14px', color: statsLabelColor, marginBottom: '2px' }}>RUN</div>
+                <div style={{ fontSize: '36px', fontWeight: 'bold', color: statsTextColor }}>
+                  {player.currentRun}
                 </div>
               </div>
 
-              {/* AVG */}
+              {/* Small Stats Row (HR, AVG, TOTAL) */}
               <div style={{
-                background: statsBg,
-                padding: '5px 15px',
-                borderRadius: '10px',
-                border: statsBorder,
-                textAlign: 'center',
-                minWidth: '90px'
+                position: 'absolute',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                bottom: '80px',
+                display: 'flex',
+                gap: '10px'
               }}>
-                <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>AVG</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
-                  {( (player.runs.reduce((a, b) => a + b, 0) + player.currentRun) / (player.runs.length + (player.currentRun > 0 ? 1 : 0) || 1) ).toFixed(3)}
+                {/* HR */}
+                <div style={{
+                  background: statsBg,
+                  padding: '5px 15px',
+                  borderRadius: '10px',
+                  border: statsBorder,
+                  textAlign: 'center',
+                  minWidth: '70px'
+                }}>
+                  <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>HR</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
+                    {Math.max(...player.runs, player.currentRun, 0)}
+                  </div>
+                </div>
+
+                {/* AVG */}
+                <div style={{
+                  background: statsBg,
+                  padding: '5px 15px',
+                  borderRadius: '10px',
+                  border: statsBorder,
+                  textAlign: 'center',
+                  minWidth: '90px'
+                }}>
+                  <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>AVG</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
+                    {((player.runs.reduce((a, b) => a + b, 0) + player.currentRun) / (player.runs.length + (player.currentRun > 0 ? 1 : 0) || 1)).toFixed(3)}
+                  </div>
+                </div>
+
+                {/* TOTAL SCORE */}
+                <div style={{
+                  background: statsBg,
+                  padding: '5px 15px',
+                  borderRadius: '10px',
+                  border: statsBorder,
+                  textAlign: 'center',
+                  minWidth: '70px'
+                }}>
+                  <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>TOTAL RUN</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
+                    {player.runs.reduce((a, b) => a + b, 0) + player.currentRun}
+                  </div>
                 </div>
               </div>
 
-              {/* TOTAL SCORE */}
-              <div style={{
-                background: statsBg,
-                padding: '5px 15px',
-                borderRadius: '10px',
-                border: statsBorder,
-                textAlign: 'center',
-                minWidth: '70px'
-              }}>
-                <div style={{ fontSize: '12px', color: statsLabelColor, marginBottom: '2px' }}>TOTAL RUN</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: statsTextColor }}>
-                  {player.runs.reduce((a, b) => a + b, 0) + player.currentRun}
-                </div>
-              </div>
+              {/* Stats (HR, Avg) could go here */}
             </div>
-            
-            {/* Stats (HR, Avg) could go here */}
-          </div>
           );
         })}
       </div>
 
       {/* Timer */}
-      <TimerProgressBar 
+      <TimerProgressBar
         isTimerRunning={isTimerRunning}
-        currentTurn={currentTurn} 
+        currentTurn={currentTurn}
         timerPhase={timerPhase}
         onTimerFinished={handleTimerFinished}
         resetTrigger={timerResetTrigger}

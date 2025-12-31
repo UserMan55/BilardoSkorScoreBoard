@@ -90,6 +90,14 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
         } else {
           // console.log("Eski veri - atlandı");
         }
+      } else {
+        // Maç durumu START değilse (IDLE, COMMAND vb.) bekleme moduna dön
+        setStatus('waiting');
+        setMatchPreview(null);
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
       }
     }, tableId);
 

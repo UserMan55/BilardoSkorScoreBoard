@@ -1611,17 +1611,20 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
       if (data.status === 'START') {
         console.log('📡 YENİ Maç komutu alındı, overlay gösteriliyor...', data);
-
-
-
         setIncomingMatchData(data);
         setShowMatchStartOverlay(true);
         setMatchStartCountdown(5);
-      } else if (data.status === 'COMMAND' && data.command === 'NAV') {
-        // NAV Logic
-        const action = data.payload.action;
-        console.log('🎮 NAV Command:', action);
-        navHandlersRef.current.handleNavAction(action);
+      } else {
+        // Maç komutu START değilse overlay'i kapat
+        setIncomingMatchData(null);
+        setShowMatchStartOverlay(false);
+
+        if (data.status === 'COMMAND' && data.command === 'NAV') {
+          // NAV Logic
+          const action = data.payload.action;
+          console.log('🎮 NAV Command:', action);
+          navHandlersRef.current.handleNavAction(action);
+        }
       }
     }, selectedTableId); // Explicit table ID
 

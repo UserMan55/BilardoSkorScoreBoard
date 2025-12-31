@@ -209,7 +209,22 @@ export function listenToTableStatus(tableId, onStatusChange) {
   const finalTableId = tableId || 'table_1';
   const unsubscribe = onSnapshot(doc(db, "table_status", finalTableId), (snapshot) => {
     if (snapshot.exists()) {
-      onStatusChange(snapshot.data());
+      const data = snapshot.data();
+
+      // --- HEARTBEAT KONTROLÜ ---
+      // Eğer durum BUSY ise ama son güncelleme 2 dakikadan (120 sn) eskiyse IDLE kabul et
+      if (data.status === 'BUSY' && data.lastUpdated) {
+        const lastUpdateSec = data.lastUpdated.seconds || 0;
+        const nowSec = Math.floor(Date.now() / 1000);
+
+        if (nowSec - lastUpdateSec > 120) {
+          console.warn(`⚠️ Masa ${finalTableId} verisi bayat (Ghost Match). Otomatik IDLE moduna geçiliyor.`);
+          onStatusChange({ ...data, status: 'IDLE', currentMatch: null });
+          return;
+        }
+      }
+
+      onStatusChange(data);
     } else {
       onStatusChange(null);
     }

@@ -274,21 +274,55 @@ function StandardGame({
     }
   };
 
-  // Interval ile Firebase'i güncelle (React render döngüsünden bağımsız)
+  // Akıllı Senkronizasyon ve Heartbeat
   useEffect(() => {
-    const syncInterval = setInterval(() => {
-      if (liveStatsRef.current) {
-        updateTableStatus('table_1', 'BUSY', liveStatsRef.current);
+    let lastStatsJson = "";
+
+    const syncTable = (force = false) => {
+      const currentStats = liveStatsRef.current;
+      if (!currentStats) return;
+
+      const statsJson = JSON.stringify(currentStats.stats);
+
+      // Eğer veri değişmişse veya force=true (heartbeat) ise gönder
+      if (force || statsJson !== lastStatsJson) {
+        lastStatsJson = statsJson;
+        updateTableStatus('table_1', 'BUSY', currentStats);
       }
-    }, 1000); // Her 1 saniyede bir güncelle
+    };
 
-    // İlk güncellemeyi hemen yap
-    if (liveStatsRef.current) {
-      updateTableStatus('table_1', 'BUSY', liveStatsRef.current);
-    }
+    // 1. Periyodik Kontrol (Değişiklik varsa 2s, yoksa 30s heartbeat)
+    const syncInterval = setInterval(() => {
+      // Sekme görünür değilse agresif güncellemeyi durdur
+      if (document.hidden) return;
+      syncTable(false); // Sadece değişiklik varsa gönder
+    }, 2000);
 
-    return () => clearInterval(syncInterval);
-  }, []); // Sadece mount/unmount'ta çalış
+    // 2. Heartbeat (Her 30 saniyede bir zorunlu güncelleme - Ghost Match önleyici için)
+    const heartbeatInterval = setInterval(() => {
+      if (document.hidden) return;
+      syncTable(true);
+    }, 30000);
+
+    // 3. Sekme Kapanırken Masayı Boşa Çıkar (Best Effort)
+    const handleUnload = () => {
+      if (!gameEnded) {
+        // Maç bitmeden çıkılıyorsa masayı IDLE yap (veya tercihen 'ABANDONED')
+        updateTableStatus('table_1', 'IDLE');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+
+    // İlk güncellemeyi yap
+    syncTable(true);
+
+    return () => {
+      clearInterval(syncInterval);
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [gameEnded]);
 
   // Birleşik uyarı mesajı oluştur (istaka + skor)
   const checkWarnings = (currentInning, currentScore) => {
