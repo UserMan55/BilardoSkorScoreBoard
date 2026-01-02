@@ -51,10 +51,10 @@ function TimerProgressBar({ isTimerRunning, currentTurn, timerPhase, onTimerFini
   }, [isTimerRunning, isTimerPaused, pausedColor, time]);
 
   const progressPercentage = (time / maxTime) * 100;
-  
+
   // Renk mantığı: Timer çalışıyorsa yeşil, durmuşsa oyuncu sırasına göre, ama kalan süreye göre uyar
   let barColor = '#00FF00'; // Default: çalışırken yeşil
-  
+
   if (!isTimerRunning && isTimerPaused) {
     // PAUSED durumunda: durdurma anındaki rengi koru
     barColor = pausedColor || '#00FF00';
@@ -80,14 +80,14 @@ function TimerProgressBar({ isTimerRunning, currentTurn, timerPhase, onTimerFini
     <div className="timer-progress-wrapper" style={height ? { height: `${height}px` } : {}}>
       <div className="progress-bar-container" style={height ? { height: `${height}px` } : {}}>
         <div className="progress-bar" style={height ? { height: `${height}px` } : {}}>
-          <div 
-            className="progress-fill" 
-            style={{ 
+          <div
+            className="progress-fill"
+            style={{
               width: `${progressPercentage}%`,
               background: barColor
             }}
           ></div>
-          <span className="timer-display-text">
+          <span className="timer-display-text" style={{ fontSize: height && height < 40 ? '24px' : '48px' }}>
             {formatTime(time)}
             {isTimerPaused && ' PAUSED'}
           </span>

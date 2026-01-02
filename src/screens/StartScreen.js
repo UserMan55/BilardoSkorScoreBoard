@@ -954,11 +954,16 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     // 1. Öncelik: Parent component'ten gelen loggedInUser (prop)
     if (loggedInUser) {
       console.log("✅ Giriş Yapan Kullanıcı (prop):", loggedInUser);
-      setCurrentUser(loggedInUser);
-      setupLocationFromUser(loggedInUser);
+      // Fix: Ensure ID is present (map uid to id if needed)
+      const userWithId = {
+        ...loggedInUser,
+        id: loggedInUser.id || loggedInUser.uid
+      };
+      setCurrentUser(userWithId);
+      setupLocationFromUser(userWithId);
       // Otomatik olarak Oyuncu 1 olarak seç
-      if (loggedInUser.id) {
-        setPlayer1(loggedInUser.id);
+      if (userWithId.id) {
+        setPlayer1(userWithId.id);
         setIsManualPlayer1(false);
         console.log("🎯 Oyuncu 1 otomatik seçildi:", loggedInUser.fullName);
       }
@@ -1796,12 +1801,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             playerPhotos: { [finalPlayer1]: photo1, [finalPlayer2]: photo2 },
             settings: { targetScore, targetRack, hasPenalty, hasAso }
           }, selectedTableId, matchMeta);
-          setErrorMessage("📡 Komut Başarıyla Gönderildi!");
-          setTimeout(() => {
-            setErrorMessage(null);
-            setControllerReadOnly(false);
-            setShowMobileController(true); // Mobil kontrol paneline geç
-          }, 2000);
+          setControllerReadOnly(false);
+          setShowMobileController(true); // Mobil kontrol paneline geç
         } catch (error) {
           setErrorMessage("❌ Komut Gönderilemedi: " + error.message);
         }
@@ -1843,12 +1844,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
             players: selectedPlayers,
             settings: {}
           }, selectedTableId || (currentSalon?.tables?.[0]?.id || 'table_1'), matchMeta);
-          setErrorMessage("📡 Komut Başarıyla Gönderildi!");
-          setTimeout(() => {
-            setErrorMessage(null);
-            setControllerReadOnly(false);
-            setShowMobileController(true); // Mobil kontrol paneline geç
-          }, 2000);
+          setControllerReadOnly(false);
+          setShowMobileController(true); // Mobil kontrol paneline geç
         } catch (error) {
           setErrorMessage("❌ Komut Gönderilemedi: " + error.message);
         }
@@ -2195,7 +2192,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         color: '#94a3b8', fontFamily: 'Inter, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ marginBottom: '20px', fontSize: '24px' }}>🎱</div>
+          <div className="loading-spinner" style={{ marginBottom: '20px' }}></div>
           <div>Salon Verileri Yükleniyor...</div>
           <div style={{ fontSize: '10px', marginTop: '20px', opacity: 0.5 }}>
             {Object.keys(SALONS_DATA).length} şehir bulundu
@@ -3976,8 +3973,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                       // SADECE GİRİŞ YAPMIŞ OYUNCULAR İÇİN GEÇERLİ - Misafir (Default) ise engel yok (veya tam tersi?)
                       // Kullanıcının talebi: "Prevent players from starting games they are not a part of"
                       const isUserInMatch = !currentUser || (currentUser.id === DEFAULT_USER_PROFILE.id) ||
-                        (isManualPlayer1 ? (manualPlayer1Name.trim() === currentUser.fullName) : (player1 === currentUser.id)) ||
-                        (isManualPlayer2 ? (manualPlayer2Name.trim() === currentUser.fullName) : (player2 === currentUser.id));
+                        (isManualPlayer1 ? (manualPlayer1Name.trim() === currentUser.fullName) : (player1 === currentUser.id || player1 === currentUser.uid)) ||
+                        (isManualPlayer2 ? (manualPlayer2Name.trim() === currentUser.fullName) : (player2 === currentUser.id || player2 === currentUser.uid));
 
                       const canStartMatch = isPlayer1Ready && isPlayer2Ready && !isTableBusy && isUserInMatch;
 

@@ -177,7 +177,7 @@ export function updateTableStatus(tableId, status, matchData = null, matchMeta =
     clearTimeout(tableStatusDebounceTimer);
   }
 
-  // 200ms sonra gönder (titreme önleme - UI'ı hiç bloklamaz)
+  // 50ms sonra gönder (minimize latency while preventing flood)
   tableStatusDebounceTimer = setTimeout(() => {
     if (!pendingTableStatus) return;
 

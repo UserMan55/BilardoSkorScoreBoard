@@ -293,7 +293,9 @@ function StandardGame({
       warningMessage: warningMessage,
       showMenuOverlay: showMenuOverlay,
       gameEnded: gameEnded,
-      showSaveConfirm: showSaveConfirm
+      gameEnded: gameEnded,
+      showSaveConfirm: showSaveConfirm,
+      showSwapConfirm: showSwapConfirm
     }
   };
 
@@ -345,7 +347,7 @@ function StandardGame({
       clearInterval(heartbeatInterval);
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [gameEnded]);
+  }, [gameEnded, runCount, player1Score, player2Score, currentTurn, inning, isTimerRunning, timerPhase, showSwapConfirm, showSaveConfirm, showMenuOverlay, warningMessage, notification]);
 
   // Birleşik uyarı mesajı oluştur (istaka + skor)
   const checkWarnings = (currentInning, currentScore) => {

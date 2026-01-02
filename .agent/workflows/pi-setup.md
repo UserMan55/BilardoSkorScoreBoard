@@ -464,6 +464,32 @@ journalctl -xe
 ~/kiosk.sh
 ```
 
+### 1GB / Düşük RAM Uyarısı (Pi Zero 2 W)
+Eğer Chromium açılmıyor ve bellek uyarısı veriyorsa:
+
+1. **Swap'i 2GB yapın:**
+   ```bash
+   sudo dphys-swapfile swapoff
+   sudo nano /etc/dphys-swapfile
+   # CONF_SWAPSIZE=2048
+   sudo dphys-swapfile setup
+   sudo dphys-swapfile swapon
+   ```
+
+2. **GPU Belleğini Düşürün:**
+   ```bash
+   sudo nano /boot/config.txt
+   # gpu_mem=64
+   ```
+
+3. **kiosk.sh Dosyasını Güncelleyin:**
+   Chromium komutuna şunları ekleyin:
+   ```bash
+   --disable-dev-shm-usage \
+   --no-sandbox \
+   --disk-cache-size=1
+   ```
+
 ### Ekran Siyah Kalıyor
 ```bash
 # HDMI ayarlarını kontrol et

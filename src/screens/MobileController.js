@@ -270,24 +270,40 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     setShowExitConfirm(false);
   };
 
+  // Optimistic Run State
+  const [optimisticRun, setOptimisticRun] = useState(null);
+
+  // Sync optimistic run with live data
+  useEffect(() => {
+    if (liveStats?.run !== undefined && optimisticRun !== null) {
+      if (liveStats.run === optimisticRun) {
+        setOptimisticRun(null); // Veri doğrulandı, optimistic state'i temizle
+      }
+    }
+  }, [liveStats]);
+
   const handleCommand = (command) => {
     if (isReadOnly) return;
 
-    // Titreşim geri bildirimi (mobil cihazlar için)
-    if (navigator.vibrate) {
-      navigator.vibrate(20); // Kısa titreşim
-    }
+    // Titreşim
+    if (navigator.vibrate) navigator.vibrate(20);
 
-    // Timer için optimistic update (görsel geri bildirim)
+    // Optimistic Updates
     if (command === 'TOGGLE_TIMER') {
       setTimerRunning(prev => !prev);
     }
+    else if (command === 'PLUS') {
+      const currentRun = optimisticRun !== null ? optimisticRun : (liveStats?.run || 0);
+      setOptimisticRun(currentRun + 1);
+    }
+    else if (command === 'MINUS') {
+      const currentRun = optimisticRun !== null ? optimisticRun : (liveStats?.run || 0);
+      setOptimisticRun(Math.max(0, currentRun - 1));
+    }
+    else if (command === 'OK') {
+      setOptimisticRun(0); // Sıra geçti, optimistic olarak 0 göster (null yaparsak eski değeri gösterir)
+    }
 
-    // NOT: RUN değeri için optimistic update kaldırıldı
-    // Tabela tarafı ile tutarsızlık oluşuyordu (race condition)
-    // Artık sadece Firebase'den gelen değerler kullanılıyor
-
-    // Fire-and-forget: await kaldırıldı, buton anında tepki veriyor
     sendMatchCommand(command, {}, tableId);
   };
 
@@ -304,56 +320,52 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     );
   }
 
-  // START komutu geldi - Maç başlıyor ekranı (matchData henüz yok ama startingMatchData var)
-  if (matchStarting && startingMatchData && !matchData) {
+  // START komutu geldi VEYA Swap Phase (Lagging seçimi) aktif
+  const isSwapPhase = liveStats?.showSwapConfirm;
+
+  if ((matchStarting && startingMatchData && !matchData) || isSwapPhase) {
+    // Verileri isSwapPhase durumuna göre seç
+    const displayData = isSwapPhase ? matchData : startingMatchData;
+    const p1Name = displayData?.players?.[0] || 'Oyuncu 1';
+    const p2Name = displayData?.players?.[1] || 'Oyuncu 2';
+    const settings = displayData?.settings || {};
+
     return (
       <div className="mobile-controller-wrapper">
         <div className="match-starting-screen">
-          <div className="starting-title">CANLI MAÇ BAŞLIYOR...</div>
+          <div className="starting-title">{isSwapPhase ? 'OYUNCU SEÇİMİ (LAGGING)' : 'CANLI MAÇ BAŞLIYOR...'}</div>
 
           <div className="starting-players">
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[startingMatchData.players[0]] || FALLBACK_AVATAR} alt={startingMatchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+                <img src={playerPhotos[p1Name] || FALLBACK_AVATAR} alt={p1Name} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
-              <div className="starting-player-name">{startingMatchData.players[0]}</div>
+              <div className="starting-player-name">{p1Name}</div>
             </div>
 
             <div className="starting-vs">VS</div>
 
             <div className="starting-player">
               <div className="starting-player-photo">
-                <img src={playerPhotos[startingMatchData.players[1]] || FALLBACK_AVATAR} alt={startingMatchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+                <img src={playerPhotos[p2Name] || FALLBACK_AVATAR} alt={p2Name} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
-              <div className="starting-player-name">{startingMatchData.players[1]}</div>
+              <div className="starting-player-name">{p2Name}</div>
             </div>
           </div>
 
           <div className="starting-details">
             <div className="starting-detail-item">
               <span className="detail-label">Hedef Sayı:</span>
-              <span className="detail-value">{startingMatchData.settings?.targetScore || 30}</span>
+              <span className="detail-value">{settings.targetScore}</span>
             </div>
             <div className="starting-detail-item">
               <span className="detail-label">Hedef İstaka:</span>
-              <span className="detail-value">{startingMatchData.settings?.targetRack || 30}</span>
-            </div>
-            <div className="starting-detail-item">
-              <span className="detail-label">Penaltı:</span>
-              <span className="detail-value" style={{ color: startingMatchData.settings?.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
-                {startingMatchData.settings?.hasPenalty ? 'VAR' : 'YOK'}
-              </span>
-            </div>
-            <div className="starting-detail-item">
-              <span className="detail-label">ASO:</span>
-              <span className="detail-value" style={{ color: startingMatchData.settings?.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
-                {startingMatchData.settings?.hasAso ? 'VAR' : 'YOK'}
-              </span>
+              <span className="detail-value">{settings.targetRack}</span>
             </div>
           </div>
 
           {/* Countdown veya Yer Değiştirme Sorusu */}
-          {countdown !== null && countdown > 0 ? (
+          {(countdown !== null && countdown > 0 && !isSwapPhase) ? (
             <div className="starting-countdown">
               {countdown}
             </div>
@@ -393,35 +405,27 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
     return (
       <div className="mobile-controller-wrapper">
         <div className="waiting-screen">
-          <div className="waiting-icon">🎮</div>
-          <h2>{isReadOnly ? 'Canlı İzleme' : 'Uzaktan Kumanda'}</h2>
-          <p>{isReadOnly ? 'Maç henüz başlamadı veya veri bekleniyor' : 'Menüde gezinmek için kullanın'}</p>
+          <div className="loading-spinner"></div>
+          <h2>{isReadOnly ? 'Canlı İzleme' : 'Bağlanıyor...'}</h2>
+          <p>{isReadOnly ? 'Maç henüz başlamadı veya veri bekleniyor' : 'Maç verileri yükleniyor, lütfen bekleyin...'}</p>
 
-          {!isReadOnly && (
-            <>
-              <div className="nav-pad-container">
-                <div className="d-pad-grid">
-                  <button className="d-btn up" onClick={() => handleNavCommand('UP')}>▲</button>
-                  <button className="d-btn left" onClick={() => handleNavCommand('LEFT')}>◀</button>
-                  <button className="d-btn enter" onClick={() => handleNavCommand('ENTER')}>OK</button>
-                  <button className="d-btn right" onClick={() => handleNavCommand('RIGHT')}>▶</button>
-                  <button className="d-btn down" onClick={() => handleNavCommand('DOWN')}>▼</button>
-                </div>
-                <div className="action-buttons">
-                  <button className="act-btn back" onClick={() => handleNavCommand('BACK')}>Geri</button>
-                  <button className="act-btn menu" onClick={() => handleNavCommand('MENU')}>Menü</button>
-                </div>
-              </div>
+          {/* Debug Bilgileri */}
+          <div style={{ fontSize: '11px', color: '#888', marginTop: '15px', fontFamily: 'monospace', textAlign: 'left', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px', lineHeight: '1.4' }}>
+            <div style={{ fontWeight: 'bold', color: '#00c3ff', marginBottom: '5px' }}>DEBUG INFO (v1.0.2)</div>
+            <div>Masa: {tableId}</div>
+            <div>Ben: {loggedInUser?.id || loggedInUser?.uid || 'Anonim'}</div>
+            <div>Auth: {loggedInUser ? 'Giriş Yapıldı' : 'Yok'}</div>
+            <div>ReadOnly: {isReadOnly ? 'EVET' : 'HAYIR'}</div>
+            <div>MatchData: {matchData ? 'VAR' : 'BEKLENİYOR...'}</div>
+          </div>
 
-              <button
-                className="back-home-btn"
-                onClick={handleBackToHome}
-                style={{ marginTop: '20px', background: 'rgba(255,255,255,0.1)' }}
-              >
-                Çıkış
-              </button>
-            </>
-          )}
+          <button
+            className="back-home-btn"
+            onClick={handleBackToHome}
+            style={{ marginTop: '20px', background: 'rgba(255,255,255,0.1)' }}
+          >
+            İptal / Çıkış
+          </button>
         </div>
       </div>
     );
@@ -719,7 +723,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
             <div className="run-display">
               <div className="run-label">RUN</div>
               <div className="run-value survival-run">
-                {liveStats?.run || 0}
+                {optimisticRun !== null ? optimisticRun : (liveStats?.run || 0)}
               </div>
             </div>
 
@@ -829,43 +833,43 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
       {/* Match Stats */}
       <div className="match-stats-panel">
-        <div className="inning-badge">
+        <div className="inning-badge" style={{ margin: '0 auto' }}>
           <span className="inning-label">INNING</span>
           <span className="inning-value">{liveStats?.inning ?? 0}</span>
         </div>
 
-        <div className="stats-row player-row">
-          <div className={`player-card player1 ${liveStats?.currentTurn === 0 ? 'active' : ''}`}>
-            <div className="player-name">{matchData.players[0]}</div>
+        <div className="stats-row player-row" style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+          <div className={`player-card player1 ${liveStats?.currentTurn === 0 ? 'active' : ''}`} style={{ flex: 1, minWidth: 0, width: '0', padding: '8px 5px' }}>
+            <div className="player-name" style={{ fontSize: '14px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{matchData.players[0]}</div>
             {/* Profile Picture */}
-            <div className="player-profile-pic">
-              <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+            <div className="player-profile-pic" style={{ width: '40px', height: '40px', margin: '0 auto 5px' }}>
+              <img src={playerPhotos[matchData.players[0]] || FALLBACK_AVATAR} alt={matchData.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
             </div>
-            <div className="player-score">{liveStats?.score1 || 0}</div>
-            <div className="player-stats">
+            <div className="player-score" style={{ fontSize: '28px', marginBottom: '5px' }}>{liveStats?.score1 || 0}</div>
+            <div className="player-stats" style={{ fontSize: '11px' }}>
               <span>HR: {liveStats?.eys1 || liveStats?.hr1 || 0}</span>
             </div>
             {/* Timeout hakları */}
             <div className="timeout-rights">
               {[...Array(liveStats?.player1TimeoutLeft || 0)].map((_, i) => (
-                <div key={i} className="timeout-box"></div>
+                <div key={i} className="timeout-box" style={{ height: '6px', width: '15px' }}></div>
               ))}
             </div>
           </div>
-          <div className={`player-card player2 ${liveStats?.currentTurn === 1 ? 'active' : ''}`}>
-            <div className="player-name">{matchData.players[1]}</div>
+          <div className={`player-card player2 ${liveStats?.currentTurn === 1 ? 'active' : ''}`} style={{ flex: 1, minWidth: 0, width: '0', padding: '8px 5px' }}>
+            <div className="player-name" style={{ fontSize: '14px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{matchData.players[1]}</div>
             {/* Profile Picture */}
-            <div className="player-profile-pic">
-              <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+            <div className="player-profile-pic" style={{ width: '40px', height: '40px', margin: '0 auto 5px' }}>
+              <img src={playerPhotos[matchData.players[1]] || FALLBACK_AVATAR} alt={matchData.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
             </div>
-            <div className="player-score">{liveStats?.score2 || 0}</div>
-            <div className="player-stats">
+            <div className="player-score" style={{ fontSize: '28px', marginBottom: '5px' }}>{liveStats?.score2 || 0}</div>
+            <div className="player-stats" style={{ fontSize: '11px' }}>
               <span>HR: {liveStats?.eys2 || liveStats?.hr2 || liveStats?.hr1_2 || 0}</span>
             </div>
             {/* Timeout hakları */}
             <div className="timeout-rights">
               {[...Array(liveStats?.player2TimeoutLeft || 0)].map((_, i) => (
-                <div key={i} className="timeout-box"></div>
+                <div key={i} className="timeout-box" style={{ height: '6px', width: '15px' }}></div>
               ))}
             </div>
           </div>
@@ -886,14 +890,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
         </div>
       </div>
 
-      {/* Notification Overlay */}
-      {liveStats?.notification && (
-        <div className={`mobile-notification mobile-notification-${liveStats.notification.type}`}>
-          <div className="notification-content">
-            {liveStats.notification.message}
-          </div>
-        </div>
-      )}
+      {/* Notification Overlay Removed */}
 
       {/* Warning Message */}
       {liveStats?.warningMessage && (
@@ -927,33 +924,35 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
       )}
 
       {/* Modern Remote Control */}
-      <div className="remote-control">
+      <div className="remote-control" style={{ padding: '10px 10px 30px', gap: '10px' }}>
         {/* Power Button - Top Left (sadece kontrol modunda) */}
         {!isReadOnly && (
           <button
             className="power-btn-exit"
             onClick={() => handleCommand('EXIT')}
             title="Maçtan Çık"
+            style={{ top: '5px', left: '5px', width: '30px', height: '30px', fontSize: '16px' }}
           >
             ✕
           </button>
         )}
 
         {/* RUN Display */}
-        <div className="run-display">
-          <div className="run-label">RUN</div>
-          <div className={`run-value ${liveStats?.currentTurn === 0 ? 'player1' : 'player2'}`}>
-            {liveStats?.run || 0}
+        <div className="run-display" style={{ marginBottom: '5px' }}>
+          <div className="run-label" style={{ fontSize: '12px', marginBottom: '2px' }}>RUN</div>
+          <div className={`run-value ${liveStats?.currentTurn === 0 ? 'player1' : 'player2'}`} style={{ fontSize: '40px', lineHeight: '1' }}>
+            {optimisticRun !== null ? optimisticRun : (liveStats?.run || 0)}
           </div>
         </div>
 
         {/* Control Buttons */}
         {!isReadOnly && (
-          <div className="control-buttons">
+          <div className="control-buttons" style={{ gap: '15px', marginBottom: '8px', justifyContent: 'center' }}>
             <button
               className="control-btn control-left"
               onClick={() => handleCommand('MINUS')}
               title="Run -1"
+              style={{ width: '60px', height: '60px', borderRadius: '50%', padding: '0', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               ◀
             </button>
@@ -961,6 +960,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               className="control-btn control-center"
               onClick={() => handleCommand('OK')}
               title="Sayıyı Ekle / Sıra Geç"
+              style={{ width: '75px', height: '75px', borderRadius: '50%', padding: '0', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px rgba(255, 215, 0, 0.4)' }}
             >
               OK
             </button>
@@ -968,6 +968,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               className="control-btn control-right"
               onClick={() => handleCommand('PLUS')}
               title="Run +1"
+              style={{ width: '60px', height: '60px', borderRadius: '50%', padding: '0', fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               ▶
             </button>
@@ -976,11 +977,12 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
 
         {/* Media Control Buttons */}
         {!isReadOnly && (
-          <div className="media-controls">
+          <div className="media-controls" style={{ gap: '15px', marginTop: '0' }}>
             <button
               className="media-btn"
               onClick={() => handleCommand('UNDO')}
               title="Geri Al (Undo)"
+              style={{ width: '50px', height: '50px', padding: '12px' }}
             >
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -990,6 +992,7 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
               className="media-btn media-btn-timer"
               onClick={() => handleCommand('TOGGLE_TIMER')}
               title="Timer Başlat/Durdur"
+              style={{ width: '50px', height: '50px', padding: '12px' }}
             >
               {timerRunning ? (
                 <svg viewBox="0 0 24 24" fill="currentColor">

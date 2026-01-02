@@ -15,8 +15,8 @@
 
 .progress-bar {
   width: 100%;
-  height: 60px;
-  /* Yükseklik artırıldı */
+  height: 35px;
+  /* Yükseklik azaltıldı (60px -> 35px) */
   background: rgba(255, 255, 255, 0.05);
   border-radius: 0;
   overflow: hidden;
@@ -31,12 +31,12 @@
 }
 
 .timer-display-text {
-  font-size: 48px;
-  /* Yazı boyutu daha da artırıldı */
+  font-size: 24px;
+  /* Yazı boyutu azaltıldı (48px -> 24px) */
   color: #000000;
   font-weight: 800;
   font-family: 'Courier New', monospace;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   /* Harf aralığı artırıldı */
   position: absolute;
   top: 50%;

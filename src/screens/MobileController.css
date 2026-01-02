@@ -2,8 +2,8 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
   color: white;
-  padding: 20px;
-  padding-bottom: 80px;
+  padding: 5px;
+  padding-bottom: 40px;
   /* Alt buton için boşluk */
   overflow-y: auto;
   position: relative;
@@ -203,8 +203,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding: 0 10px;
+  margin-bottom: 5px;
+  padding: 0 5px;
 }
 
 /* Header Çıkış Butonu */
@@ -349,9 +349,9 @@
   background: rgba(15, 23, 42, 0.85);
   /* Faster than transparent + blur */
   border-radius: 15px;
-  padding: 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: 8px;
+  margin-bottom: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -368,10 +368,14 @@
 
 .player-card {
   flex: 1;
+  min-width: 0;
+  /* Eşit genişlik için kritik */
+  width: 0;
+  /* Flex item'ın içeriğe göre büyümesini engeller */
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 15px;
-  padding: 15px;
+  padding: 8px;
   text-align: center;
   transition: all 0.3s ease;
 }
@@ -401,8 +405,8 @@
 }
 
 .player-profile-pic {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: linear-gradient(145deg, #3a3a3a 0%, #2a2a2a 100%);
   border: 2px solid rgba(255, 255, 255, 0.2);
@@ -446,10 +450,10 @@
 }
 
 .player-score {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: bold;
   color: #FFD700;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .player-stats {
@@ -475,15 +479,17 @@
 }
 
 .inning-badge {
-  display: inline-flex;
+  display: flex;
+  justify-content: center;
   align-items: center;
   gap: 8px;
-  margin: 0 0 6px 4px;
-  padding: 6px 10px;
+  margin: 0 auto 10px auto !important;
+  padding: 6px 15px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
+  border-radius: 20px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  width: fit-content;
 }
 
 .inning-label {
@@ -525,7 +531,7 @@
 }
 
 .info-value {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: bold;
   color: #FFD700;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
@@ -571,8 +577,8 @@
 .controller-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 /* Match End Screen */
@@ -661,15 +667,15 @@
 
 
 .ctrl-btn {
-  padding: 14px;
+  padding: 8px;
   border: none;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: bold;
   color: white;
   cursor: pointer;
   transition: transform 0.1s;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .ctrl-btn:active {
@@ -705,8 +711,8 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   grid-column: 1 / span 2;
   grid-row: 3;
-  padding: 16px;
-  font-size: 18px;
+  padding: 12px;
+  font-size: 16px;
 }
 
 /* Navigation Pad */
@@ -1701,3 +1707,6 @@
   background: linear-gradient(135deg, #FFE033 0%, #FFB733 100%);
   box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
 }
+.control-btn { border-radius: 50% !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 !important; }
+.control-left, .control-right { width: 70px !important; height: 70px !important; font-size: 24px !important; }
+.control-center { width: 85px !important; height: 85px !important; font-size: 24px !important; }
