@@ -174,10 +174,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   const [activeTab, setActiveTab] = useState("2vs2");
   const [names, setNames] = useState([]);
   // isMobileOnly prop'u varsa direkt controller modunda başla
-  // DEBUG: Mobil modda başlangıç kontrolü
-  console.log('🔧 StartScreen INIT - isMobileOnly:', isMobileOnly);
+  // Değilse (TV/Pi modu) menü modunda (null) başla ki kartları görsün
   const [deviceMode, setDeviceMode] = useState(isMobileOnly ? 'controller' : null);
-  console.log('🔧 StartScreen INIT - deviceMode:', isMobileOnly ? 'controller' : null);
+  console.log('🔧 StartScreen INIT - deviceMode:', isMobileOnly ? 'controller' : 'null');
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
 
   /* FIREBASE SALON DATASINI YÖNETEN STATE */
@@ -1051,50 +1050,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     return () => { isMounted = false; };
   }, []);
 
-  // Cihaz tipini algıla - Mobil/Masaüstü otomatik algılama
-  // NOT: isMobileOnly prop'u true ise bu algılama atlanır (zaten mobil mod zorlanmış)
-  useEffect(() => {
-    // isMobileOnly prop'u varsa otomatik algılama yapma, zaten controller modunda
-    if (isMobileOnly) {
-      console.log('📱 StartScreen: isMobileOnly=true, algılama atlanıyor');
-      return;
-    }
-
-    const userAgent = navigator.userAgent;
-    const screenWidth = window.innerWidth;
-    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-    // URL parametresinden mobile zorlama kontrolü
-    const urlParams = new URLSearchParams(window.location.search);
-    const forceMobile = urlParams.get('mobile') === 'true';
-
-    // Mobil algılama: User Agent VEYA (ekran <1024px VE touch var) VEYA (touch var VE tablet değil) VEYA (forceMobile)
-    const isMobile = forceMobile || /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
-      || (screenWidth <= 1024 && hasTouch);
-
-    console.log('🔍 User Agent:', userAgent);
-    console.log('🔍 Screen Width:', screenWidth);
-    console.log('🔍 Has Touch:', hasTouch);
-    console.log('🔍 isMobile:', isMobile);
-
-    if (isMobile) {
-      // Mobil cihaz -> Kumanda modu için StartScreen göster
-      console.log('📱 StartScreen: Mobil cihaz algılandı, mod seçim ekranı');
-      setDeviceMode('controller'); // DİKKAT: null yerine 'controller' yapıyoruz ki form açılsın
-      setIsScoreboardMode(false); // Scoreboard modunu kapat
-    } else {
-      // Masaüstü -> Ana ekranı (Logo) göster ve dinlemeye başla
-      console.log('🖥️ StartScreen: Masaüstü algılandı, Ana Ekran gösteriliyor');
-      setDeviceMode(null); // Logo ekranı
-      setIsScoreboardMode(false); // ScoreboardReceiver'ı kapat, StartScreen dinleyecek
-
-      // Masaüstü uygulaması (Tabela) açıldığında ve boşta beklerken masayı IDLE yap
-      // Bu sayede önceki oturumdan kalan 'BUSY' durumu temizlenir.
-      if (currentSalon && currentSalon.tables && currentSalon.tables.length > 0) {
-        updateTableStatus(currentSalon.tables[0].id, 'IDLE');
-      }
-    }
-  }, [isMobileOnly, currentSalon]);
+  // =====================================================
+  // CİHAZ ALGILAMA KALDIRILDI!
+  // Artık davranış tamamen BUILD TARGET'a göre belirleniyor:
+  // - Mobil Build (live.3cscore.com): deviceMode = 'controller' (isMobileOnly=true)
+  // - Terminal Build (bilardo-skor.web.app/tv): deviceMode = 'local' (isMobileOnly=false)
+  // Cihaz tipi (telefon/tablet/TV/PC) önemli DEĞİL!
+  // =====================================================
 
   // Masa durumunu dinle (Mobil/Controller modu için)
   useEffect(() => {
@@ -1686,8 +1648,8 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
               console.log('📱 Mobil: Canlı maç kontrol ekranına geçiliyor...');
               setShowMobileController(true);
             } else {
-              // Pi/Desktop build ise maçı başlat
-              setDeviceMode('local');
+              // Pi/Desktop build ise, deviceMode'u değiştirmeden maçı başlat
+              console.log('🖥️ StartScreen: Terminal/TV Build - algılama atlanıyor, deviceMode (null/menu) korunuyor');
               setTimeout(() => {
                 if (incomingMatchData) {
                   executeGameStart(incomingMatchData);
@@ -2221,7 +2183,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     );
   }
 
-  // Mod seçim ekranı (sadece desktop/tablet için)
+  // Mod seçim ekranı (sadece desktop/tablet/TV için)
   if (deviceMode === null) {
     console.log('✅ Rendering mode selection screen');
 

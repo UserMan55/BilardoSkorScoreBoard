@@ -16,11 +16,11 @@
   "scripts": {
     "start": "react-scripts start",
     "start:mobile": "set REACT_APP_BUILD_TARGET=mobile&& react-scripts start",
-    "start:pi": "set REACT_APP_BUILD_TARGET=pi&& react-scripts start",
-    "build": "react-scripts build",
+    "start:terminal": "set REACT_APP_BUILD_TARGET=terminal&& react-scripts start",
     "build:mobile": "set REACT_APP_BUILD_TARGET=mobile&& react-scripts build",
-    "build:pi": "set REACT_APP_BUILD_TARGET=pi&& react-scripts build",
+    "build:terminal": "set REACT_APP_BUILD_TARGET=terminal&& react-scripts build",
     "deploy:mobile": "npm run build:mobile && firebase deploy --only hosting",
+    "deploy:terminal": "npm run build:terminal && firebase deploy --only hosting",
     "deploy:pi": "powershell -ExecutionPolicy Bypass -File ./deploy-to-pi.ps1",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -37,7 +37,9 @@
     "production": [
       ">0.2%",
       "not dead",
-      "not op_mini all"
+      "not op_mini all",
+      "ie 11",
+      "defaults"
     ],
     "development": [
       "last 1 chrome version",

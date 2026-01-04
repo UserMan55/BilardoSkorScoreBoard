@@ -1,538 +1,201 @@
-import React, { useState, useEffect } from 'react';
-import StartScreen from './screens/StartScreen';
-import MobileController from './screens/MobileController';
-import MobileHome from './screens/MobileHome';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { updateTableStatus, verifyIdToken } from './services/firebase';
 import { getPlatformInfo, shouldApplySafeArea, shouldReduceMotion } from './utils/platformUtils';
 import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLock';
 
-// Build hedefine göre mod belirleme
-// REACT_APP_BUILD_TARGET=mobile ise sadece mobil ekranlar yüklenir
-const isPiMode = process.env.REACT_APP_BUILD_TARGET !== 'mobile';
+// Build Hedefi Kontrolü (Compile-time)
+const BUILD_TARGET = process.env.REACT_APP_BUILD_TARGET;
+const IS_MOBILE_BUILD = BUILD_TARGET === 'mobile';
+const IS_TERMINAL_BUILD = BUILD_TARGET === 'pi' || BUILD_TARGET === 'terminal';
 
-// Pi-only componentler - Sadece Pi modunda yüklenir (code splitting)
-let StandardGame = null;
-let SurvivalGame = null;
-let ScoreboardReceiver = null;
+// DEBUG: Build bilgilerini logla
+console.log('🔧 BUILD_TARGET:', BUILD_TARGET);
+console.log('🔧 IS_MOBILE_BUILD:', IS_MOBILE_BUILD);
+console.log('🔧 IS_TERMINAL_BUILD:', IS_TERMINAL_BUILD);
 
-if (isPiMode) {
-  StandardGame = require('./features/game/StandardGame').default;
-  SurvivalGame = require('./features/game/SurvivalGame').default;
-  ScoreboardReceiver = require('./screens/ScoreboardReceiver').default;
+// Lazy load components
+const StartScreen = lazy(() => import('./screens/StartScreen'));
+const MobileController = lazy(() => import('./screens/MobileController'));
+const ScoreboardReceiver = lazy(() => import('./screens/ScoreboardReceiver'));
+const SimpleGame = lazy(() => import('./features/game/SimpleGame'));
+const SurvivalGame = lazy(() => import('./features/game/SurvivalGame'));
+const TestTV = lazy(() => import('./screens/TestTV'));
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) { console.error("Uygulama Hatası:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 20, color: 'white', background: 'red' }}>
+          <h1>Bir hata oluştu!</h1>
+          <pre>{this.state.error?.toString()}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
-/**
- * Erişim Engellendi Ekranı
- * Token doğrulama başarısız olduğunda gösterilir
- * Şifre ile giriş alternatifi sunar
- */
+function BuildMismatchError({ target }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0f172a', color: '#fff', textAlign: 'center', padding: '20px' }}>
+      <div style={{ fontSize: '80px', marginBottom: '20px' }}>⚠️</div>
+      <h1 style={{ color: '#f87171' }}>Yanlış Uygulama Sürümü</h1>
+      <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '500px' }}>
+        Bu adres ({window.location.pathname}) <b>{target === 'mobile' ? 'Mobil Uygulama' : 'Terminal/Tabela'}</b> sürümüne aittir.
+        Lütfen doğru adresi kullandığınızdan emin olun.
+      </p>
+      <div style={{ marginTop: '30px', color: '#64748b' }}>
+        Build Target: <span style={{ color: '#3b82f6' }}>{BUILD_TARGET || 'default'}</span>
+      </div>
+    </div>
+  );
+}
+
 function AccessDenied({ message, onPasswordSuccess }) {
   const [showPasswordInput, setShowPasswordInput] = React.useState(false);
   const [password, setPassword] = React.useState('');
   const [passwordError, setPasswordError] = React.useState('');
-
   const handlePasswordSubmit = () => {
     if (password === '3cscore2025') {
       sessionStorage.setItem('3cscore_auth', 'true');
       if (onPasswordSuccess) onPasswordSuccess();
-    } else {
-      setPasswordError('Hatalı şifre!');
-    }
+    } else { setPasswordError('Hatalı şifre!'); }
   };
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#1a1a2e',
-      color: '#fff',
-      fontFamily: 'Arial, sans-serif',
-      textAlign: 'center',
-      padding: '20px'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1a1a2e', color: '#fff', textAlign: 'center', padding: '20px' }}>
       <div style={{ fontSize: '80px', marginBottom: '20px' }}>🚫</div>
-      <h1 style={{ color: '#e74c3c', marginBottom: '10px' }}>Erişim Engellendi</h1>
-      <p style={{ fontSize: '18px', color: '#aaa', maxWidth: '400px', marginBottom: '20px' }}>
-        {message || 'Bu uygulamaya erişim için 3cscore.com üzerinden giriş yapmanız gerekmektedir.'}
-      </p>
-
+      <h1 style={{ color: '#e74c3c' }}>Erişim Engellendi</h1>
+      <p style={{ color: '#aaa', marginBottom: '20px' }}>{message || 'Lütfen giriş yapın.'}</p>
       {!showPasswordInput ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-          <a
-            href="https://3cscore.com"
-            style={{
-              backgroundColor: '#3498db',
-              color: '#fff',
-              padding: '15px 40px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              display: 'block'
-            }}
-          >
-            3cscore.com'a Git
-          </a>
-          <button
-            onClick={() => setShowPasswordInput(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid #475569',
-              color: '#94a3b8',
-              padding: '12px 25px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            🔐 Admin Girişi
-          </button>
+          <a href="https://3cscore.com" style={{ backgroundColor: '#3498db', color: '#fff', padding: '15px 40px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' }}>3cscore.com'a Git</a>
+          <button onClick={() => setShowPasswordInput(true)} style={{ background: 'transparent', border: '1px solid #475569', color: '#94a3b8', padding: '12px 25px', borderRadius: '8px', cursor: 'pointer' }}>🔐 Admin Girişi</button>
         </div>
       ) : (
-        <div style={{
-          background: '#16213e',
-          padding: '25px',
-          borderRadius: '12px',
-          border: '1px solid #334155',
-          width: '280px'
-        }}>
-          <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Admin Şifresi</h3>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-            placeholder="Şifre"
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #334155',
-              background: '#1a1a2e',
-              color: 'white',
-              marginBottom: '10px',
-              boxSizing: 'border-box'
-            }}
-          />
+        <div style={{ background: '#16213e', padding: '25px', borderRadius: '12px', border: '1px solid #334155', width: '280px' }}>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="Şifre" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #334155', background: '#1a1a2e', color: 'white', marginBottom: '10px' }} />
           {passwordError && <div style={{ color: '#ef4444', fontSize: '14px', marginBottom: '10px' }}>{passwordError}</div>}
-          <button
-            onClick={handlePasswordSubmit}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#22c55e',
-              color: 'white',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              marginBottom: '10px'
-            }}
-          >
-            Giriş Yap
-          </button>
-          <button
-            onClick={() => setShowPasswordInput(false)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#64748b',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            ← Geri
-          </button>
+          <button onClick={handlePasswordSubmit} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#22c55e', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>Giriş Yap</button>
+          <button onClick={() => setShowPasswordInput(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', marginTop: '10px' }}>← Geri</button>
         </div>
       )}
     </div>
   );
 }
 
-/**
- * Token Doğrulama Yükleniyor Ekranı
- */
 function AuthLoading() {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#1a1a2e',
-      color: '#fff',
-      fontFamily: 'Arial, sans-serif'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1a1a2e', color: '#fff' }}>
       <div style={{ fontSize: '60px', marginBottom: '20px' }}>⏳</div>
-      <h2>Kimlik Doğrulanıyor...</h2>
-      <p style={{ color: '#aaa' }}>Lütfen bekleyin</p>
+      <h2>Yükleniyor...</h2>
     </div>
   );
 }
 
-// Client-side token doğrulama kullanılıyor (Cloud Function yerine)
-
 function App() {
-  // URL parametresine göre mod belirleme
-  const urlParams = new URLSearchParams(window.location.search);
-  const isReceiverMode = urlParams.get('mode') === 'receiver';
-  const isMobileControllerMode = urlParams.get('mode') === 'controller';
-  const urlTableId = urlParams.get('table') || 'table_1';
-  const urlToken = urlParams.get('token'); // Firebase ID Token
-  const isForceMobile = urlParams.get('mobile') === 'true'; // Test için mobil modu zorla
+  const urlPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const isTVUrl = urlPath.includes('/tv') || urlPath.includes('/scoreboard') || urlParams.get('mode') === 'tv';
 
-  // Auth durumu - Sadece mobil build'de veya force mobile'da kontrol edilir
-  // Ancak test kolaylığı için force mobile'da auth loading'i atlayalım (isPiMode gibi davransın, ama mobileOnly olsun)
+  // Hooks
   const [authState, setAuthState] = useState({
-    loading: !isPiMode && !isForceMobile, // Pi'de loading yok, Mobil'de var, force mobile'da da yok
-    authenticated: isPiMode || isForceMobile, // Pi default olarak authenticated, force mobile'da da
-    error: null,
-    user: null
+    loading: !IS_TERMINAL_BUILD,
+    authenticated: IS_TERMINAL_BUILD,
+    error: null, user: null
   });
 
-  // Başlangıç ekranını belirle
   const getInitialScreen = () => {
-    if (isMobileControllerMode) return 'controller'; // URL'de mode=controller varsa
-    if (!isPiMode) return 'start'; // Mobil build - StartScreen (maç başlatma)
-    if (isReceiverMode) return 'receiver'; // Pi receiver mode
-    return 'start'; // Pi default - StartScreen
+    if (urlParams.get('mode') === 'controller') return 'controller';
+    if (IS_TERMINAL_BUILD) {
+      return urlParams.get('mode') === 'receiver' ? 'receiver' : 'start';
+    }
+    return 'start';
   };
 
   const [screen, setScreen] = useState(getInitialScreen());
   const [gameSettings, setGameSettings] = useState(null);
   const [survivalPlayers, setSurvivalPlayers] = useState([]);
   const [gameKey, setGameKey] = useState(Date.now());
-  const [controllerTableId, setControllerTableId] = useState(urlTableId);
-  const [mobileScreen, setMobileScreen] = useState('home'); // Mobil ekran durumu
-  const [platform, setPlatform] = useState(getPlatformInfo()); // Platform bilgisi
+  const [controllerTableId, setControllerTableId] = useState(urlParams.get('table') || 'table_1');
 
-  // Platform Algılama ve Wake Lock Başlatma
   useEffect(() => {
-    const info = getPlatformInfo();
-    setPlatform(info);
-    console.log("🖥️ Platform:", info.deviceType, "| TV:", info.isSmartTV);
-
-    // Eğer bir "Receiver" veya "Oyun" ekranındaysak (Tabela modu) Wake Lock'u aç
-    // Mobil kontrolcü ekranında da ekranın kapanmaması iyidir
     if (screen === 'receiver' || screen === 'standard' || screen === 'survival' || screen === 'controller') {
       requestWakeLock();
       setupWakeLockVisibilityHandler();
     }
-    // Screen değişince tekrar kontrol et (örn: menüden oyuna girince)
   }, [screen]);
 
-  // Başlangıç ekranındaysak masayı IDLE yap (Önceki oturumdan kalan BUSY durumunu temizle)
   useEffect(() => {
-    if (screen === 'start' && isPiMode) {
-      // 1 saniye gecikmeli yap ki Firebase bağlantısı tam otursun
-      const timer = setTimeout(() => {
-        console.log("🧹 Masa durumu temizleniyor: IDLE");
-        updateTableStatus('table_1', 'IDLE');
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (screen === 'start' && IS_TERMINAL_BUILD) {
+      setTimeout(() => updateTableStatus('table_1', 'IDLE'), 1000);
     }
-  }, [screen]);
+  }, [screen, IS_TERMINAL_BUILD]);
 
-  // Token doğrulama - Sadece mobil build'de çalışır
   useEffect(() => {
-    if (isPiMode) return; // Pi'de token doğrulama yok
-
-    // Şifre ile giriş yapılmış mı kontrol et
+    if (IS_TERMINAL_BUILD) return;
     if (sessionStorage.getItem('3cscore_auth') === 'true') {
-      console.log('✅ Session auth geçerli');
-      setAuthState({
-        loading: false,
-        authenticated: true,
-        error: null,
-        user: { uid: 'admin_session', name: 'Admin' }
-      });
+      setAuthState({ loading: false, authenticated: true, error: null, user: { uid: 'admin', name: 'Admin' } });
       return;
     }
-
-    const verifyToken = async () => {
-      // Token yoksa erişim engelle
-      if (!urlToken) {
-        console.log('❌ Token bulunamadı');
-        setAuthState({
-          loading: false,
-          authenticated: false,
-          error: 'Token bulunamadı. Lütfen 3cscore.com üzerinden giriş yapın.',
-          user: null
-        });
-        return;
-      }
-
-      try {
-        console.log('🔐 Token doğrulanıyor...');
-
-        // Client-side token doğrulama
-        const result = await verifyIdToken(urlToken);
-
-        if (result.valid) {
-          console.log('✅ Token doğrulandı:', result.uid);
-          setAuthState({
-            loading: false,
-            authenticated: true,
-            error: null,
-            user: {
-              uid: result.uid,
-              email: result.email,
-              name: result.name
-            }
-          });
-        } else {
-          console.log('❌ Token geçersiz:', result.error);
-          setAuthState({
-            loading: false,
-            authenticated: false,
-            error: result.error || 'Token doğrulanamadı',
-            user: null
-          });
-        }
-      } catch (error) {
-        console.error('❌ Token doğrulama hatası:', error);
-        setAuthState({
-          loading: false,
-          authenticated: false,
-          error: 'Bağlantı hatası. Lütfen tekrar deneyin.',
-          user: null
-        });
-      }
-    };
-
-    verifyToken();
-  }, [urlToken]);
-
-  // Global Context Menu Prevention (Disable Right Click / Menu Key)
-  useEffect(() => {
-    const handleContextMenu = (e) => {
-      e.preventDefault();
-    };
-    window.addEventListener('contextmenu', handleContextMenu);
-    return () => window.removeEventListener('contextmenu', handleContextMenu);
-  }, []);
-
-  // Global "Home" Key Handler (Folder Button on Remote) - Pi only
-  useEffect(() => {
-    if (!isPiMode) return; // Mobil build'de bu handler çalışmaz
-
-    const handleGlobalKeyDown = (e) => {
-      // "BrowserHome" is the standard key for the Home button on multimedia keyboards/remotes
-      // Also checking "HomePage" just in case
-      if (e.key === 'BrowserHome' || e.key === 'HomePage' || e.code === 'BrowserHome') {
-        e.preventDefault(); // Prevent default browser behavior
-
-        if (screen === 'start') {
-          // If on start screen, reload/reset the app to origin
-          console.log("🏠 Home Key: Reloading App...");
-          window.location.href = window.location.origin;
-        } else {
-          // If in game, ignore it completely
-          console.log("🚫 Home Key: Ignored during game.");
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [screen]);
-
-  // App seviyesinde mobil kontrolü ve yönlendirme
-  useEffect(() => {
-    const userAgent = navigator.userAgent;
-    const screenWidth = window.innerWidth;
-    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
-      || (screenWidth <= 1024 && hasTouch);
-
-    if (isMobile && screen === 'receiver') {
-      console.log("📱 App.js: Mobil cihaz algılandı, StartScreen'e zorlanıyor.");
-      setScreen('start');
+    const token = urlParams.get('token');
+    if (!token) {
+      setAuthState({ loading: false, authenticated: false, error: 'Lütfen giriş yapın.', user: null });
+      return;
     }
-  }, [screen]);
-
-  // Auth kontrolü - Mobil build için (hook'lardan sonra olmalı)
-  if (!isPiMode && !isForceMobile) { // isForceMobile durumunda auth'u atla
-    if (authState.loading) {
-      return <AuthLoading />;
-    }
-    if (!authState.authenticated) {
-      return <AccessDenied message={authState.error} onPasswordSuccess={() => {
-        setAuthState({ loading: false, authenticated: true, error: null, user: { uid: 'admin_session', name: 'Admin' } });
-      }} />;
-    }
-  }
-
-  const handleStartStandard = (p1, p2, tScore, tRack, penalty, aso, isFreeMode = false, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {
-    if (!isPiMode) return; // Mobil'de oyun başlatma yok
-
-    const settings = {
-      player1Name: p1,
-      player2Name: p2,
-      targetScore: tScore,
-      targetRack: tRack,
-      hasPenalty: penalty,
-      hasAso: aso,
-      isFreeMode: isFreeMode,
-      tableName: tableName,
-      salonName: salonName
-    };
-    setGameSettings(settings);
-    setScreen('standard');
-
-    // Masa durumunu BUSY yap (Serbest mod dahil tüm modlar için)
-    updateTableStatus('table_1', 'BUSY', {
-      mode: isFreeMode ? 'free' : '2vs2',
-      players: [p1, p2],
-      settings: { targetScore: tScore, isFreeMode }
+    verifyIdToken(token).then(res => {
+      setAuthState({ loading: false, authenticated: res.valid, error: res.error, user: res.valid ? { uid: res.uid, email: res.email, name: res.name } : null });
     });
+  }, [IS_TERMINAL_BUILD, urlParams]);
+
+  // Early returns AFTER hooks
+  if (IS_MOBILE_BUILD && isTVUrl) return <BuildMismatchError target="mobile" />;
+  if (!IS_TERMINAL_BUILD && authState.loading) return <AuthLoading />;
+  if (!IS_TERMINAL_BUILD && !authState.authenticated) return <AccessDenied message={authState.error} onPasswordSuccess={() => setAuthState({ loading: false, authenticated: true, user: { uid: 'admin' } })} />;
+
+  // Handlers
+  const handleStartStandard = (p1, p2, tScore, tRack, penalty, aso, isFreeMode = false) => {
+    setGameSettings({ player1Name: p1, player2Name: p2, targetScore: tScore, targetRack: tRack, hasPenalty: penalty, hasAso: aso, isFreeMode });
+    setScreen('standard');
+    updateTableStatus('table_1', 'BUSY', { mode: isFreeMode ? 'free' : '2vs2', players: [p1, p2] });
   };
 
-  const handleStartSurvival = (players, tableName = 'Masa 1', salonName = 'SALON 3CSCORE') => {
-    if (!isPiMode) return; // Mobil'de oyun başlatma yok
-
+  const handleStartSurvival = (players) => {
     setSurvivalPlayers(players);
-    setGameSettings({ tableName, salonName });
-    setGameKey(Date.now()); // Force new component instance
+    setGameKey(Date.now());
     setScreen('survival');
-
-    // Masa durumunu BUSY yap
-    updateTableStatus('table_1', 'BUSY', {
-      mode: 'survival',
-      players: players,
-      settings: {}
-    });
+    updateTableStatus('table_1', 'BUSY', { mode: 'survival', players });
   };
 
   const handleExitGame = () => {
-    setScreen(isReceiverMode ? 'receiver' : 'start');
-    setGameSettings(null);
-    setSurvivalPlayers([]);
-
-    // Masa durumunu IDLE yap
+    setScreen(IS_TERMINAL_BUILD && urlParams.get('mode') === 'receiver' ? 'receiver' : 'start');
     updateTableStatus('table_1', 'IDLE');
   };
 
-  const handleReceiveMatchData = (data) => {
-    if (!isPiMode) return; // Mobil'de receiver yok
-
-    // Firebase'den gelen maç verilerini al ve oyunu başlat
-    if (data && data.players && data.settings) {
-      const [p1, p2] = data.players;
-      const { targetScore, targetRack, hasAso, hasPenalty } = data.settings;
-
-      const settings = {
-        player1Name: p1,
-        player2Name: p2,
-        targetScore: targetScore,
-        targetRack: targetRack,
-        hasPenalty: hasPenalty,
-        hasAso: hasAso,
-        tableName: data.tableName || 'Masa 1',
-        salonName: data.salonName || 'SALON 3CSCORE'
-      };
-
-      setGameSettings(settings);
-      setScreen('standard');
-
-      // Masa durumunu BUSY yap (urlTableId kullanarak)
-      updateTableStatus(urlTableId, 'BUSY', {
-        mode: '2vs2',
-        players: [p1, p2],
-        settings: { targetScore: targetScore }
-      });
-    }
-  };
-
-  // MobileController'a geçiş (canlı maç takibi için)
-  const handleShowController = (tableId = 'table_1') => {
-    setControllerTableId(tableId);
-    setScreen('controller');
-  };
-
-  // MobileController'dan çıkış
-  const handleExitController = () => {
-    setControllerTableId('table_1');
-    setScreen('start');
-    // URL'den mode parametresini temizle
-    window.history.replaceState({}, '', window.location.pathname);
-  };
-
-
-
-
-
-
   const content = (
-    <>
-      {/* Mobile Controller - Her iki platformda da var */}
-      {screen === 'controller' && (
-        <MobileController
-          tableId={controllerTableId}
-          onBack={handleExitController}
-          loggedInUser={authState.user} // Kimlik doğrulama bilgisi
-        />
-      )}
-
-      {/* Pi-only: Receiver Ekranı */}
-      {screen === 'receiver' && isPiMode && ScoreboardReceiver && (
-        <ScoreboardReceiver
-          onStartGame={handleReceiveMatchData}
-          tableId={urlTableId}
-        />
-      )}
-
-      {/* Start Screen - Her iki platformda da var */}
-      {screen === 'start' && (
-        <StartScreen
-          onStart={isPiMode ? handleStartStandard : undefined}
-          onSurvivalStart={isPiMode ? handleStartSurvival : undefined}
-          loggedInUser={authState.user} // Mobil giriş yapan kullanıcı
-          isMobileOnly={!isPiMode || isForceMobile} // Mobil build veya URL parametresi
-          onShowController={handleShowController}
-        />
-      )}
-
-      {/* Pi-only: Game Screens */}
-      {screen === 'standard' && isPiMode && StandardGame && (
-        <StandardGame {...gameSettings} onExit={handleExitGame} tableId={urlTableId} />
-      )}
-      {screen === 'survival' && isPiMode && SurvivalGame && (
-        <SurvivalGame
-          key={gameKey}
-          players={survivalPlayers}
-          onExit={handleExitGame}
-          tableName={gameSettings?.tableName || 'Masa 1'}
-          salonName={gameSettings?.salonName || 'SALON 3CSCORE'}
-          tableId={urlTableId}
-        />
-      )}
-    </>
+    <Suspense fallback={<AuthLoading />}>
+      {screen === 'controller' && IS_MOBILE_BUILD && <MobileController tableId={controllerTableId} onBack={() => setScreen('start')} loggedInUser={authState.user} />}
+      {screen === 'receiver' && IS_TERMINAL_BUILD && <ScoreboardReceiver onStartGame={(data) => handleStartStandard(data.players[0], data.players[1], data.settings.targetScore, data.settings.targetRack, data.settings.hasPenalty, data.settings.hasAso)} tableId="table_1" />}
+      {screen === 'start' && <StartScreen onStart={IS_TERMINAL_BUILD ? handleStartStandard : undefined} onSurvivalStart={IS_TERMINAL_BUILD ? handleStartSurvival : undefined} isMobileOnly={IS_MOBILE_BUILD} onShowController={(tid) => { setControllerTableId(tid); setScreen('controller'); }} />}
+      {screen === 'standard' && IS_TERMINAL_BUILD && <SimpleGame {...gameSettings} onExit={handleExitGame} tableId="table_1" />}
+      {screen === 'survival' && IS_TERMINAL_BUILD && <SurvivalGame key={gameKey} players={survivalPlayers} onExit={handleExitGame} tableId="table_1" />}
+    </Suspense>
   );
 
-  // TV ve Overscan için sarmalayıcı (Sadece Tabela modunda)
-  // Eğer Smart TV ise kenarlardan boşluk bırakır (Safe Area)
-  if (isPiMode && (screen === 'standard' || screen === 'survival' || screen === 'receiver')) {
-    const safeAreaStyle = shouldApplySafeArea() ? {
-      padding: '2vw', // TV Overscan koruması
-      boxSizing: 'border-box',
-      width: '100vw',
-      height: '100vh',
-      overflow: 'hidden'
-    } : {};
-
-    return (
-      <div style={safeAreaStyle} className={shouldReduceMotion() ? 'reduce-motion' : ''}>
-        {content}
-      </div>
-    );
-  }
-
-  return content;
+  return (
+    <ErrorBoundary>
+      {IS_TERMINAL_BUILD && (screen === 'standard' || screen === 'survival' || screen === 'receiver') ? (
+        <div style={shouldApplySafeArea() ? { padding: '2vw', boxSizing: 'border-box', width: '100vw', height: '100vh', overflow: 'hidden' } : {}} className={shouldReduceMotion() ? 'reduce-motion' : ''}>
+          {content}
+        </div>
+      ) : content}
+    </ErrorBoundary>
+  );
 }
 
 export default App;

@@ -133,7 +133,7 @@ function StandardGame({
       }
     };
 
-    fetchPhotos();
+    // fetchPhotos();
   }, [player1Name, player2Name]);
 
   // İzleyici sayısını dinle
@@ -150,7 +150,7 @@ function StandardGame({
 
     const unsubscribe = listenForMatchCommands((data) => {
       if (data && data.status === 'COMMAND') {
-        const currentTimestamp = data.timestamp?.seconds || 0;
+        const currentTimestamp = (data.timestamp && data.timestamp.seconds) ? data.timestamp.seconds : 0;
 
         // Sadece yeni komutları işle
         if (currentTimestamp > lastProcessedTimestamp) {
@@ -1728,6 +1728,7 @@ function StandardGame({
               </div>
             )}
 
+            {/* 
             <ScorePanel
               inning={inning}
               run={runCount}
@@ -1743,7 +1744,15 @@ function StandardGame({
               salonName={salonName}
               viewerCount={viewerCount}
             />
+            */}
+
+            <h1 style={{ color: 'white', fontSize: '30px', textAlign: 'center', background: 'blue' }}>
+              GAME ACTIVE: {player1Score} - {player2Score}
+            </h1>
+
+            {/* <div style={{ width: '20px' }} /> Boşluk için spacer */}
           </div>
+          {/*
           <PlayerPanel
             name={player2Name}
             score={player2Score}
@@ -1757,9 +1766,11 @@ function StandardGame({
             timeoutLeft={player2TimeoutLeft}
             photoURL={playerPhotos[player2Name]}
           />
+          */}
         </div>
         <div style={{ width: '100%', minHeight: '65px', flexShrink: 0 }}>
-          <TimerProgressBar
+          {/* TimerProgressBar devre dışı (TV Performans Testi) */}
+          {/* <TimerProgressBar
             isTimerRunning={isTimerRunning}
             currentTurn={currentTurn}
             timerPhase={timerPhase}
@@ -1768,7 +1779,7 @@ function StandardGame({
             isTimerPaused={isTimerPaused}
             activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
             duration={40}
-          />
+          /> */}
         </div>
 
         {/* Menu Overlay */}

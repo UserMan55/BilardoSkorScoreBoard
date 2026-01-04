@@ -1,0 +1,6 @@
+#!/bin/bash
+xset s off
+xset -dpms
+xset s noblank
+unclutter &
+exec chromium --kiosk --noerrdialogs --disable-infobars "http://localhost/?mode=scoreboard&table=table_1"

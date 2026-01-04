@@ -26,10 +26,10 @@ if [ -f "skorboard.zip" ]; then
     rm skorboard.zip
 fi
 
-# Nginx kurulumu (hafif web server)
-echo -e "${YELLOW}🌐 Nginx kurulumu...${NC}"
+# Midori kurulumu (Hafif tarayıcı)
+echo -e "${YELLOW}🌐 Midori tarayıcı kurulumu...${NC}"
 sudo apt update
-sudo apt install -y nginx unclutter xdotool
+sudo apt install -y midori unclutter xdotool
 
 # Nginx konfigürasyonu
 echo -e "${YELLOW}⚙️ Nginx yapılandırılıyor...${NC}"
@@ -64,7 +64,7 @@ sudo systemctl restart nginx
 echo -e "${GREEN}✅ Web sunucusu hazır!${NC}"
 
 # Kiosk script'i oluştur
-echo -e "${YELLOW}🖥️ Kiosk modu yapılandırılıyor...${NC}"
+echo -e "${YELLOW}🖥️ Kiosk modu yapılandırılıyor (Midori)...${NC}"
 cat > ~/kiosk.sh << 'EOF'
 #!/bin/bash
 
@@ -76,31 +76,11 @@ xset -dpms
 # Fare imlecini gizle
 unclutter -idle 0.5 -root &
 
-# Chromium hata pencerelerini temizle
-sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/Default/Preferences 2>/dev/null
-sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences 2>/dev/null
-
 # Ağ bağlantısı için bekle
-sleep 5
+sleep 10
 
-# Chromium Kiosk modunda başlat (Lokal sunucu)
-chromium-browser \
-  --kiosk \
-  --noerrdialogs \
-  --disable-infobars \
-  --disable-session-crashed-bubble \
-  --disable-restore-session-state \
-  --disable-translate \
-  --no-first-run \
-  --start-fullscreen \
-  --incognito \
-  --disable-pinch \
-  --overscroll-history-navigation=0 \
-  --disable-gpu \
-  --disable-software-rasterizer \
-  --disable-dev-shm-usage \
-  --memory-pressure-off \
-  'http://localhost/?mode=scoreboard&table=table_1'
+# Midori Kiosk modunda başlat
+midori -e Fullscreen -a http://localhost/?mode=scoreboard&table=table_1
 EOF
 
 chmod +x ~/kiosk.sh
@@ -114,12 +94,13 @@ Name=Skorboard Kiosk
 Exec=/home/pi/kiosk.sh
 EOF
 
-# Watchdog script'i (Chromium crash recovery)
+# Watchdog script'i (Midori crash recovery)
 cat > ~/watchdog.sh << 'EOF'
 #!/bin/bash
 while true; do
-  if ! pgrep -x "chromium-browse" > /dev/null; then
-    echo "$(date): Chromium yeniden başlatılıyor..."
+  if ! pgrep -x "midori" > /dev/null; then
+    echo "$(date): Midori yeniden başlatılıyor..."
+    export DISPLAY=:0
     /home/pi/kiosk.sh &
   fi
   sleep 30
@@ -131,7 +112,7 @@ chmod +x ~/watchdog.sh
 cat > ~/.config/autostart/watchdog.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Name=Chromium Watchdog
+Name=Browser Watchdog
 Exec=/home/pi/watchdog.sh
 EOF
 

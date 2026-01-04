@@ -1,0 +1,12 @@
+[Unit]
+Description=Kiosk start
+After=network.target
+
+[Service]
+User=pi
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars "http://localhost/?mode=scoreboard&table=table_1"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
