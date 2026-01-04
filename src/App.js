@@ -4,15 +4,6 @@ import { getPlatformInfo, shouldApplySafeArea, shouldReduceMotion } from './util
 import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLock';
 
 // Build Hedefi Kontrolü (Compile-time)
-const BUILD_TARGET = process.env.REACT_APP_BUILD_TARGET;
-const IS_MOBILE_BUILD = BUILD_TARGET === 'mobile';
-const IS_TERMINAL_BUILD = BUILD_TARGET === 'pi' || BUILD_TARGET === 'terminal';
-
-// DEBUG: Build bilgilerini logla
-console.log('🔧 BUILD_TARGET:', BUILD_TARGET);
-console.log('🔧 IS_MOBILE_BUILD:', IS_MOBILE_BUILD);
-console.log('🔧 IS_TERMINAL_BUILD:', IS_TERMINAL_BUILD);
-
 // Lazy load components
 const StartScreen = lazy(() => import('./screens/StartScreen'));
 const MobileController = lazy(() => import('./screens/MobileController'));
@@ -39,22 +30,6 @@ class ErrorBoundary extends React.Component {
     }
     return this.props.children;
   }
-}
-
-function BuildMismatchError({ target }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0f172a', color: '#fff', textAlign: 'center', padding: '20px' }}>
-      <div style={{ fontSize: '80px', marginBottom: '20px' }}>⚠️</div>
-      <h1 style={{ color: '#f87171' }}>Yanlış Uygulama Sürümü</h1>
-      <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '500px' }}>
-        Bu adres ({window.location.pathname}) <b>{target === 'mobile' ? 'Mobil Uygulama' : 'Terminal/Tabela'}</b> sürümüne aittir.
-        Lütfen doğru adresi kullandığınızdan emin olun.
-      </p>
-      <div style={{ marginTop: '30px', color: '#64748b' }}>
-        Build Target: <span style={{ color: '#3b82f6' }}>{BUILD_TARGET || 'default'}</span>
-      </div>
-    </div>
-  );
 }
 
 function AccessDenied({ message, onPasswordSuccess }) {
@@ -99,22 +74,33 @@ function AuthLoading() {
 }
 
 function App() {
+  // =================================================================
+  // RUNTIME BUILD/MODE DETERMINATION (URL BASED)
+  // =================================================================
   const urlPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+
+  // /tv veya /scoreboard ise TERMINAL modudur. Değilse MOBİL modudur.
   const isTVUrl = urlPath.includes('/tv') || urlPath.includes('/scoreboard') || urlParams.get('mode') === 'tv';
+
+  const IS_TERMINAL = isTVUrl;
+  const IS_MOBILE = !isTVUrl;
+
+  console.log('🔧 App Mode Check:', { urlPath, IS_TERMINAL, IS_MOBILE });
 
   // Hooks
   const [authState, setAuthState] = useState({
-    loading: !IS_TERMINAL_BUILD,
-    authenticated: IS_TERMINAL_BUILD,
+    loading: IS_MOBILE, // Sadece mobilde auth yükleniyor
+    authenticated: IS_TERMINAL, // Terminalde auth gerekmez
     error: null, user: null
   });
 
   const getInitialScreen = () => {
     if (urlParams.get('mode') === 'controller') return 'controller';
-    if (IS_TERMINAL_BUILD) {
+    if (IS_TERMINAL) {
       return urlParams.get('mode') === 'receiver' ? 'receiver' : 'start';
     }
+    // Mobil için varsayılan start
     return 'start';
   };
 
@@ -131,32 +117,38 @@ function App() {
     }
   }, [screen]);
 
+  // Terminalde başlangıçta masayı IDLE yap
   useEffect(() => {
-    if (screen === 'start' && IS_TERMINAL_BUILD) {
+    if (screen === 'start' && IS_TERMINAL) {
       setTimeout(() => updateTableStatus('table_1', 'IDLE'), 1000);
     }
-  }, [screen, IS_TERMINAL_BUILD]);
+  }, [screen, IS_TERMINAL]);
 
+  // Auth Effect (Sadece Mobil için)
   useEffect(() => {
-    if (IS_TERMINAL_BUILD) return;
+    if (IS_TERMINAL) return;
+
+    // Admin yetkisi
     if (sessionStorage.getItem('3cscore_auth') === 'true') {
       setAuthState({ loading: false, authenticated: true, error: null, user: { uid: 'admin', name: 'Admin' } });
       return;
     }
+
+    // Token kontrolü
     const token = urlParams.get('token');
     if (!token) {
       setAuthState({ loading: false, authenticated: false, error: 'Lütfen giriş yapın.', user: null });
       return;
     }
+
     verifyIdToken(token).then(res => {
       setAuthState({ loading: false, authenticated: res.valid, error: res.error, user: res.valid ? { uid: res.uid, email: res.email, name: res.name } : null });
     });
-  }, [IS_TERMINAL_BUILD, urlParams]);
+  }, [IS_TERMINAL, urlParams]);
 
-  // Early returns AFTER hooks
-  if (IS_MOBILE_BUILD && isTVUrl) return <BuildMismatchError target="mobile" />;
-  if (!IS_TERMINAL_BUILD && authState.loading) return <AuthLoading />;
-  if (!IS_TERMINAL_BUILD && !authState.authenticated) return <AccessDenied message={authState.error} onPasswordSuccess={() => setAuthState({ loading: false, authenticated: true, user: { uid: 'admin' } })} />;
+  // Early returns
+  if (IS_MOBILE && authState.loading) return <AuthLoading />;
+  if (IS_MOBILE && !authState.authenticated) return <AccessDenied message={authState.error} onPasswordSuccess={() => setAuthState({ loading: false, authenticated: true, user: { uid: 'admin' } })} />;
 
   // Handlers
   const handleStartStandard = (p1, p2, tScore, tRack, penalty, aso, isFreeMode = false) => {
@@ -173,23 +165,37 @@ function App() {
   };
 
   const handleExitGame = () => {
-    setScreen(IS_TERMINAL_BUILD && urlParams.get('mode') === 'receiver' ? 'receiver' : 'start');
+    setScreen(IS_TERMINAL && urlParams.get('mode') === 'receiver' ? 'receiver' : 'start');
     updateTableStatus('table_1', 'IDLE');
   };
 
   const content = (
     <Suspense fallback={<AuthLoading />}>
-      {screen === 'controller' && IS_MOBILE_BUILD && <MobileController tableId={controllerTableId} onBack={() => setScreen('start')} loggedInUser={authState.user} />}
-      {screen === 'receiver' && IS_TERMINAL_BUILD && <ScoreboardReceiver onStartGame={(data) => handleStartStandard(data.players[0], data.players[1], data.settings.targetScore, data.settings.targetRack, data.settings.hasPenalty, data.settings.hasAso)} tableId="table_1" />}
-      {screen === 'start' && <StartScreen onStart={IS_TERMINAL_BUILD ? handleStartStandard : undefined} onSurvivalStart={IS_TERMINAL_BUILD ? handleStartSurvival : undefined} isMobileOnly={IS_MOBILE_BUILD} onShowController={(tid) => { setControllerTableId(tid); setScreen('controller'); }} />}
-      {screen === 'standard' && IS_TERMINAL_BUILD && <SimpleGame {...gameSettings} onExit={handleExitGame} tableId="table_1" />}
-      {screen === 'survival' && IS_TERMINAL_BUILD && <SurvivalGame key={gameKey} players={survivalPlayers} onExit={handleExitGame} tableId="table_1" />}
+      {/* Mobil Controller */}
+      {screen === 'controller' && IS_MOBILE && <MobileController tableId={controllerTableId} onBack={() => setScreen('start')} loggedInUser={authState.user} />}
+
+      {/* Terminal Receiver */}
+      {screen === 'receiver' && IS_TERMINAL && <ScoreboardReceiver onStartGame={(data) => handleStartStandard(data.players[0], data.players[1], data.settings.targetScore, data.settings.targetRack, data.settings.hasPenalty, data.settings.hasAso)} tableId="table_1" />}
+
+      {/* Start Screen (Hem Mobil Hem Terminal kullanır ama farklı modlarda) */}
+      {screen === 'start' && (
+        <StartScreen
+          onStart={IS_TERMINAL ? handleStartStandard : undefined}
+          onSurvivalStart={IS_TERMINAL ? handleStartSurvival : undefined}
+          isMobileOnly={IS_MOBILE}
+          onShowController={(tid) => { setControllerTableId(tid); setScreen('controller'); }}
+        />
+      )}
+
+      {/* Oyun Ekranları (Sadece Terminal) */}
+      {screen === 'standard' && IS_TERMINAL && <SimpleGame {...gameSettings} onExit={handleExitGame} tableId="table_1" />}
+      {screen === 'survival' && IS_TERMINAL && <SurvivalGame key={gameKey} players={survivalPlayers} onExit={handleExitGame} tableId="table_1" />}
     </Suspense>
   );
 
   return (
     <ErrorBoundary>
-      {IS_TERMINAL_BUILD && (screen === 'standard' || screen === 'survival' || screen === 'receiver') ? (
+      {IS_TERMINAL && (screen === 'standard' || screen === 'survival' || screen === 'receiver') ? (
         <div style={shouldApplySafeArea() ? { padding: '2vw', boxSizing: 'border-box', width: '100vw', height: '100vh', overflow: 'hidden' } : {}} className={shouldReduceMotion() ? 'reduce-motion' : ''}>
           {content}
         </div>
