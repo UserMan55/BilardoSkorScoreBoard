@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo } from 'react';
 import { updateTableStatus, verifyIdToken } from './services/firebase';
 import { getPlatformInfo, shouldApplySafeArea, shouldReduceMotion } from './utils/platformUtils';
 import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLock';
@@ -8,7 +8,7 @@ import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLoc
 const StartScreen = lazy(() => import('./screens/StartScreen'));
 const MobileController = lazy(() => import('./screens/MobileController'));
 const ScoreboardReceiver = lazy(() => import('./screens/ScoreboardReceiver'));
-const SimpleGame = lazy(() => import('./features/game/SimpleGame'));
+const StandardGame = lazy(() => import('./features/game/StandardGame'));
 const SurvivalGame = lazy(() => import('./features/game/SurvivalGame'));
 const TestTV = lazy(() => import('./screens/TestTV'));
 
@@ -78,15 +78,21 @@ function App() {
   // RUNTIME BUILD/MODE DETERMINATION (URL BASED)
   // =================================================================
   const urlPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
-  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const urlSearch = typeof window !== 'undefined' ? window.location.search : '';
+
+  // Memoize urlParams to prevent re-creation on every render
+  const urlParams = useMemo(() => new URLSearchParams(urlSearch), [urlSearch]);
+
+  // Extract values once to use in dependency arrays
+  const urlMode = urlParams.get('mode');
+  const urlToken = urlParams.get('token');
+  const urlTable = urlParams.get('table');
 
   // /tv veya /scoreboard ise TERMINAL modudur. Değilse MOBİL modudur.
-  const isTVUrl = urlPath.includes('/tv') || urlPath.includes('/scoreboard') || urlParams.get('mode') === 'tv';
+  const isTVUrl = urlPath.includes('/tv') || urlPath.includes('/scoreboard') || urlMode === 'tv';
 
   const IS_TERMINAL = isTVUrl;
   const IS_MOBILE = !isTVUrl;
-
-  console.log('🔧 App Mode Check:', { urlPath, IS_TERMINAL, IS_MOBILE });
 
   // Hooks
   const [authState, setAuthState] = useState({
@@ -96,9 +102,9 @@ function App() {
   });
 
   const getInitialScreen = () => {
-    if (urlParams.get('mode') === 'controller') return 'controller';
+    if (urlMode === 'controller') return 'controller';
     if (IS_TERMINAL) {
-      return urlParams.get('mode') === 'receiver' ? 'receiver' : 'start';
+      return urlMode === 'receiver' ? 'receiver' : 'start';
     }
     // Mobil için varsayılan start
     return 'start';
@@ -108,7 +114,7 @@ function App() {
   const [gameSettings, setGameSettings] = useState(null);
   const [survivalPlayers, setSurvivalPlayers] = useState([]);
   const [gameKey, setGameKey] = useState(Date.now());
-  const [controllerTableId, setControllerTableId] = useState(urlParams.get('table') || 'table_1');
+  const [controllerTableId, setControllerTableId] = useState(urlTable || 'table_1');
 
   useEffect(() => {
     if (screen === 'receiver' || screen === 'standard' || screen === 'survival' || screen === 'controller') {
@@ -135,16 +141,15 @@ function App() {
     }
 
     // Token kontrolü
-    const token = urlParams.get('token');
-    if (!token) {
+    if (!urlToken) {
       setAuthState({ loading: false, authenticated: false, error: 'Lütfen giriş yapın.', user: null });
       return;
     }
 
-    verifyIdToken(token).then(res => {
+    verifyIdToken(urlToken).then(res => {
       setAuthState({ loading: false, authenticated: res.valid, error: res.error, user: res.valid ? { uid: res.uid, email: res.email, name: res.name } : null });
     });
-  }, [IS_TERMINAL, urlParams]);
+  }, [IS_TERMINAL, urlToken]);
 
   // Early returns
   if (IS_MOBILE && authState.loading) return <AuthLoading />;
@@ -165,7 +170,7 @@ function App() {
   };
 
   const handleExitGame = () => {
-    setScreen(IS_TERMINAL && urlParams.get('mode') === 'receiver' ? 'receiver' : 'start');
+    setScreen(IS_TERMINAL && urlMode === 'receiver' ? 'receiver' : 'start');
     updateTableStatus('table_1', 'IDLE');
   };
 
@@ -175,7 +180,17 @@ function App() {
       {screen === 'controller' && IS_MOBILE && <MobileController tableId={controllerTableId} onBack={() => setScreen('start')} loggedInUser={authState.user} />}
 
       {/* Terminal Receiver */}
-      {screen === 'receiver' && IS_TERMINAL && <ScoreboardReceiver onStartGame={(data) => handleStartStandard(data.players[0], data.players[1], data.settings.targetScore, data.settings.targetRack, data.settings.hasPenalty, data.settings.hasAso)} tableId="table_1" />}
+      {screen === 'receiver' && IS_TERMINAL && <ScoreboardReceiver onStartGame={(data) => {
+        const settings = data.settings || {};
+        handleStartStandard(
+          data.players?.[0] || 'Oyuncu 1',
+          data.players?.[1] || 'Oyuncu 2',
+          settings.targetScore ?? 30,
+          settings.targetRack ?? 30,
+          settings.hasPenalty ?? false,
+          settings.hasAso ?? true
+        );
+      }} tableId="table_1" />}
 
       {/* Start Screen (Hem Mobil Hem Terminal kullanır ama farklı modlarda) */}
       {screen === 'start' && (
@@ -188,7 +203,7 @@ function App() {
       )}
 
       {/* Oyun Ekranları (Sadece Terminal) */}
-      {screen === 'standard' && IS_TERMINAL && <SimpleGame {...gameSettings} onExit={handleExitGame} tableId="table_1" />}
+      {screen === 'standard' && IS_TERMINAL && gameSettings && <StandardGame {...gameSettings} onExit={handleExitGame} tableId="table_1" />}
       {screen === 'survival' && IS_TERMINAL && <SurvivalGame key={gameKey} players={survivalPlayers} onExit={handleExitGame} tableId="table_1" />}
     </Suspense>
   );

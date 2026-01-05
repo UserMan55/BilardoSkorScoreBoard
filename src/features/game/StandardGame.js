@@ -1728,7 +1728,6 @@ function StandardGame({
               </div>
             )}
 
-            {/* 
             <ScorePanel
               inning={inning}
               run={runCount}
@@ -1744,15 +1743,10 @@ function StandardGame({
               salonName={salonName}
               viewerCount={viewerCount}
             />
-            */}
-
-            <h1 style={{ color: 'white', fontSize: '30px', textAlign: 'center', background: 'blue' }}>
-              GAME ACTIVE: {player1Score} - {player2Score}
-            </h1>
 
             {/* <div style={{ width: '20px' }} /> Boşluk için spacer */}
           </div>
-          {/*
+
           <PlayerPanel
             name={player2Name}
             score={player2Score}
@@ -1766,11 +1760,9 @@ function StandardGame({
             timeoutLeft={player2TimeoutLeft}
             photoURL={playerPhotos[player2Name]}
           />
-          */}
         </div>
         <div style={{ width: '100%', minHeight: '65px', flexShrink: 0 }}>
-          {/* TimerProgressBar devre dışı (TV Performans Testi) */}
-          {/* <TimerProgressBar
+          <TimerProgressBar
             isTimerRunning={isTimerRunning}
             currentTurn={currentTurn}
             timerPhase={timerPhase}
@@ -1779,7 +1771,7 @@ function StandardGame({
             isTimerPaused={isTimerPaused}
             activeColor={currentTurn === 0 ? '#FFFFFF' : '#FFD700'}
             duration={40}
-          /> */}
+          />
         </div>
 
         {/* Menu Overlay */}

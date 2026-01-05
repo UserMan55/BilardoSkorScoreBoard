@@ -148,10 +148,9 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
   }, [matchPreview]);
 
   if (status === 'starting' && matchPreview) {
-    // console.log("🖼️ ScoreboardReceiver Render - playerPhotos:", playerPhotos);
-    // console.log("🖼️ ScoreboardReceiver Render - players:", matchPreview.players);
-    // console.log("🖼️ Player1 photo check:", matchPreview.players[0], "->", playerPhotos[matchPreview.players[0]]);
-    // console.log("🖼️ Player2 photo check:", matchPreview.players[1], "->", playerPhotos[matchPreview.players[1]]);
+    // Null safety for settings
+    const settings = matchPreview.settings || {};
+    const players = matchPreview.players || ['Oyuncu 1', 'Oyuncu 2'];
 
     return (
       <div className="scoreboard-wrapper">
@@ -161,40 +160,40 @@ function ScoreboardReceiver({ onStartGame, tableId = 'table_1' }) {
           <div className="scoreboard-starting-players">
             <div className="scoreboard-starting-player">
               <div className="scoreboard-player-photo">
-                <img src={playerPhotos[matchPreview.players[0]] || FALLBACK_AVATAR} alt={matchPreview.players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+                <img src={playerPhotos[players[0]] || FALLBACK_AVATAR} alt={players[0]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
-              <div className="scoreboard-player-name">{matchPreview.players[0]}</div>
+              <div className="scoreboard-player-name">{players[0]}</div>
             </div>
 
             <div className="scoreboard-starting-vs">VS</div>
 
             <div className="scoreboard-starting-player">
               <div className="scoreboard-player-photo">
-                <img src={playerPhotos[matchPreview.players[1]] || FALLBACK_AVATAR} alt={matchPreview.players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
+                <img src={playerPhotos[players[1]] || FALLBACK_AVATAR} alt={players[1]} onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_AVATAR; }} />
               </div>
-              <div className="scoreboard-player-name">{matchPreview.players[1]}</div>
+              <div className="scoreboard-player-name">{players[1]}</div>
             </div>
           </div>
 
           <div className="scoreboard-starting-details">
             <div className="scoreboard-detail-item">
               <span className="scoreboard-detail-label">Hedef Sayı</span>
-              <span className="scoreboard-detail-value">{matchPreview.settings.targetScore}</span>
+              <span className="scoreboard-detail-value">{settings.targetScore ?? 30}</span>
             </div>
             <div className="scoreboard-detail-item">
               <span className="scoreboard-detail-label">Hedef İstaka</span>
-              <span className="scoreboard-detail-value">{matchPreview.settings.targetRack}</span>
+              <span className="scoreboard-detail-value">{settings.targetRack ?? 30}</span>
             </div>
             <div className="scoreboard-detail-item">
               <span className="scoreboard-detail-label">Penaltı</span>
-              <span className="scoreboard-detail-value" style={{ color: matchPreview.settings.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
-                {matchPreview.settings.hasPenalty ? 'VAR' : 'YOK'}
+              <span className="scoreboard-detail-value" style={{ color: settings.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
+                {settings.hasPenalty ? 'VAR' : 'YOK'}
               </span>
             </div>
             <div className="scoreboard-detail-item">
               <span className="scoreboard-detail-label">ASO</span>
-              <span className="scoreboard-detail-value" style={{ color: matchPreview.settings.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
-                {matchPreview.settings.hasAso ? 'VAR' : 'YOK'}
+              <span className="scoreboard-detail-value" style={{ color: settings.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
+                {settings.hasAso ? 'VAR' : 'YOK'}
               </span>
             </div>
           </div>

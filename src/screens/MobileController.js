@@ -356,11 +356,11 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
           <div className="starting-details">
             <div className="starting-detail-item">
               <span className="detail-label">Hedef Sayı:</span>
-              <span className="detail-value">{settings.targetScore}</span>
+              <span className="detail-value">{settings?.targetScore ?? '-'}</span>
             </div>
             <div className="starting-detail-item">
               <span className="detail-label">Hedef İstaka:</span>
-              <span className="detail-value">{settings.targetRack}</span>
+              <span className="detail-value">{settings?.targetRack ?? '-'}</span>
             </div>
           </div>
 
@@ -459,22 +459,22 @@ function MobileController({ onBack, tableId = 'table_1', readOnly = false, logge
           <div className="starting-details">
             <div className="starting-detail-item">
               <span className="detail-label">Hedef Sayı:</span>
-              <span className="detail-value">{matchData.settings.targetScore}</span>
+              <span className="detail-value">{matchData.settings?.targetScore ?? '-'}</span>
             </div>
             <div className="starting-detail-item">
               <span className="detail-label">Hedef İstaka:</span>
-              <span className="detail-value">{matchData.settings.targetRack}</span>
+              <span className="detail-value">{matchData.settings?.targetRack ?? '-'}</span>
             </div>
             <div className="starting-detail-item">
               <span className="detail-label">Penaltı:</span>
-              <span className="detail-value" style={{ color: matchData.settings.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
-                {matchData.settings.hasPenalty ? 'VAR' : 'YOK'}
+              <span className="detail-value" style={{ color: matchData.settings?.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
+                {matchData.settings?.hasPenalty ? 'VAR' : 'YOK'}
               </span>
             </div>
             <div className="starting-detail-item">
               <span className="detail-label">ASO:</span>
-              <span className="detail-value" style={{ color: matchData.settings.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
-                {matchData.settings.hasAso ? 'VAR' : 'YOK'}
+              <span className="detail-value" style={{ color: matchData.settings?.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
+                {matchData.settings?.hasAso ? 'VAR' : 'YOK'}
               </span>
             </div>
           </div>

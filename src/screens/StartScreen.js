@@ -67,16 +67,9 @@ const getControllerQRUrl = (tableId = 'table_1') => {
 
 const FALLBACK_AVATAR = "/logo.png";
 
-const TABLE_BACKGROUND_URL = `${process.env.PUBLIC_URL || ''}/3cscoreTable.png`;
-
+// Soft gradient background - resim kaldırıldı
 const START_SCREEN_BACKGROUND_STYLE = {
-  backgroundImage: `linear-gradient(135deg, rgba(2, 6, 23, 0.94) 0%, rgba(15, 23, 42, 0.88) 100%), url('${TABLE_BACKGROUND_URL}')`,
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  backgroundRepeat: 'no-repeat',
-  backgroundAttachment: 'fixed',
-  backgroundBlendMode: 'soft-light',
-  isolation: 'isolate'
+  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
 };
 
 const FALLBACK_PLAYER_LIST = [
@@ -1625,10 +1618,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       if (onStart) onStart(
         data.players[0],
         data.players[1],
-        data.settings.targetScore,
-        data.settings.targetRack,
-        data.settings.hasPenalty,
-        data.settings.hasAso
+        data.settings?.targetScore ?? 30,
+        data.settings?.targetRack ?? 30,
+        data.settings?.hasPenalty ?? false,
+        data.settings?.hasAso ?? false
       );
     }
   }, [onSurvivalStart, onStart]);
@@ -1925,22 +1918,22 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
               <div className="match-start-details">
                 <div className="match-detail-item">
                   <span className="match-detail-label">Hedef Sayı</span>
-                  <span className="match-detail-value">{incomingMatchData.settings.targetScore}</span>
+                  <span className="match-detail-value">{incomingMatchData.settings?.targetScore ?? '-'}</span>
                 </div>
                 <div className="match-detail-item">
                   <span className="match-detail-label">Hedef İstaka</span>
-                  <span className="match-detail-value">{incomingMatchData.settings.targetRack}</span>
+                  <span className="match-detail-value">{incomingMatchData.settings?.targetRack ?? '-'}</span>
                 </div>
                 <div className="match-detail-item">
                   <span className="match-detail-label">Penaltı</span>
-                  <span className="match-detail-value" style={{ color: incomingMatchData.settings.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
-                    {incomingMatchData.settings.hasPenalty ? 'VAR' : 'YOK'}
+                  <span className="match-detail-value" style={{ color: incomingMatchData.settings?.hasPenalty ? '#4ECDC4' : '#FF6B6B' }}>
+                    {incomingMatchData.settings?.hasPenalty ? 'VAR' : 'YOK'}
                   </span>
                 </div>
                 <div className="match-detail-item">
                   <span className="match-detail-label">ASO</span>
-                  <span className="match-detail-value" style={{ color: incomingMatchData.settings.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
-                    {incomingMatchData.settings.hasAso ? 'VAR' : 'YOK'}
+                  <span className="match-detail-value" style={{ color: incomingMatchData.settings?.hasAso ? '#4ECDC4' : '#FF6B6B' }}>
+                    {incomingMatchData.settings?.hasAso ? 'VAR' : 'YOK'}
                   </span>
                 </div>
               </div>
@@ -3693,7 +3686,6 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
                                 <div className="combo-wrapper">
                                   <select
                                     id="p2-input"
-                                    tabIndex={-1}
                                     className="player-input modern"
                                     value={player2}
                                     onChange={(e) => {

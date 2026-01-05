@@ -1,6 +1,6 @@
 .mobile-controller-wrapper {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
   color: white;
   padding: 5px;
   padding-bottom: 40px;
@@ -1707,6 +1707,24 @@
   background: linear-gradient(135deg, #FFE033 0%, #FFB733 100%);
   box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
 }
-.control-btn { border-radius: 50% !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 !important; }
-.control-left, .control-right { width: 70px !important; height: 70px !important; font-size: 24px !important; }
-.control-center { width: 85px !important; height: 85px !important; font-size: 24px !important; }
+
+.control-btn {
+  border-radius: 50% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+
+.control-left,
+.control-right {
+  width: 70px !important;
+  height: 70px !important;
+  font-size: 24px !important;
+}
+
+.control-center {
+  width: 85px !important;
+  height: 85px !important;
+  font-size: 24px !important;
+}
