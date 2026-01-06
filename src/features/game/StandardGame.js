@@ -402,14 +402,16 @@ function StandardGame({
     // matchWinner: player1Name, player2Name, veya 'draw'
     // penaltyWinner: sadece berabere maçlarda - 'player1' veya 'player2'
 
-    const totalShots = player1Runs.length + player2Runs.length;
+    // Istaka sayısı (Inning) hesaplama
+    // P1 ve P2'nin tur sayılarından en büyüğünü al (maçın kaç ıstaka sürdüğü)
+    const totalInnings = Math.max(player1Runs.length, player2Runs.length);
 
     const matchData = {
       player1: player1Name,
       player2: player2Name,
       score1: player1Score,
       score2: player2Score,
-      shots: totalShots,
+      shots: totalInnings, // DÜZELTME: Toplam atış (P1+P2) yerine Inning sayısı
       eys1: player1Stats.hr1,
       eys2: player2Stats.hr1
     };
