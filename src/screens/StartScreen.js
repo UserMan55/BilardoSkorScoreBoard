@@ -172,6 +172,34 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   console.log('🔧 StartScreen INIT - deviceMode:', isMobileOnly ? 'controller' : 'null');
   const [isScoreboardMode, setIsScoreboardMode] = useState(false);
 
+  // --- ANDROID TV FOCUS FIX ---
+  const mainContainerRef = React.useRef(null);
+
+  useEffect(() => {
+    // Android TV'lerde yön tuşlarının çalışması için focus'un sayfada olması gerekir
+    const enforceFocus = () => {
+      if (mainContainerRef.current) {
+        console.log("📺 Android TV Focus Enforced");
+        mainContainerRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    // İlk açılışta focusla
+    setTimeout(enforceFocus, 100);
+
+    // Boşluğa tıklandığında focus'u geri al
+    const handleClick = (e) => {
+      const tag = e.target.tagName;
+      if (tag !== 'INPUT' && tag !== 'BUTTON' && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+        enforceFocus();
+      }
+    };
+
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+  // -----------------------------
+
   /* FIREBASE SALON DATASINI YÖNETEN STATE */
   const [SALONS_DATA, setSALONS_DATA] = useState({});
   const [debugSalons, setDebugSalons] = useState(null);
@@ -2404,10 +2432,15 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   };
 
   return (
-    <div className="start-screen-wrapper" style={{
-      ...START_SCREEN_BACKGROUND_STYLE,
-      position: 'relative'
-    }}>
+    <div
+      ref={mainContainerRef}
+      tabIndex="0" // Klavye olayları için gerekli
+      className="start-screen-wrapper"
+      style={{
+        ...START_SCREEN_BACKGROUND_STYLE,
+        position: 'relative',
+        outline: 'none' // Varsayılan outline'ı kaldır
+      }}>
       <div id="debug-salon-data" style={{ opacity: 0, position: 'absolute', pointerEvents: 'none', zIndex: -1 }}>
         {debugSalons ? JSON.stringify(debugSalons) : 'LOADING'}
       </div>

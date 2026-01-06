@@ -46,6 +46,32 @@ function StandardGame({
   const [lastTurnBeforeEnd, setLastTurnBeforeEnd] = useState(false); // Son tur flag (ASO için)
   const [asoReason, setAsoReason] = useState(null); // ASO sebebi: 'score' (skor) veya 'rack' (istaka) veya null
   const [showPenalty, setShowPenalty] = useState(false); // Penaltı ekranı göster
+
+  // --- ANDROID TV FOCUS FIX ---
+  const gameContainerRef = React.useRef(null);
+
+  useEffect(() => {
+    // Oyun sırasında yön tuşları için focus trap
+    const enforceFocus = () => {
+      if (gameContainerRef.current) {
+        gameContainerRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    // Mount sonrası focus
+    setTimeout(enforceFocus, 200);
+
+    const handleClick = (e) => {
+      // Input veya button hariç her tıklamada focus'u geri al
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+        enforceFocus();
+      }
+    };
+
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+  // ----------------------------
   const [notification, setNotification] = useState(null); // { message, type: 'info'|'warning'|'success' }
   const [warningMessage, setWarningMessage] = useState(null); // Son X Sayı/İstaka uyarısı
 
@@ -1076,16 +1102,26 @@ function StandardGame({
   };
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      background: 'linear-gradient(135deg, #1a1d2e 0%, #2a2d3a 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
+    <div
+      className="game-container"
+      ref={gameContainerRef}
+      tabIndex="0"
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+        color: 'white',
+        fontFamily: "'Orbitron', sans-serif",
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '10px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        outline: 'none' // Focus outline gizle
+      }}>
       {/* Overlay Messages Container */}
       <div style={{
         position: 'fixed',
