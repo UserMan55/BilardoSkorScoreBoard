@@ -3,6 +3,9 @@
 Bu dosya projenin yapılacaklar listesini içerir. Her görev tamamlandığında ilgili madde işaretlenmelidir.
 
 ---
+### 🚨 ACİL YAPILACAKLAR (7 Ocak 2026):
+1. 🚨 **TERMİNAL MAÇ BAŞLAT VE YÖNETİM:** 3CSCORE maç başlatma menüsü oldukça yavaş, bu alanda performans iyileştirmeleri yapılmalı.
+
 ### ✅ BU OTURUMDA TAMAMLANANLAR (31 Aralık 2025):
 1. ✅ **Erişim Koruması:** Bir oyuncu kendisinin içinde olmadığı bir oyunu mobilden başlatması engellendi (SADECE listedeki oyuncular veya yönetici başlatabilir).
 2. ✅ **Giriş Cihazları Desteği:** TV kumandası Ok tuşları ve Numpad (+/-) desteği hem Standart hem de Survival moduna eklendi.

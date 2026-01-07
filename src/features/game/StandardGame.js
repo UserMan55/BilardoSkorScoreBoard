@@ -83,7 +83,7 @@ function StandardGame({
   const [pendingSaveData, setPendingSaveData] = useState(null);
 
   // Swap Confirmation State - Maç başında oyuncu sırası onayı
-  const [showSwapConfirm, setShowSwapConfirm] = useState(true); // Maç başında true
+  const [showSwapConfirm, setShowSwapConfirm] = useState(!isFreeMode); // Sadece 3CSCORE modunda sor
 
   // UNDO için history stack
   const [history, setHistory] = useState([]);
@@ -724,10 +724,10 @@ function StandardGame({
 
   // Reset modal focus when modal opens
   useEffect(() => {
-    if (showSaveConfirm || gameEnded || showMenuOverlay) {
+    if (showSaveConfirm || gameEnded || showMenuOverlay || showSwapConfirm) {
       setModalFocusIndex(1); // Default to "Yes" or "New Match" or "Exit"
     }
-  }, [showSaveConfirm, gameEnded, showMenuOverlay]);
+  }, [showSaveConfirm, gameEnded, showMenuOverlay, showSwapConfirm]);
 
   // USB Klavye/Kumanda Dinleyicisi (Oyun İçi)
   useEffect(() => {
@@ -768,7 +768,7 @@ function StandardGame({
       }
 
       // 1. Modal / Dialog Navigation (Maç sonu veya onay ekranları)
-      if (showSaveConfirm || gameEnded || showPenalty || showMenuOverlay) {
+      if (showSaveConfirm || gameEnded || showPenalty || showMenuOverlay || showSwapConfirm) {
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
           setModalFocusIndex(1);
         } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
@@ -779,6 +779,19 @@ function StandardGame({
           if (showSaveConfirm) {
             if (modalFocusIndex === 1) callHandler('handleConfirmSave');
             else callHandler('handleCancelSave');
+          } else if (showSwapConfirm) {
+            if (modalFocusIndex === 1) {
+              // EVET, DEĞİŞTİR
+              console.log('🎱 SWAP_CONFIRM komutu (Klavye)...');
+              sendMatchCommand('SWAP_CONFIRM', {}, tableId);
+              setPlayersSwapped(true);
+              setShowSwapConfirm(false);
+            } else {
+              // HAYIR
+              console.log('🎱 NO_SWAP komutu (Klavye)...');
+              sendMatchCommand('NO_SWAP', {}, tableId);
+              setShowSwapConfirm(false);
+            }
           } else if (gameEnded) {
             if (modalFocusIndex === 1) callHandler('handleNewMatch');
             else callHandler('handleRematch');
@@ -797,6 +810,10 @@ function StandardGame({
               setShowMenuOverlay(false);
             }
           }
+        } else if (e.key === 'Tab') {
+          // Tab ile geçiş
+          e.preventDefault();
+          setModalFocusIndex(prev => prev === 0 ? 1 : 0);
         } else if (e.key === 'Backspace' || e.key === 'Escape') {
           // Cancel modal if possible
           if (showSaveConfirm) callHandler('handleCancelSave');
@@ -841,7 +858,7 @@ function StandardGame({
     // Capture: true ile event'i en başta yakala
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, modalFocusIndex]);
+  }, [gameEnded, showSaveConfirm, showPenalty, showMenuOverlay, showSwapConfirm, modalFocusIndex]);
 
   const handleConfirmSave = (e) => {
     console.log('🟢 handleConfirmSave called');
@@ -1186,7 +1203,8 @@ function StandardGame({
             boxShadow: '0 25px 80px rgba(0,0,0,0.7)',
             textAlign: 'center',
             maxWidth: '600px',
-            width: '90%'
+            width: '90%',
+            transform: 'scale(0.9) translateY(-10%)' // Biraz küçült ve yukarı al
           }}>
             {/* Oyuncu Kartları */}
             <div style={{
@@ -1280,14 +1298,20 @@ function StandardGame({
                   fontWeight: 'bold',
                   background: 'linear-gradient(135deg, #4a5568 0%, #2d3748 100%)',
                   color: 'white',
-                  border: 'none',
+                  border: modalFocusIndex === 0 ? '3px solid white' : 'none',
                   borderRadius: '15px',
                   cursor: 'pointer',
-                  boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
-                  transition: 'transform 0.2s'
+                  boxShadow: modalFocusIndex === 0 ? '0 0 20px rgba(255,255,255,0.5)' : '0 6px 20px rgba(0,0,0,0.4)',
+                  transition: 'transform 0.2s',
+                  transform: modalFocusIndex === 0 ? 'scale(1.05)' : 'scale(1)'
                 }}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                onMouseEnter={(e) => {
+                  setModalFocusIndex(0);
+                  e.target.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  if (modalFocusIndex !== 0) e.target.style.transform = 'scale(1)';
+                }}
               >
                 Hayır, Bu Şekilde Kalsın
               </button>
@@ -1304,14 +1328,20 @@ function StandardGame({
                   fontWeight: 'bold',
                   background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
                   color: '#1a1d2e',
-                  border: 'none',
+                  border: modalFocusIndex === 1 ? '3px solid white' : 'none',
                   borderRadius: '15px',
                   cursor: 'pointer',
-                  boxShadow: '0 6px 20px rgba(255,215,0,0.4)',
-                  transition: 'transform 0.2s'
+                  boxShadow: modalFocusIndex === 1 ? '0 0 20px rgba(255,215,0,0.6)' : '0 6px 20px rgba(255,215,0,0.4)',
+                  transition: 'transform 0.2s',
+                  transform: modalFocusIndex === 1 ? 'scale(1.05)' : 'scale(1)'
                 }}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                onMouseEnter={(e) => {
+                  setModalFocusIndex(1);
+                  e.target.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  if (modalFocusIndex !== 1) e.target.style.transform = 'scale(1)';
+                }}
               >
                 Evet, Değiştir
               </button>
@@ -1435,7 +1465,8 @@ function StandardGame({
           backdropFilter: 'blur(10px)',
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'center',
+          alignItems: 'flex-start', // Dikeyde ortalamayı iptal et
+          paddingTop: '50px', // Yukarıdan boşluk bırak
           padding: '20px',
           boxSizing: 'border-box',
           zIndex: 1000
@@ -1449,7 +1480,8 @@ function StandardGame({
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(255, 215, 0, 0.3)',
             maxWidth: '90%',
             maxHeight: '90%',
-            overflow: 'auto'
+            overflow: 'auto',
+            transform: 'scale(0.9)' // Biraz küçült
           }}>
             {/* Kazanan Duyurusu */}
             {winner !== 'draw' && (

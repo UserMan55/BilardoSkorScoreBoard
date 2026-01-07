@@ -2,6 +2,10 @@ import React, { useState, useEffect, Suspense, lazy, useMemo } from 'react';
 import { updateTableStatus, verifyIdToken } from './services/firebase';
 import { getPlatformInfo, shouldApplySafeArea, shouldReduceMotion } from './utils/platformUtils';
 import { requestWakeLock, setupWakeLockVisibilityHandler } from './utils/wakeLock';
+import useAirMouseDirection from './hooks/useAirMouseDirection'; // Air Mouse D-pad fix
+import useMediaKeyToDirection from './hooks/useMediaKeyToDirection'; // Volume Keys fix
+
+
 
 // Build Hedefi Kontrolü (Compile-time)
 // Lazy load components
@@ -87,12 +91,95 @@ function App() {
   const urlMode = urlParams.get('mode');
   const urlToken = urlParams.get('token');
   const urlTable = urlParams.get('table');
+  const urlDebug = urlParams.get('debug');
 
   // /tv veya /scoreboard ise TERMINAL modudur. Değilse MOBİL modudur.
   const isTVUrl = urlPath.includes('/tv') || urlPath.includes('/scoreboard') || urlMode === 'tv';
 
   const IS_TERMINAL = isTVUrl;
   const IS_MOBILE = !isTVUrl;
+
+  // Air Mouse D-pad fix (Sadece terminal modunda)
+  useAirMouseDirection(IS_TERMINAL);
+  // Volume/Channel Keys fix (Yön tuşları çalışmazsa alternatif)
+  useMediaKeyToDirection(IS_TERMINAL);
+
+  // --- GLOBAL INPUT DEBUG MODE ---
+
+
+  const [inputDebugMode, setInputDebugMode] = useState(urlDebug === 'input');
+  const [debugEvents, setDebugEvents] = useState([]);
+  const debugEventsRef = React.useRef([]);
+
+  useEffect(() => {
+    if (!inputDebugMode) return;
+
+    const addDebugEvent = (type, details) => {
+      const event = {
+        type,
+        details,
+        time: new Date().toLocaleTimeString()
+      };
+      debugEventsRef.current = [event, ...debugEventsRef.current].slice(0, 15);
+      setDebugEvents([...debugEventsRef.current]);
+    };
+
+    const handleKeyDown = (e) => {
+      addDebugEvent('⌨️ keydown', `key: ${e.key}, code: ${e.code}, keyCode: ${e.keyCode}`);
+    };
+    const handleKeyUp = (e) => {
+      addDebugEvent('⌨️ keyup', `key: ${e.key}, code: ${e.code}`);
+    };
+
+    let lastMoveTime = 0;
+    const handleMouseMove = (e) => {
+      const now = Date.now();
+      if (now - lastMoveTime > 150) {
+        addDebugEvent('🖱️ mousemove', `x:${e.clientX} y:${e.clientY} mvX:${e.movementX} mvY:${e.movementY}`);
+        lastMoveTime = now;
+      }
+    };
+    const handlePointerMove = (e) => {
+      const now = Date.now();
+      if (now - lastMoveTime > 150) {
+        addDebugEvent('👆 pointermove', `x:${e.clientX} y:${e.clientY} type:${e.pointerType}`);
+        lastMoveTime = now;
+      }
+    };
+    const handleWheel = (e) => {
+      addDebugEvent('🔄 wheel', `deltaX:${e.deltaX} deltaY:${e.deltaY}`);
+    };
+    const handleMouseDown = (e) => {
+      addDebugEvent('🖱️ mousedown', `button:${e.button} x:${e.clientX} y:${e.clientY}`);
+    };
+    const handleMouseUp = (e) => {
+      addDebugEvent('🖱️ mouseup', `button:${e.button}`);
+    };
+    const handleGamepad = (e) => {
+      addDebugEvent('🎮 gamepad', `id:${e.gamepad?.id}`);
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('mousemove', handleMouseMove, true);
+    window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('wheel', handleWheel, true);
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
+    window.addEventListener('gamepadconnected', handleGamepad, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('wheel', handleWheel, true);
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
+      window.removeEventListener('gamepadconnected', handleGamepad, true);
+    };
+  }, [inputDebugMode]);
+  // -------------------------------
 
   // Hooks
   const [authState, setAuthState] = useState({
@@ -208,8 +295,63 @@ function App() {
     </Suspense>
   );
 
+  // Debug Panel Component
+  const debugPanel = inputDebugMode && (
+    <div style={{
+      position: 'fixed',
+      bottom: '10px',
+      left: '10px',
+      width: '450px',
+      maxHeight: '350px',
+      background: 'rgba(0, 0, 0, 0.95)',
+      border: '3px solid #00ff00',
+      borderRadius: '12px',
+      padding: '15px',
+      zIndex: 999999,
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#00ff00',
+      overflow: 'auto',
+      boxShadow: '0 0 30px rgba(0, 255, 0, 0.3)'
+    }}>
+      <div style={{ marginBottom: '8px', fontWeight: 'bold', borderBottom: '2px solid #00ff00', paddingBottom: '8px', fontSize: '14px' }}>
+        🔬 INPUT DEBUG - MiBox Air Mouse Test
+      </div>
+      <div style={{ marginBottom: '10px', color: '#ffff00', fontSize: '12px' }}>
+        Kumandanın yön tuşlarına basın. Hangi event tipi geliyor?<br />
+        <span style={{ color: '#00ffff' }}>⌨️ = Klavye</span> | <span style={{ color: '#ff00ff' }}>🖱️👆 = Mouse/Pointer</span>
+      </div>
+      <div style={{ marginBottom: '8px', color: '#888', fontSize: '10px' }}>
+        Screen: {screen} | Terminal: {IS_TERMINAL ? 'Evet' : 'Hayır'}
+      </div>
+      {debugEvents.length === 0 ? (
+        <div style={{ color: '#888', padding: '20px', textAlign: 'center' }}>
+          Henüz event yok...<br />Kumandaya basın!
+        </div>
+      ) : (
+        debugEvents.map((evt, idx) => (
+          <div key={idx} style={{
+            marginBottom: '4px',
+            padding: '6px 8px',
+            background: idx === 0 ? 'rgba(0, 255, 0, 0.25)' : 'rgba(255,255,255,0.05)',
+            borderRadius: '4px',
+            borderLeft: idx === 0 ? '3px solid #00ff00' : '3px solid transparent'
+          }}>
+            <span style={{ color: '#ff9900' }}>[{evt.time}]</span>{' '}
+            <span style={{
+              color: evt.type.includes('key') ? '#00ffff' : '#ff00ff'
+            }}>
+              {evt.type}
+            </span>: <span style={{ color: '#ccc' }}>{evt.details}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <ErrorBoundary>
+      {debugPanel}
       {IS_TERMINAL && (screen === 'standard' || screen === 'survival' || screen === 'receiver') ? (
         <div style={shouldApplySafeArea() ? { padding: '2vw', boxSizing: 'border-box', width: '100vw', height: '100vh', overflow: 'hidden' } : {}} className={shouldReduceMotion() ? 'reduce-motion' : ''}>
           {content}

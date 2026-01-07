@@ -829,11 +829,17 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  /* Yatayda ortala yerine flex-start (column olduğu için dikey eksen bu) */
+  flex-direction: column;
+  /* JS içinde var ama CSS'te de olsun */
+  padding-top: 100px;
+  /* Yukarı al */
   color: white;
   font-size: 24px;
   font-weight: 600;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
 }
 
 .error-container {

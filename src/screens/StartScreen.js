@@ -200,6 +200,118 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
   }, []);
   // -----------------------------
 
+  // --- INPUT DEBUG MODE (MiBox Air Mouse Teşhis) ---
+  const [inputDebugMode, setInputDebugMode] = useState(false);
+  const [debugEvents, setDebugEvents] = useState([]);
+  const debugEventsRef = React.useRef([]);
+
+  // Debug modu açmak için: URL'e ?debug=input ekle veya 'd' tuşuna 3 kez bas
+  const debugKeyPressCount = React.useRef(0);
+  const debugKeyTimer = React.useRef(null);
+
+  useEffect(() => {
+    // URL'den debug kontrolü
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('debug') === 'input') {
+      setInputDebugMode(true);
+    }
+
+    // 'd' tuşuna 3 kez basarak debug modu aç/kapa
+    const handleDebugToggle = (e) => {
+      if (e.key === 'd' || e.key === 'D') {
+        debugKeyPressCount.current++;
+        clearTimeout(debugKeyTimer.current);
+        debugKeyTimer.current = setTimeout(() => {
+          debugKeyPressCount.current = 0;
+        }, 1000);
+        if (debugKeyPressCount.current >= 3) {
+          setInputDebugMode(prev => !prev);
+          debugKeyPressCount.current = 0;
+        }
+      }
+    };
+    window.addEventListener('keydown', handleDebugToggle);
+    return () => window.removeEventListener('keydown', handleDebugToggle);
+  }, []);
+
+  // Input eventlarını dinle (debug modu açıkken)
+  useEffect(() => {
+    if (!inputDebugMode) return;
+
+    const addDebugEvent = (type, details) => {
+      const event = {
+        type,
+        details,
+        time: new Date().toLocaleTimeString()
+      };
+      debugEventsRef.current = [event, ...debugEventsRef.current].slice(0, 10); // Son 10 event
+      setDebugEvents([...debugEventsRef.current]);
+    };
+
+    const handleKeyDown = (e) => {
+      addDebugEvent('keydown', `key: ${e.key}, code: ${e.code}, keyCode: ${e.keyCode}`);
+    };
+    const handleKeyUp = (e) => {
+      addDebugEvent('keyup', `key: ${e.key}, code: ${e.code}`);
+    };
+    const handleMouseMove = (e) => {
+      addDebugEvent('mousemove', `x: ${e.clientX}, y: ${e.clientY}, mvX: ${e.movementX}, mvY: ${e.movementY}`);
+    };
+    const handlePointerMove = (e) => {
+      addDebugEvent('pointermove', `x: ${e.clientX}, y: ${e.clientY}, mvX: ${e.movementX}, mvY: ${e.movementY}, type: ${e.pointerType}`);
+    };
+    const handleWheel = (e) => {
+      addDebugEvent('wheel', `deltaX: ${e.deltaX}, deltaY: ${e.deltaY}`);
+    };
+    const handleGamepad = (e) => {
+      addDebugEvent('gamepad', `id: ${e.gamepad?.id}, index: ${e.gamepad?.index}`);
+    };
+    const handleMouseDown = (e) => {
+      addDebugEvent('mousedown', `button: ${e.button}, x: ${e.clientX}, y: ${e.clientY}`);
+    };
+    const handleMouseUp = (e) => {
+      addDebugEvent('mouseup', `button: ${e.button}`);
+    };
+
+    // Throttle for mousemove/pointermove (çok fazla event gelmesin)
+    let lastMoveTime = 0;
+    const throttledMouseMove = (e) => {
+      const now = Date.now();
+      if (now - lastMoveTime > 200) { // 200ms throttle
+        handleMouseMove(e);
+        lastMoveTime = now;
+      }
+    };
+    const throttledPointerMove = (e) => {
+      const now = Date.now();
+      if (now - lastMoveTime > 200) {
+        handlePointerMove(e);
+        lastMoveTime = now;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('mousemove', throttledMouseMove, true);
+    window.addEventListener('pointermove', throttledPointerMove, true);
+    window.addEventListener('wheel', handleWheel, true);
+    window.addEventListener('gamepadconnected', handleGamepad, true);
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('mousemove', throttledMouseMove, true);
+      window.removeEventListener('pointermove', throttledPointerMove, true);
+      window.removeEventListener('wheel', handleWheel, true);
+      window.removeEventListener('gamepadconnected', handleGamepad, true);
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
+    };
+  }, [inputDebugMode]);
+  // -------------------------------------------
+
   /* FIREBASE SALON DATASINI YÖNETEN STATE */
   const [SALONS_DATA, setSALONS_DATA] = useState({});
   const [debugSalons, setDebugSalons] = useState(null);
@@ -1180,7 +1292,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
     const p1List = filteredPlayers;
     const p2List = filteredPlayers.filter(u => u.id !== player1);
 
-    if (e.key === 'ArrowRight') {
+
+
+    if (e.key === 'ArrowRight' || e.keyCode === 39) {
       if (canMoveForward(localFocusIndex)) {
         if (localFocusIndex === 2) setPlayer1Warning("");
         if (localFocusIndex === 5) setPlayer2Warning("");
@@ -1188,9 +1302,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       } else {
         showFieldWarning(localFocusIndex);
       }
-    } else if (e.key === 'ArrowLeft') {
+    } else if (e.key === 'ArrowLeft' || e.keyCode === 37) {
       changeFocus(localFocusIndex > 0 ? localFocusIndex - 1 : maxIndex);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' || e.keyCode === 38) {
       let handled = false;
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'prev', p1List)); handled = true; }
       if (localFocusIndex === 5 && !isManualPlayer2) { setPlayer2(cyclePlayer(player2, 'prev', p2List)); handled = true; }
@@ -1199,7 +1313,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       if (!handled) {
         // No-op: arrow navigation between panels disabled intentionally
       }
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' || e.keyCode === 40) {
       let handled = false;
       if (localFocusIndex === 2 && !isManualPlayer1) { setPlayer1(cyclePlayer(player1, 'next', p1List)); handled = true; }
       if (localFocusIndex === 5 && !isManualPlayer2) { setPlayer2(cyclePlayer(player2, 'next', p2List)); handled = true; }
@@ -1208,7 +1322,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       if (!handled) {
         // No-op
       }
-    } else if (e.key === ' ') {
+    } else if (e.key === ' ' || e.keyCode === 32) {
       e.preventDefault();
       if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
@@ -1216,7 +1330,7 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       else if (localFocusIndex === 4) { setIsManualPlayer2(true); setActiveEditableField(null); changeFocus(5); }
       else if (localFocusIndex === 8) setHasPenalty(!hasPenalty);
       else if (localFocusIndex === 9) setHasAso(!hasAso);
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' || e.keyCode === 13) {
       e.preventDefault();
       if (localFocusIndex === 0) { setIsManualPlayer1(false); setActiveEditableField(null); changeFocus(2); }
       else if (localFocusIndex === 1) { setIsManualPlayer1(true); setActiveEditableField(null); changeFocus(2); }
@@ -1277,12 +1391,13 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       else if (localFocusIndex === 8) setHasPenalty(!hasPenalty);
       else if (localFocusIndex === 9) setHasAso(!hasAso);
       else if (localFocusIndex === 10) handleStart();
-    } else if (e.key === 'Backspace') {
+    } else if (e.key === 'Backspace' || e.keyCode === 8) {
       if (localFocusIndex > 0) {
         setLocalFocusIndex(localFocusIndex - 1);
       }
-    } else if (e.key === 'Escape') {
-      setDeviceMode(null); // Back to Main Menu
+    } else if (e.key === 'Escape' || e.keyCode === 27) {
+      // 3CSCORE modunda çıkış confirmation (opsiyonel, şu an direkt çıkıyor)
+      setDeviceMode(null);
     }
   };
 
@@ -1314,30 +1429,29 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         if (currentPlayerIndex === -1) {
           nextIndex = available.length - 1;
         } else {
-          nextIndex = currentPlayerIndex - 1 < 0 ? -1 : currentPlayerIndex - 1;
+          nextIndex = currentPlayerIndex - 1 < -1 ? available.length - 1 : currentPlayerIndex - 1;
         }
       }
-
       return nextIndex === -1 ? "" : available[nextIndex].id;
     };
 
-    if (e.key === 'ArrowRight') {
+    if (e.key === 'ArrowRight' || e.keyCode === 39) {
       setSurvivalFocusIndex(survivalFocusIndex < maxIndex ? survivalFocusIndex + 1 : 0);
-    } else if (e.key === 'ArrowLeft') {
+    } else if (e.key === 'ArrowLeft' || e.keyCode === 37) {
       setSurvivalFocusIndex(survivalFocusIndex > 0 ? survivalFocusIndex - 1 : maxIndex);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' || e.keyCode === 38) {
       if (survivalFocusIndex >= 0 && survivalFocusIndex <= 3) {
         // Oyuncu seçiminde yukarı = önceki oyuncu
         const newValue = cyclePlayer(survivalFocusIndex, 'prev');
         survivalPlayerSetters[survivalFocusIndex](newValue);
       }
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' || e.keyCode === 40) {
       if (survivalFocusIndex >= 0 && survivalFocusIndex <= 3) {
         // Oyuncu seçiminde aşağı = sonraki oyuncu
         const newValue = cyclePlayer(survivalFocusIndex, 'next');
         survivalPlayerSetters[survivalFocusIndex](newValue);
       }
-    } else if (e.key === 'Enter' || e.key === ' ') {
+    } else if (e.key === 'Enter' || e.keyCode === 13 || e.key === ' ' || e.keyCode === 32) {
       e.preventDefault();
       if (survivalFocusIndex === 4) {
         // Start Button
@@ -1350,11 +1464,11 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
         // Sıradaki alana geç
         setSurvivalFocusIndex(survivalFocusIndex < maxIndex ? survivalFocusIndex + 1 : 0);
       }
-    } else if (e.key === 'Backspace') {
+    } else if (e.key === 'Backspace' || e.keyCode === 8) {
       if (survivalFocusIndex > 0) {
         setSurvivalFocusIndex(survivalFocusIndex - 1);
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' || e.keyCode === 27) {
       setDeviceMode(null); // Back to Main Menu
     }
   };
@@ -1395,12 +1509,22 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       console.log('🔘 Tuş Basıldı (Menu):', e.key, '| Code:', e.code); // Debug için log
 
       const activeTag = document.activeElement.tagName;
+      const inputType = document.activeElement.type;
       const isFormElement = ['INPUT', 'SELECT', 'TEXTAREA'].includes(activeTag);
+      const isTextInput = activeTag === 'INPUT' && (inputType === 'text' || inputType === 'email' || inputType === 'password' || inputType === 'number' || inputType === 'search');
 
-      // Prevent default scrolling for arrow keys and space ONLY if not in a form element
-      // This allows standard interaction with inputs/buttons (e.g. Space to toggle checkbox)
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-        if (!isFormElement) {
+      // Air Mouse / D-Pad Çakışmasını Önleme (Agresif Mod)
+      // Eğer bir metin kutusunda yazı yazmıyorsak, Yön tuşlarını tamamen ele geçiriyoruz.
+      const isNavKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) || [37, 38, 39, 40].includes(e.keyCode);
+
+      if (isNavKey) {
+        if (!isTextInput) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      } else if ([' ', 'Enter'].includes(e.key) || [32, 13].includes(e.keyCode)) {
+        // Space/Enter tuşları butonlarda tıklama yapar, ama biz manuel yönetiyoruz
+        if (activeTag !== 'BUTTON' && !isTextInput) {
           e.preventDefault();
         }
       }
@@ -1412,9 +1536,9 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       }
 
       if (deviceMode === null) {
-        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') navHandlersRef.current.handleNavAction('RIGHT');
-        else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') navHandlersRef.current.handleNavAction('LEFT');
-        else if (e.key === 'Enter' || e.key === ' ') navHandlersRef.current.handleNavAction('ENTER');
+        if (e.key === 'ArrowRight' || e.keyCode === 39 || e.key === 'd' || e.key === 'D') navHandlersRef.current.handleNavAction('RIGHT');
+        else if (e.key === 'ArrowLeft' || e.keyCode === 37 || e.key === 'a' || e.key === 'A') navHandlersRef.current.handleNavAction('LEFT');
+        else if (e.key === 'Enter' || e.keyCode === 13 || e.key === ' ' || e.keyCode === 32) navHandlersRef.current.handleNavAction('ENTER');
       } else if (deviceMode === 'local') {
         const currentActiveField = activeEditableFieldRef.current;
 
@@ -2232,9 +2356,10 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
           zIndex: 1,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center', // Dikeyde ortala
+          justifyContent: 'flex-start', // Dikeyde yukarı yasla
           alignItems: 'center', // Yatayda ortala
           height: '100vh', // Tam ekran
+          paddingTop: '20px', // Yukarıdan biraz boşluk bırak
           gap: '20px'
         }}>
 
@@ -2439,13 +2564,67 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
       style={{
         ...START_SCREEN_BACKGROUND_STYLE,
         position: 'relative',
-        outline: 'none' // Varsayılan outline'ı kaldır
+        outline: 'none', // Varsayılan outline'ı kaldır
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start', // Dikeyde ortalamayı iptal edip yukarı yasla
+        alignItems: 'center',
+        paddingTop: '50px' // Yukarıdan boşluk bırak
       }}>
       <div id="debug-salon-data" style={{ opacity: 0, position: 'absolute', pointerEvents: 'none', zIndex: -1 }}>
         {debugSalons ? JSON.stringify(debugSalons) : 'LOADING'}
       </div>
 
-
+      {/* INPUT DEBUG OVERLAY - MiBox Air Mouse Teşhisi */}
+      {inputDebugMode && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          width: '400px',
+          maxHeight: '300px',
+          background: 'rgba(0, 0, 0, 0.9)',
+          border: '2px solid #00ff00',
+          borderRadius: '10px',
+          padding: '15px',
+          zIndex: 99999,
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#00ff00',
+          overflow: 'auto'
+        }}>
+          <div style={{ marginBottom: '10px', fontWeight: 'bold', borderBottom: '1px solid #00ff00', paddingBottom: '5px' }}>
+            🔬 INPUT DEBUG MODE
+            <span style={{ float: 'right', fontSize: '10px' }}>
+              (URL: ?debug=input veya 'd' x3)
+            </span>
+          </div>
+          <div style={{ marginBottom: '10px', color: '#ffff00' }}>
+            Air Mouse yön tuşlarına basın ve hangi event'in geldiğini görün
+          </div>
+          {debugEvents.length === 0 ? (
+            <div style={{ color: '#888' }}>Henüz event yok... Kumandaya basın.</div>
+          ) : (
+            debugEvents.map((evt, idx) => (
+              <div key={idx} style={{
+                marginBottom: '5px',
+                padding: '5px',
+                background: idx === 0 ? 'rgba(0, 255, 0, 0.2)' : 'transparent',
+                borderRadius: '4px'
+              }}>
+                <span style={{ color: '#ff9900' }}>[{evt.time}]</span>{' '}
+                <span style={{
+                  color: evt.type.includes('key') ? '#00ffff' :
+                    evt.type.includes('mouse') || evt.type.includes('pointer') ? '#ff00ff' :
+                      '#ffffff'
+                }}>
+                  {evt.type}
+                </span>: {evt.details}
+              </div>
+            ))
+          )}
+        </div>
+      )}
       {/* CANLI İZLE MODAL */}
       {showLiveWatch && liveMatch && (
         <div className="live-watch-overlay" role="dialog" aria-label="Canlı maç takibi">
@@ -2648,103 +2827,105 @@ function StartScreen({ onStart, onSurvivalStart, loggedInUser, isMobileOnly = fa
 
 
         {/* MOBİL MOD: İL VE SALON SEÇİMİ (Combobox Style) */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '20px',
-          padding: '15px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-          marginBottom: '15px',
-          border: '2px solid #FFD700'
-        }}>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+        {deviceMode !== 'local' && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            padding: '15px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+            marginBottom: '15px',
+            border: '2px solid #FFD700'
+          }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
 
-            {/* Sol: İl Seçimi (Select Box) */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>İL SEÇİNİZ</label>
-              <select
-                value={selectedCity}
-                onChange={(e) => {
-                  const key = e.target.value;
-                  setSelectedCity(key);
+              {/* Sol: İl Seçimi (Select Box) */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>İL SEÇİNİZ</label>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    setSelectedCity(key);
 
-                  // Şehir değişince ilk salonu otomatik seç
-                  if (SALONS_DATA[key] && SALONS_DATA[key].length > 0) {
-                    setCurrentSalon(SALONS_DATA[key][0]);
-                    if (SALONS_DATA[key][0].tables[0]) {
-                      setSelectedTableId(SALONS_DATA[key][0].tables[0].id);
+                    // Şehir değişince ilk salonu otomatik seç
+                    if (SALONS_DATA[key] && SALONS_DATA[key].length > 0) {
+                      setCurrentSalon(SALONS_DATA[key][0]);
+                      if (SALONS_DATA[key][0].tables[0]) {
+                        setSelectedTableId(SALONS_DATA[key][0].tables[0].id);
+                      }
+                    } else {
+                      setCurrentSalon(null);
                     }
-                  } else {
-                    setCurrentSalon(null);
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  background: '#f8fafc',
-                  fontWeight: '600',
-                  color: '#334155',
-                  fontSize: '14px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  appearance: 'none',
-                  backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px top 50%',
-                  backgroundSize: '10px auto'
-                }}
-              >
-                {Object.keys(SALONS_DATA).map(cityKey => {
-                  const displayName = cityKey === 'ISTANBUL' ? 'İSTANBUL' : cityKey === 'IZMIR' ? 'İZMİR' : cityKey;
-                  return <option key={cityKey} value={cityKey}>{displayName}</option>;
-                })}
-              </select>
-            </div>
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    fontWeight: '600',
+                    color: '#334155',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    appearance: 'none',
+                    backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 12px top 50%',
+                    backgroundSize: '10px auto'
+                  }}
+                >
+                  {Object.keys(SALONS_DATA).map(cityKey => {
+                    const displayName = cityKey === 'ISTANBUL' ? 'İSTANBUL' : cityKey === 'IZMIR' ? 'İZMİR' : cityKey;
+                    return <option key={cityKey} value={cityKey}>{displayName}</option>;
+                  })}
+                </select>
+              </div>
 
-            {/* Sağ: Salon Seçimi (Select) */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>SALON SEÇİNİZ</label>
-              <select
-                value={currentSalon?.id || ""}
-                onChange={(e) => {
-                  const salonId = parseInt(e.target.value);
-                  const salon = SALONS_DATA[selectedCity]?.find(s => s.id === salonId);
-                  if (salon) {
-                    setCurrentSalon(salon);
-                    if (salon.tables[0]) {
-                      setSelectedTableId(salon.tables[0].id);
+              {/* Sağ: Salon Seçimi (Select) */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>SALON SEÇİNİZ</label>
+                <select
+                  value={currentSalon?.id || ""}
+                  onChange={(e) => {
+                    const salonId = parseInt(e.target.value);
+                    const salon = SALONS_DATA[selectedCity]?.find(s => s.id === salonId);
+                    if (salon) {
+                      setCurrentSalon(salon);
+                      if (salon.tables[0]) {
+                        setSelectedTableId(salon.tables[0].id);
+                      }
                     }
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  background: '#f8fafc',
-                  fontWeight: '600',
-                  color: '#334155',
-                  fontSize: '14px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  appearance: 'none', // Dropdown okunu özelleştirmek için,
-                  backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px top 50%',
-                  backgroundSize: '10px auto'
-                }}
-              >
-                {!SALONS_DATA[selectedCity] && <option value="">Önce İl Seçin</option>}
-                {SALONS_DATA[selectedCity]?.map(salon => (
-                  <option key={salon.id} value={salon.id}>{salon.name}</option>
-                ))}
-              </select>
-            </div>
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    fontWeight: '600',
+                    color: '#334155',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    appearance: 'none', // Dropdown okunu özelleştirmek için,
+                    backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 12px top 50%',
+                    backgroundSize: '10px auto'
+                  }}
+                >
+                  {!SALONS_DATA[selectedCity] && <option value="">Önce İl Seçin</option>}
+                  {SALONS_DATA[selectedCity]?.map(salon => (
+                    <option key={salon.id} value={salon.id}>{salon.name}</option>
+                  ))}
+                </select>
+              </div>
 
+            </div>
           </div>
-        </div>
+        )}
 
         {/* PANEL 2: CANLI MAÇ BAŞLAT */}
         <div style={{
